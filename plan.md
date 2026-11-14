@@ -2046,6 +2046,11 @@ Completion/deviation notes:
 - Only plan.md and the portable release summary change for this read-only qualification. Runtime/dependency/test inputs and verified app/DMG stay exact, so no broad build/test rerun is claimed or required. JSON parsing, publication inventory, non-summary hashes, exact source-archive/manifest/local-commit comparison and deterministic snapshot reproduction verify the refreshed publication source. Regenerated benchmark bytecode is removed, the repository is kept clean with a local checkpoint, and no push or public upload occurs. No new authored Markdown files or dependency caches are introduced.
 
 
+- P9-047 — Owner explicitly requests creation of a private GitHub repository and upload of this local repository. Authenticated account MohamedElashri is verified with network access (the sandboxed auth probe's DNS failure is not treated as an invalid credential). The requested name is available; https://github.com/MohamedElashri/marktub is created with private visibility and verified through GitHub's API before any push. origin is the matching HTTPS URL; main is the source branch. The current 192-file publication inventory and all six prior reachable commits / 254 unique path-blob pairs pass bounded generated-file, credential-pattern and local-home-path scans without printing potential secret values. This supplements prior review; it is not arbitrary-confidential-text clearance.
+
+- The authorized push includes maintained source and reviewed Git history. Ignored app/DMG packages, caches, local reports, native histories and raw qualification fixtures are excluded. Public visibility, releases and binary uploads are not authorized by this request. Push uses the ordinary fast-forward path with local hooks disabled; no force, history rewrite or credential logging. Record the final private visibility and remote/local main commit match in local machine-readable evidence. Configured GitHub workflows may start on push; queued/running jobs do not close the retained remote-CI or strict advisory qualifications.
+
+
 
 ### Phase 10: Everyday workflow and interface polish
 

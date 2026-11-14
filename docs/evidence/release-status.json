@@ -85,7 +85,7 @@
     "Strict dependency advisory disposition and distribution/license review",
     "Downloaded-app/clean-install qualification and actual remote CI; paid signing/notarization excluded by owner"
   ],
-  "evidencePolicy": "phase completion/deviation summaries stay in plan.md; raw host reports and prototypes are local ignored history; measurements belong to their recorded executable hash; no external publication or release waiver",
+  "evidencePolicy": "phase completion/deviation summaries stay in plan.md; raw host reports and prototypes are local ignored history; measurements belong to their recorded executable hash; private GitHub source hosting only by owner authorization, no public release waiver",
   "package": {
     "dmgSha256": "e120313fd6fa0a7e83e314349d6e4ba636375cb827bd12a48adaee654550dfab",
     "dmgBytes": 10504916,
@@ -137,7 +137,7 @@
     "inventoryFiles": 192,
     "verifiedNonSummaryInputs": 189,
     "sourceArchive": "deterministic snapshot; every archive entry compared with manifest/current source; excludes Git history, generated output, caches and ignored local evidence",
-    "repository": "reviewed local checkpoint; no remote push or external publication",
+    "repository": "owner-authorized private GitHub source repository MohamedElashri/marktub, branch main; public and binary-release qualifications remain open",
     "cleanup": "completed project build/dependency/generated caches removed after verification; maintained tests/notices, verified packages, raw evidence and all private histories retained"
   },
   "currentMacQualification": {
