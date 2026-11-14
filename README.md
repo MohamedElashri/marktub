@@ -20,8 +20,9 @@ progressively; forward references remain visibly provisional until indexing fini
 Source, Split and Visual share one CodeMirror document, selection and undo history.
 Visual controls patch verified Markdown spans for formatting, tables, images, math
 and diagrams. Unsupported constructs remain source. Ordinary Split/Visual editing
-admits documents up to 2 MiB; larger documents use a bounded Source range with
-window-local undo/find and whole-document native saves.
+admits documents up to 2 MiB. Source opens whole files up to its 16 MiB ordinary
+admission limit; larger admitted files use bounded ranges with window-local
+undo/find and whole-document native saves.
 
 Saves preserve byte provenance, including BOM and mixed line endings. External
 changes trigger comparison rather than silent replacement. Recovered documents
@@ -46,6 +47,8 @@ PNG validation, rather than forwarding global TeX commands to those converters.
 The 16-asset/24 MiB PDF budget applies to images, diagrams and math together.
 Repeated formulas whose document context produces different output retain source
 in PDF; standalone HTML keeps their distinct rendering.
+PDF keeps unsupported TeX as source and reports missing-glyph, font and layout
+warnings from the selected TeX engine.
 
 ## Navigate and configure
 

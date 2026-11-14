@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 import { readFileSync, readdirSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
+import { licenseFiles } from "./license-files.mjs";
 const result = spawnSync("pnpm", ["licenses", "list", "--prod", "--json"], {
   encoding: "utf8",
 });
@@ -37,27 +38,13 @@ const supplements = existsSync("src/rust-notice-supplements.json")
 for (const pkg of rust) {
   const origin = `Source: https://crates.io/crates/${pkg.name}/${pkg.version} (unmodified registry archive); ${pkg.repository || "origin is recorded in the archive"}`;
   const directory = join(pkg.manifest_path, "..");
-  const candidates = new Set(
-    readdirSync(directory).filter((name) =>
-      /^(?:licen[sc]e|copying|notice|copyright|authors)(?:[.\-_].*)?$/i.test(
-        name,
-      ),
-    ),
-  );
-  if (pkg.license_file) candidates.add(pkg.license_file);
+  const candidates = licenseFiles(directory, pkg.license_file);
   const retained = [];
-  for (const file of candidates) {
-    try {
-      const text = readFileSync(join(directory, file), "utf8");
-      if (text.trim()) {
-        retained.push(file);
-        rustNotices.push(
-          `${pkg.name} ${pkg.version} — ${pkg.license || "SEE LICENSE"}\n${origin}\n${file}\n${text}`,
-        );
-      }
-    } catch {
-      /* Directory or unavailable notice; reported in coverage below. */
-    }
+  for (const { path, text } of candidates) {
+    retained.push(path);
+    rustNotices.push(
+      `${pkg.name} ${pkg.version} — ${pkg.license || "SEE LICENSE"}\n${origin}\n${path}\n${text}`,
+    );
   }
   if (!retained.length) {
     const supplement = supplements.find(
@@ -81,6 +68,7 @@ for (const pkg of rust) {
     version: pkg.version,
     license: pkg.license,
     retainedFiles: retained.sort(),
+    archiveNotices: candidates.map(({ path, sha256 }) => ({ path, sha256 })),
   });
 }
 rustCoverage.sort(
@@ -104,7 +92,7 @@ writeFileSync(
   await format(
     JSON.stringify({
       scope:
-        "Cargo resolved registry graph superset; notices present in installed crate archives, not legal clearance or proof of every nested vendored obligation",
+        "Cargo resolved registry graph superset; root and nested vendored notice texts with archive-byte hashes; not legal clearance or active-linkage certification",
       packages: rustCoverage,
       missing: rustCoverage
         .filter((p) => !p.retainedFiles.length)

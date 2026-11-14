@@ -153,9 +153,22 @@ pub(crate) fn usage(path: &Path) -> Result<u64, FileError> {
     }
     Ok(bytes)
 }
+struct StoreLease(File);
+impl AsRawFd for StoreLease {
+    fn as_raw_fd(&self) -> std::os::fd::RawFd {
+        self.0.as_raw_fd()
+    }
+}
+impl Drop for StoreLease {
+    fn drop(&mut self) {
+        // Spawned children can briefly inherit this open description before exec.
+        // End the sole logical owner's lease without unlinking the lock file.
+        unsafe { libc::flock(self.as_raw_fd(), libc::LOCK_UN) };
+    }
+}
 pub struct PrivateStore {
     pub root: PathBuf,
-    _lease: File,
+    _lease: StoreLease,
 }
 impl PrivateStore {
     pub fn open(root: &Path) -> Result<Self, FileError> {
@@ -174,6 +187,7 @@ impl PrivateStore {
                 "Another Marktub instance owns this private store. Close it before editing here.",
             ));
         }
+        let lease = StoreLease(lease);
         directory(&root.join("recovery"))?;
         directory(&root.join("cache"))?;
         let store = Self {
@@ -250,5 +264,30 @@ impl PrivateStore {
     pub fn reset_cache(&self) -> Result<(), FileError> {
         fs::remove_dir_all(self.root.join("cache"))?;
         directory(&self.root.join("cache"))
+    }
+}
+
+#[cfg(test)]
+mod lease_lifetime_tests {
+    use super::*;
+    use std::os::fd::FromRawFd;
+    #[test]
+    fn duplicated_description_cannot_extend_dropped_owner_or_unlock_next_owner() {
+        let directory = tempfile::tempdir().unwrap();
+        let root = directory.path().join("private");
+        let owner = PrivateStore::open(&root).unwrap();
+        // dup and fork share the same open file description and flock lifetime.
+        let fd = unsafe { libc::dup(owner._lease.as_raw_fd()) };
+        assert!(fd >= 0);
+        let inherited = unsafe { File::from_raw_fd(fd) };
+        assert!(matches!(PrivateStore::open(&root), Err(e) if e.code == "storage-in-use"));
+        drop(owner);
+        let next =
+            PrivateStore::open(&root).expect("A duplicate FD is not a surviving store owner");
+        assert!(matches!(PrivateStore::open(&root), Err(e) if e.code == "storage-in-use"));
+        drop(inherited);
+        assert!(matches!(PrivateStore::open(&root), Err(e) if e.code == "storage-in-use"));
+        drop(next);
+        assert!(PrivateStore::open(&root).is_ok());
     }
 }

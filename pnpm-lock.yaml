@@ -163,6 +163,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
+  deepmerge: npm:@stackline/deepmerge@1.1.2
   '@wdio/tauri-service>@wdio/globals': 9.33.1
   mocha@10>serialize-javascript: 7.1.3
   get-uri@6>basic-ftp: 6.2.4
@@ -170,7 +171,7 @@ overrides:
   minimatch@>=7.0.0 <11.0.1: 11.0.8
 
 patchedDependencies:
-  deepmerge@4.3.1: 6c0189de45538344741ff8f95cfd31350725117e32c09f9169502adea42c2f12
+  '@stackline/deepmerge@1.1.2': 28b8592d87c87f92a359fb54ac0bb3997604cdb93dd398a86e2bddcb280dab55
   extract-zip@2.0.1: 46e92a163ee711a6c73c32ee1526c8886dcf17df6d7f4af2dc36ce9e0a7a15b6
 
 importers:
@@ -1007,6 +1008,10 @@ packages:
   '@sindresorhus/merge-streams@4.0.0':
     resolution: {integrity: sha512-tlqY9xq5ukxTUZBmoOp+m61cqwQD5pHJtFY3Mn8CA8ps6yghLH/Hw8UPdqg4OLmFW3IFlcXnQNmo/dh8HzXYIQ==}
     engines: {node: '>=18'}
+
+  '@stackline/deepmerge@1.1.2':
+    resolution: {integrity: sha512-jJIukhO8oDuqYZ/LEcnfB3gFem15gv+0jxSWVWad+c9bEP2pL5SzU2PAlQKHHGKw0qddTGpclgnZUaY3CMukxg==}
+    engines: {node: '>=14.17.0'}
 
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
@@ -2022,10 +2027,6 @@ packages:
   deepmerge-ts@8.0.2:
     resolution: {integrity: sha512-uqbvqLUMrc6p0MO+WBRtTxY55hmyh94WRwI5a++PZe54X+bfVh59FSN7uWCBCW1CCVjzjnrwzfI8zidE2obMMw==}
     engines: {node: '>=16.9.0'}
-
-  deepmerge@4.3.1:
-    resolution: {integrity: sha512-3sUqbMEc77XqpdNO7FRyRog+eW3ph+GYCbj+rK+uYyRMuwsVy0rMiVtPn+QJlKFvWP/1PYpapqYn0Me2knFn+A==}
-    engines: {node: '>=0.10.0'}
 
   defaults@1.0.4:
     resolution: {integrity: sha512-eFuaLoy/Rxalv2kr+lqMlUnrDWV+3j4pljOIJgLIhI058IQfWJ7vXhyEIHu+HtC738klGALYxOKDO0bQP3tg8A==}
@@ -4306,6 +4307,8 @@ snapshots:
 
   '@sindresorhus/merge-streams@4.0.0': {}
 
+  '@stackline/deepmerge@1.1.2(patch_hash=28b8592d87c87f92a359fb54ac0bb3997604cdb93dd398a86e2bddcb280dab55)': {}
+
   '@standard-schema/spec@1.1.0': {}
 
   '@sveltejs/acorn-typescript@1.0.13(acorn@8.19.0)':
@@ -4324,7 +4327,7 @@ snapshots:
   '@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.57.3(@typescript-eslint/types@8.72.2))(vite@7.3.8(@types/node@24.19.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))':
     dependencies:
       '@sveltejs/vite-plugin-svelte-inspector': 5.0.2(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.57.3(@typescript-eslint/types@8.72.2))(vite@7.3.8(@types/node@24.19.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)))(svelte@5.57.3(@typescript-eslint/types@8.72.2))(vite@7.3.8(@types/node@24.19.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
-      deepmerge: 4.3.1(patch_hash=6c0189de45538344741ff8f95cfd31350725117e32c09f9169502adea42c2f12)
+      deepmerge: '@stackline/deepmerge@1.1.2(patch_hash=28b8592d87c87f92a359fb54ac0bb3997604cdb93dd398a86e2bddcb280dab55)'
       magic-string: 0.30.21
       obug: 2.2.1
       svelte: 5.57.3(@typescript-eslint/types@8.72.2)
@@ -5518,8 +5521,6 @@ snapshots:
   deep-is@0.1.4: {}
 
   deepmerge-ts@8.0.2: {}
-
-  deepmerge@4.3.1(patch_hash=6c0189de45538344741ff8f95cfd31350725117e32c09f9169502adea42c2f12): {}
 
   defaults@1.0.4:
     dependencies:

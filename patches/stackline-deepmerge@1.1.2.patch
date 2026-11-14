@@ -1,0 +1,24 @@
+diff --git a/dist/index.js b/dist/index.js
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -148,7 +148,7 @@
+   );
+   const unsafeKeys = normalizeChoice(
+     options.unsafeKeys,
+-    isNil(options.onUnsafeKey) ? "compatible" : "strict",
++    "strict",
+     ["compatible", "strict"],
+     "unsafeKeys"
+   );
+diff --git a/dist/index.cjs b/dist/index.cjs
+--- a/dist/index.cjs
++++ b/dist/index.cjs
+@@ -183,7 +183,7 @@
+     );
+     const unsafeKeys = normalizeChoice(
+       options.unsafeKeys,
+-      isNil(options.onUnsafeKey) ? "compatible" : "strict",
++      "strict",
+       ["compatible", "strict"],
+       "unsafeKeys"
+     );

@@ -55,88 +55,167 @@ fn args(v: &[&str]) -> Vec<String> {
     v.iter().map(|s| (*s).into()).collect()
 }
 fn math_safe(source: &str) -> bool {
-    if source.len() > 16384 {
+    // TeX translates ^^ escapes before comments/tokenization. Admit math syntax,
+    // not arbitrary TeX commands, regardless of the engine's file restrictions.
+    if source.len() > 16384 || source.contains("^^") {
         return false;
     }
-    let bad = [
-        "input",
-        "include",
-        "write",
-        "read",
-        "openin",
-        "openout",
-        "catcode",
-        "csname",
-        "usepackage",
-        "require",
-        "href",
-        "url",
-        "def",
-        "let",
-        "newcommand",
-        "renewcommand",
-        "special",
-        "documentclass",
-        "directlua",
-        "immediate",
-        "loop",
-        "shipout",
-        "label",
-        "ref",
-        "eqref",
-        "autoref",
-        "nameref",
-        "pageref",
-        "newlabel",
-        "gdef",
-        "xdef",
-        "global",
-        "globaldefs",
-        "numberwithin",
-        "refstepcounter",
-        "setcounter",
-        "addtocounter",
+    const COMMANDS: &str = include_str!("math-commands.txt");
+    const ENVIRONMENTS: &[&str] = &[
+        "matrix",
+        "pmatrix",
+        "bmatrix",
+        "Bmatrix",
+        "vmatrix",
+        "Vmatrix",
+        "smallmatrix",
+        "cases",
+        "aligned",
+        "alignedat",
+        "gathered",
+        "array",
+        "split",
+        "align*",
+        "alignat*",
+        "equation*",
+        "gather*",
+        "multline*",
+        "eqnarray*",
     ];
-    let b = source.as_bytes();
-    let mut i = 0;
-    while i < b.len() {
-        if b[i] == b'\\' {
-            i += 1;
-            let from = i;
-            while i < b.len() && b[i].is_ascii_alphabetic() {
+    let bytes = source.as_bytes();
+    let (mut i, mut groups) = (0, 0_u32);
+    let mut environments = Vec::new();
+    while i < bytes.len() {
+        match bytes[i] {
+            b'%' => {
+                while i < bytes.len() && !matches!(bytes[i], b'\n' | b'\r') {
+                    i += 1;
+                }
+            }
+            b'{' => {
+                groups += 1;
+                if groups > 64 {
+                    return false;
+                }
                 i += 1;
             }
-            if source[from..i].eq_ignore_ascii_case("begin") {
-                let tail = source[i..].trim_start();
-                if let Some(rest) = tail.strip_prefix('{')
-                    && let Some((environment, _)) = rest.split_once('}')
-                    && [
-                        "equation", "align", "alignat", "gather", "multline", "eqnarray",
-                    ]
-                    .contains(&environment.trim())
+            b'}' => {
+                let Some(n) = groups.checked_sub(1) else {
+                    return false;
+                };
+                groups = n;
+                i += 1;
+            }
+            b'\\' => {
+                i += 1;
+                let start = i;
+                while i < bytes.len() && bytes[i].is_ascii_alphabetic() {
+                    i += 1;
+                }
+                if i == start {
+                    if !bytes.get(i).is_some_and(|c| {
+                        matches!(
+                            *c,
+                            b'\\'
+                                | b'%'
+                                | b'$'
+                                | b'&'
+                                | b'#'
+                                | b'_'
+                                | b'{'
+                                | b'}'
+                                | b'|'
+                                | b','
+                                | b':'
+                                | b';'
+                                | b'!'
+                                | b' '
+                                | b'\n'
+                                | b'\r'
+                                | b'\t'
+                                | b'^'
+                                | b'~'
+                                | b'\''
+                        )
+                    }) {
+                        return false;
+                    }
+                    i += 1;
+                    continue;
+                }
+                let command = &source[start..i];
+                if matches!(command, "begin" | "end") {
+                    while bytes.get(i).is_some_and(|c| c.is_ascii_whitespace()) {
+                        i += 1;
+                    }
+                    if bytes.get(i) != Some(&b'{') {
+                        return false;
+                    }
+                    let start = i + 1;
+                    let Some(end) = source[start..].find('}') else {
+                        return false;
+                    };
+                    i = start + end + 1;
+                    let environment = source[start..start + end].trim();
+                    if !ENVIRONMENTS.contains(&environment) {
+                        return false;
+                    }
+                    if command == "begin" {
+                        if environments.len() >= 16 {
+                            return false;
+                        }
+                        environments.push(environment);
+                    } else if environments.pop() != Some(environment) {
+                        return false;
+                    }
+                } else if !COMMANDS
+                    .split_whitespace()
+                    .any(|allowed| allowed == command)
                 {
                     return false;
                 }
             }
-            if bad.contains(&source[from..i].to_ascii_lowercase().as_str()) {
-                return false;
-            }
-        } else {
-            i += 1;
+            _ => i += 1,
         }
     }
-    true
+    groups == 0 && environments.is_empty()
 }
+
+fn tex_warnings(output: &process::Output) -> Vec<String> {
+    let mut warnings = Vec::new();
+    if !output.stderr.trim().is_empty() {
+        warnings.push(output.stderr.chars().take(4096).collect());
+    }
+    for line in output.stdout.lines().map(str::trim) {
+        if line.starts_with("Missing character:")
+            || line.contains("LaTeX Font Warning:")
+            || line.starts_with("LaTeX Warning:")
+            || (line.starts_with("Package ") && line.contains(" Warning:"))
+            || line.starts_with("Overfull \\hbox")
+            || line.starts_with("Overfull \\vbox")
+        {
+            warnings.push(format!(
+                "TeX diagnostic: {}",
+                line.chars().take(512).collect::<String>()
+            ));
+            if warnings.len() >= 20 {
+                break;
+            }
+        }
+    }
+    warnings
+}
+
 fn attr() -> Value {
     json!(["", [], []])
 }
 fn code(source: &str, tex: bool) -> Value {
-    if tex && source.chars().count() > 80 {
+    if tex && source.chars().count() > 32 {
         let chars = source.chars().collect::<Vec<_>>();
         let mut nodes = vec![];
-        for part in chars.chunks(40) {
+        for part in chars.chunks(32) {
             if !nodes.is_empty() {
-                nodes.push(json!({"t":"SoftBreak"}));
+                nodes.push(json!({"t":"LineBreak"}));
             }
             nodes.push(json!({"t":"Code","c":[attr(),part.iter().collect::<String>()]}));
         }
@@ -338,7 +417,7 @@ fn clean_node(
                     *v = json!({"t":"Span","c":[attr(),[{"t":"Image","c":[["",[],[["width",width]]],[{"t":"Str","c":format!("TeX math: {source}")}],[key,""]]}]]});
                 } else if contextual || !math_safe(source) {
                     *v = code(source, p.request.mode == Mode::PdfTex);
-                    warnings.push("Context-dependent or unsafe math was kept as source because no validated captured math raster was supplied; separately trusted local TeX is independent.".into());
+                    warnings.push("Context-dependent or unsupported math was kept as source because no validated captured math raster was supplied; separately trusted local TeX is independent.".into());
                 }
             }
             "Header" => v["c"][1] = attr(),
@@ -494,7 +573,7 @@ pub fn convert(
     }
     engine.validate()?;
     if is_tex {
-        let _ = tex(engine, dir, cancel)?;
+        warnings.extend(tex_warnings(&tex(engine, dir, cancel)?));
     } else {
         let output = success(process::run(
             &engine.path,
@@ -627,11 +706,19 @@ mod local_tools {
         );
         let secret = t.path().join("secret.txt");
         fs::write(&secret, "PRIVATE_CANARY_MUST_NOT_APPEAR").unwrap();
+        let png = fs::read(std::env::var("MARKTUB_TEST_PNG").unwrap()).unwrap();
+        let unapproved_png = t.path().join("unapproved.png");
+        fs::write(&unapproved_png, &png).unwrap();
         let text = format!(
             "# PDF export check\n\nEnglish, Ελληνικά, العربية, 中文.\n\nInline $E=mc^2$ and a real display formula:\n\n$$\\int_0^1 x^2\\,dx = \\frac{{1}}{{3}}$$\n\n| Name | Value |\n|---|---|\n| **Result** | 42 |\n\nA footnote.[^note]\n\n[^note]: A real exported footnote.\n\n![Approved](selected.png){{width=120px height=60px}}\n\n![Unapproved]({})\n\n![Remote](http://127.0.0.1:9/never)\n\n```{{=typst}}\n#read(\"{}\")\n```\n\n$\\input{{{}}}$\n\n```mermaid\ngraph TD\nA-->B\n```\n",
             secret.display(),
             secret.display(),
             secret.display()
+        );
+        let text = format!(
+            "{text}\n\nResource math: $\\includegraphics{{{}}}$.\n\nTemplate-unsupported math: $\\cancel{{x}}$. Plain root: $\\root 3\\of{{x}}$.\n\nMissing glyph: {}\n",
+            unapproved_png.display(),
+            '\u{10ffff}'
         );
         let mut capture = Capture::new(
             "Hostile and rich PDF".into(),
@@ -642,7 +729,6 @@ mod local_tools {
         )
         .unwrap();
         // Exact valid raster fixture, generated by the test driver with CRCs.
-        let png = fs::read(std::env::var("MARKTUB_TEST_PNG").unwrap()).unwrap();
         capture.assets.insert("selected.png".into(), png.clone());
         capture
             .assets
@@ -681,7 +767,33 @@ mod local_tools {
         prepared.request.mode = Mode::PdfTex;
         prepared.tool = Some(tex.clone());
         let latex_dir = Scratch::new(t.path()).unwrap();
-        let (bytes, _) = convert(&prepared, &latex_dir.path, &cancel).unwrap();
+        let (bytes, tex_warnings) = convert(&prepared, &latex_dir.path, &cancel).unwrap();
+        let latex = fs::read_to_string(latex_dir.path.join("document.tex")).unwrap();
+        fs::write(artifacts.join("tex-export.tex"), &latex).unwrap();
+        fs::copy(
+            latex_dir.path.join("safe.json"),
+            artifacts.join("tex-export-safe.json"),
+        )
+        .unwrap();
+        assert!(!latex.contains(&format!(
+            r"\includegraphics{{{}}}",
+            unapproved_png.display()
+        )));
+        assert!(
+            tex_warnings
+                .iter()
+                .any(|w| w.contains("Missing character:")),
+            "Missing-glyph diagnostics must reach the export result: {tex_warnings:?}"
+        );
+        assert!(
+            tex_warnings.iter().all(|w| !w.contains("Overfull")),
+            "The owned source-fallback fixture must fit the PDF margins: {tex_warnings:?}"
+        );
+        fs::write(
+            artifacts.join("tex-export-warnings.json"),
+            serde_json::to_vec_pretty(&tex_warnings).unwrap(),
+        )
+        .unwrap();
         fs::write(artifacts.join("tex-export.pdf"), bytes).unwrap();
         let trusted_dir = Scratch::new(t.path()).unwrap();
         let escaped = t.path().join("shell-escape-marker");
@@ -703,6 +815,69 @@ mod local_tools {
 #[cfg(test)]
 mod math_context_policy {
     use super::*;
+    #[test]
+    fn math_catalogue_refuses_resource_encoding_and_document_escape_commands() {
+        for source in [
+            r"\includegraphics{unapproved.png}",
+            r"\includepdf{private.pdf}",
+            r"\IfFileExists{secret}{yes}{no}",
+            r"\RequirePackage{shellesc}",
+            r"\ExplSyntaxOn\file_input:n{secret}",
+            r"\makeatletter\@@input secret",
+            r"\^^69nput{secret}",
+            "% hidden^^J\\input{secret}",
+            r"\end{document}",
+            r"\begin{document}x\end{document}",
+            r"\begin{matrix}x\end{cases}",
+            r"\begin{matrix}x",
+            r"\special{pdf:literal}",
+            r"\font\f=secret",
+            r"\csname input\endcsname secret",
+            r"\cancel{x}",
+            r"\mathclap{x}",
+            r"\bm{x}",
+            "x}",
+            "{x",
+        ] {
+            assert!(!math_safe(source), "{source}");
+        }
+        for source in [
+            r"\frac{\alpha_i^2}{\sqrt{1+x}}",
+            r"\left\{\begin{matrix}a&b\\c&d\end{matrix}\right\}",
+            r"\text{literal input and graphics} + \operatorname{rank} A",
+            "x % comment \\includegraphics{not executed}\n + y",
+            r"\% + \{x\}",
+            r"\root 3\of{x}",
+        ] {
+            assert!(math_safe(source), "{source}");
+        }
+        assert!(!math_safe(&"{".repeat(65)));
+        assert!(!math_safe(&"x".repeat(16385)));
+    }
+    #[test]
+    fn successful_tex_font_and_layout_diagnostics_are_bounded_and_visible() {
+        let output = process::Output {
+            code: Some(0),
+            stdout: "private scratch filename\nMissing character: There is no glyph\nLaTeX Font Warning: substitute\nOverfull \\hbox (4pt too wide)\n".into(),
+            stderr: String::new(),
+        };
+        let warnings = tex_warnings(&output);
+        assert_eq!(warnings.len(), 3);
+        assert!(
+            warnings
+                .iter()
+                .all(|w| !w.contains("private scratch filename"))
+        );
+        let output = process::Output {
+            code: Some(0),
+            stdout: ("Missing character: ".to_string() + &"x".repeat(1000) + "\n").repeat(40),
+            stderr: "e".repeat(8000),
+        };
+        let warnings = tex_warnings(&output);
+        assert_eq!(warnings.len(), 20);
+        assert_eq!(warnings[0].len(), 4096);
+        assert!(warnings[1..].iter().all(|w| w.len() <= 528));
+    }
     #[test]
     fn context_dependent_math_is_source_only_in_pdf_too() {
         for source in [

@@ -14,17 +14,35 @@ beforeEach(async () => {
   await browser.tauri.execute(({ core }) =>
     core.invoke("plugin:window|set_focus", { label: "main" }),
   );
-  await browser.waitUntil(
-    () =>
-      browser.tauri.execute(async ({ core }) => {
-        await core.invoke("plugin:window|set_focus", { label: "main" });
-        return core.invoke("plugin:window|is_focused", { label: "main" });
+  try {
+    await browser.waitUntil(
+      () =>
+        browser.tauri.execute(async ({ core }) => {
+          await core.invoke("plugin:window|set_focus", { label: "main" });
+          return core.invoke("plugin:window|is_focused", { label: "main" });
+        }),
+      {
+        timeout: 5000,
+        timeoutMsg: "Native main window must have keyboard focus",
+      },
+    );
+  } catch (error) {
+    const state = await browser.tauri.execute(async ({ core }) => ({
+      visible: await core.invoke("plugin:window|is_visible", { label: "main" }),
+      minimized: await core.invoke("plugin:window|is_minimized", {
+        label: "main",
       }),
-    {
-      timeout: 5000,
-      timeoutMsg: "Native main window must have keyboard focus",
-    },
-  );
+      focused: await core.invoke("plugin:window|is_focused", { label: "main" }),
+      activeElement: document.activeElement?.tagName,
+      text: document.body.innerText.slice(0, 2000),
+    }));
+    await mkdir("artifacts", { recursive: true });
+    const prefix = `artifacts/native-focus-failure-${Date.now()}`;
+    await writeFile(`${prefix}.json`, JSON.stringify(state, null, 2));
+    await browser.saveScreenshot(`${prefix}.png`);
+    console.error("NATIVE FOCUS FAILURE", state);
+    throw error;
+  }
 });
 
 async function documentAction(label) {

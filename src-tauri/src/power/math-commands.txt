@@ -1,0 +1,19 @@
+alpha beta gamma delta epsilon varepsilon zeta eta theta vartheta iota kappa varkappa lambda mu nu xi pi varpi rho varrho sigma varsigma tau upsilon phi varphi chi psi omega
+Gamma Delta Theta Lambda Xi Pi Sigma Upsilon Phi Psi Omega digamma hbar hslash ell imath jmath wp Re Im partial nabla infty emptyset varnothing aleph beth gimel daleth
+forall exists nexists neg top bot angle measuredangle sphericalangle triangle square Box Diamond diamondsuit heartsuit clubsuit spadesuit prime backprime
+cdot cdots ldots vdots ddots dots dotsc dotsb dotsm dotsi dotso times div pm mp ast star circ bullet oplus ominus otimes oslash odot cap cup sqcap sqcup vee wedge land lor
+setminus smallsetminus wr amalg uplus bigtriangleup bigtriangledown triangleleft triangleright lhd rhd unlhd unrhd
+le leq ge geq neq ne equiv sim simeq approx asymp cong propto lesssim gtrsim ll gg prec succ preceq succeq subset supset subseteq supseteq sqsubset sqsupset sqsubseteq sqsupseteq
+in ni notin owns parallel nparallel perp mid nmid models vdash dashv Vdash vDash Vvdash smile frown doteq bowtie Join not nleq ngeq nsubseteq nsupseteq subsetneq supsetneq
+leftarrow rightarrow leftrightarrow Leftarrow Rightarrow Leftrightarrow longleftarrow longrightarrow longleftrightarrow Longleftarrow Longrightarrow Longleftrightarrow
+mapsto longmapsto hookleftarrow hookrightarrow uparrow downarrow updownarrow Uparrow Downarrow Updownarrow nearrow searrow swarrow nwarrow to gets implies impliedby iff leadsto rightsquigarrow
+leftharpoonup leftharpoondown rightharpoonup rightharpoondown rightleftharpoons
+sum prod coprod int iint iiint iiiint oint bigcap bigcup bigvee bigwedge bigoplus bigotimes bigodot biguplus bigsqcup
+lim limsup liminf sup inf max min arg det gcd Pr sin cos tan cot sec csc arcsin arccos arctan sinh cosh tanh coth log ln lg exp dim ker hom deg
+frac dfrac tfrac cfrac binom dbinom tbinom sqrt root of over atop choose brace brack
+left right middle big Big bigg Bigg bigl Bigl biggl Biggl bigr Bigr biggr Biggr bigm Bigm biggm Biggm langle rangle lceil rceil lfloor rfloor lbrace rbrace lvert rvert lVert rVert vert Vert backslash
+hat widehat check breve acute grave tilde widetilde bar vec dot ddot dddot ddddot mathring overline underline overbrace underbrace overrightarrow overleftarrow
+overleftrightarrow underleftarrow underrightarrow underleftrightarrow overset underset stackrel overunderset boxed phantom hphantom vphantom smash mathstrut strut
+text textrm textsf texttt textnormal textbf textit emph operatorname mathrm mathbf mathit mathsf mathtt mathcal mathbb mathfrak mathnormal boldsymbol rm bf it sf tt cal
+displaystyle textstyle scriptstyle scriptscriptstyle limits nolimits displaylimits substack sideset clap llap rlap tag notag nonumber
+quad qquad enspace thinspace medspace thickspace negthinspace negmedspace negthickspace space allowbreak lnot bmod pmod mod pod idotsint injlim projlim varinjlim varprojlim varliminf varlimsup
