@@ -75,54 +75,6 @@ test("Mocha's patched serializer escapes script endings and runs real parallel w
   }
 });
 
-test("get-uri retains its patched FTP client contract without opening a connection", async () => {
-  const utils = dependency(adapter, "@wdio/utils");
-  const browsers = dependency(utils, "@puppeteer/browsers");
-  const proxy = dependency(browsers, "proxy-agent");
-  const pac = dependency(proxy, "pac-proxy-agent");
-  const uri = dependency(pac, "get-uri");
-  assert.equal(uri("basic-ftp/package.json").version, "6.2.4");
-  const { Client, parseList } = uri("basic-ftp");
-  for (const fact of ["__proto__", "constructor", "toString"])
-    assert.equal(
-      parseList(`type=file;size=4;${fact}=x; fixture.txt`)[0].name,
-      "fixture.txt",
-    );
-  const { ftp } = uri("./dist/ftp.js");
-  const previous = Object.fromEntries(
-    ["access", "lastMod", "downloadTo", "close"].map((name) => [
-      name,
-      Client.prototype[name],
-    ]),
-  );
-  let closed = false;
-  try {
-    Client.prototype.access = async function (options) {
-      assert.equal(options.host, "example.invalid");
-      return { code: 230, message: "local fake" };
-    };
-    Client.prototype.lastMod = async function () {
-      return new Date("2020-01-01T00:00:00Z");
-    };
-    Client.prototype.downloadTo = async function (target, path) {
-      assert.equal(path, "/fixture.txt");
-      target.end("local fixture");
-      return { code: 226, message: "local fake" };
-    };
-    Client.prototype.close = function () {
-      closed = true;
-      previous.close.call(this);
-    };
-    const stream = await ftp(new URL("ftp://example.invalid/fixture.txt"));
-    let text = "";
-    for await (const chunk of stream) text += chunk;
-    assert.equal(text, "local fixture");
-    assert.equal(closed, true);
-  } finally {
-    Object.assign(Client.prototype, previous);
-  }
-});
-
 test("WDIO's patched glob finds Unicode specs and stops before an aborted filesystem walk", async () => {
   const cli = dependency(root, "@wdio/cli");
   const config = dependency(cli, "@wdio/config");

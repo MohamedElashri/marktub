@@ -200,8 +200,8 @@ against hostile same-user processes. Native file associations are alternate
 Markdown associations and do not change your defaults; CLI/OS handoff accepts
 local `.md`, `.markdown` and `.txt` files with spaces/Unicode.
 
-Strict dependency audits remain release gates: local development-dependency
-mitigations do not erase upstream affected-version findings. Platform/input,
+Strict dependency audits remain release gates. The recorded full and production
+npm scans pass; five Rust informational advisories remain unresolved. Platform/input,
 font/printing, sustained memory/latency, license/distribution and actual remote CI
 qualification remain explicit in the release ledger. Source publication readiness
 is separate from declaring a fully qualified public binary release.

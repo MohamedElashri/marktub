@@ -1,6 +1,6 @@
 {
   "date": "2026-11-14",
-  "status": "available-Mac hardening and finite qualification verified; source publication prepared; strict binary-release gates remain open",
+  "status": "available-Mac hardening and npm advisory remediation verified; source publication prepared; remaining Rust/platform/physical-input/performance release gates stay open",
   "host": {
     "os": "macOS 27.2 (26B123)",
     "architecture": "arm64",
@@ -23,14 +23,15 @@
     },
     "nativeWebView": {
       "passed": 53,
-      "scope": "53 actual WKWebView/backend cases in 174.8s before final twelve-command PDF narrowing; final native Rust suite and installed converters cover that delta; process-scoped wake assertion, no focus assertion/time relaxation; not physical IME/accessibility or latency certification"
+      "seconds": 174.1,
+      "scope": "actual WKWebView/backend on final PDF-policy source and verified development graph; all 15 sampled helper lifecycles confirmed; process-scoped wake assertion, unchanged focus assertions/time bounds; not physical IME/accessibility or latency certification"
     },
     "typecheck": "pass",
     "lint": "pass",
     "format": "pass",
     "clippy": "pass, all targets, warnings denied",
-    "frozenOfflineInstall": "pass with current dependency replacement and lockfile",
-    "buildScope": "normal ad-hoc ARM64 app/DMG rebuilt after final PDF catalogue correction; local caches/toolchain, not a clean-machine build",
+    "frozenOfflineInstall": "pass with verified Puppeteer 3.2.7 development override and final lockfile",
+    "buildScope": "normal ad-hoc ARM64 app/DMG rebuilt after verified development-tooling override; executable byte-identical to prior qualified shipping binary; local caches/toolchain, not a clean-machine build",
     "normalReleaseIsolation": "pass; no fixture command, WDIO evaluator/server or test-only marker in normal executable/frontend/ACL/normal dependency graph",
     "productionSupervisor": {
       "binarySha256": "f139d19383c6a160597afa8c817043bb5541683380177b4433282df6822aced3",
@@ -53,10 +54,10 @@
       "findings": 0
     },
     "javaScriptFullAudit": {
-      "high": 2,
+      "high": 0,
       "low": 0,
-      "gate": "fail; development dependency versions remain flagged; local patches do not waive advisories",
-      "scope": "full lockfile, no ignored advisory IDs; compatible independent merge implementation removed the low finding; two WDIO/Puppeteer extract-zip development findings remain"
+      "gate": "pass; zero findings in full lockfile audit",
+      "scope": "WDIO 9 embedded Tauri runner uses verified @puppeteer/browsers 3.2.7; extract-zip and its former FTP chain are absent; no ignored advisory IDs"
     },
     "rustStrictAudit": {
       "vulnerabilities": 0,
@@ -70,7 +71,8 @@
         "RUSTSEC-2026-0370",
         "RUSTSEC-2026-0372"
       ],
-      "databaseCommit": "4ef2df8e806a65e2f1ecc14f56f51249062b23d6"
+      "databaseCommit": "4ef2df8e806a65e2f1ecc14f56f51249062b23d6",
+      "scope": "last full lockfile scan retained; native manifest/lock unchanged, latest upstream Tauri/GTK and single-instance/zbus API requirements rechecked; no waiver"
     },
     "runner": "exec-created native supervisor; attached process group cleanup on controller EOF or real parent SIGKILL; executable rechecked after handoff; deliberately detached/hostile same-user processes are outside this guarantee"
   },
@@ -85,8 +87,8 @@
   ],
   "evidencePolicy": "phase completion/deviation summaries stay in plan.md; raw host reports and prototypes are local ignored history; measurements belong to their recorded executable hash; no external publication or release waiver",
   "package": {
-    "dmgSha256": "f21af2119065d9a7e1930fac0570dac7fee57aa5aa101b8f48f4f31d3303f0e8",
-    "dmgBytes": 10504918,
+    "dmgSha256": "e120313fd6fa0a7e83e314349d6e4ba636375cb827bd12a48adaee654550dfab",
+    "dmgBytes": 10504916,
     "binarySha256": "f139d19383c6a160597afa8c817043bb5541683380177b4433282df6822aced3",
     "binaryBytes": 19228144,
     "bundleBytes": 24147488,
@@ -95,7 +97,8 @@
     "resourcesByteIdentical": true,
     "strictAdHocSignature": "pass",
     "volumeDetached": true,
-    "qualification": "local ad-hoc, unnotarized package; downloaded-app/clean-machine Gatekeeper qualification Not Run"
+    "qualification": "local ad-hoc, unnotarized package; downloaded-app/clean-machine Gatekeeper qualification Not Run",
+    "executableIdenticalToPriorQualifiedPackage": true
   },
   "distributionDecision": {
     "macOS": "ad-hoc signing; no paid Apple Developer account",
@@ -131,11 +134,11 @@
     }
   },
   "publicationPreparation": {
-    "inventoryFiles": 192,
-    "verifiedNonSummaryInputs": 189,
+    "inventoryFiles": 191,
+    "verifiedNonSummaryInputs": 188,
     "sourceArchive": "deterministic snapshot; every archive entry compared with manifest/current source; excludes Git history, generated output, caches and ignored local evidence",
     "repository": "reviewed local checkpoint; no remote push or external publication",
-    "cleanup": "completed project build/dependency/generated caches removed after verification; maintained tests/notices, verified packages, raw evidence and private histories retained"
+    "cleanup": "completed project build/dependency/generated caches removed after verification; maintained tests/notices, verified packages, raw evidence and all private histories retained"
   },
   "currentMacQualification": {
     "status": "finite available-Mac checks complete except explicit Git-grant approval; broader release qualifications remain open",
@@ -158,7 +161,8 @@
     },
     "nativeWebView": {
       "passed": 53,
-      "scope": "53 actual WKWebView/backend cases in 174.8s before final twelve-command PDF narrowing; final native Rust suite and installed converters cover that delta; process-scoped wake assertion, no focus assertion/time relaxation; not physical IME/accessibility or latency certification"
+      "seconds": 174.1,
+      "scope": "actual WKWebView/backend on final PDF-policy source and verified development graph; all 15 sampled helper lifecycles confirmed; process-scoped wake assertion, unchanged focus assertions/time bounds; not physical IME/accessibility or latency certification"
     },
     "diagnosticRecovery": {
       "scope": "actual isolated normal-feature app SIGKILL/restart/Restore/native independent Save As; not shipping-identifier or physical IME certification",
@@ -202,7 +206,17 @@
       "physical input/screen-reader/printing",
       "Linux, Intel, minimum macOS, clean-machine/downloaded-app and remote CI"
     ],
-    "remainingChecks": []
+    "remainingChecks": [],
+    "dependencyFollowup": {
+      "npmFullFindings": 0,
+      "npmProductionFindings": 0,
+      "consumerNetworkDenial": "pass; real loopback control returns EPERM",
+      "qualification": "Node 26.13.1, WDIO 9/Tauri embedded provider; browser/driver automatic acquisition remains disabled",
+      "removed": "extract-zip dependency, obsolete local extraction patch and unused FTP override/contract",
+      "nativeRuntimeInputs": "unchanged from f014e73; prior 148-test and strict-Clippy results retained",
+      "normalPackage": "pass; strict ad-hoc signature, read-only mount/copy/detach and release isolation; exact prior f139d193 shipping executable",
+      "frozenOfflineInstall": "pass"
+    }
   },
   "historicalProductionEvidence": {
     "checkpoint": "b4c9094 and its recorded ff2039b8 binary; not a result for current package",
