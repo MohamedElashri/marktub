@@ -106,6 +106,7 @@
             block,
             value.page.rich,
             () => request === epoch && current === client,
+            current.math,
           ).catch((e) => onerror(String(e)));
       }
     } catch (e) {

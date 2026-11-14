@@ -65,10 +65,11 @@ export function sanitizeRich(html: string, namespace: string) {
       "Rendered block exceeds the 512-node output budget; source is available.",
     );
   const ids = new Map<string, string>();
+  let serial = 0;
   for (const node of template.content.querySelectorAll("[id]")) {
     const old = node.id;
-    const id = `r-${namespace}-${ids.size}`;
-    ids.set(old, id);
+    const id = `r-${namespace}-${serial++}`;
+    if (!ids.has(old)) ids.set(old, id);
     node.id = id;
   }
   for (const node of template.content.querySelectorAll("*")) {

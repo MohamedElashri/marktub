@@ -77,6 +77,12 @@ export const image = (capture: string, reference: string) =>
   invoke<boolean>("power_image", { capture, reference });
 export const diagram = (capture: string, source: string, png: string) =>
   invoke("power_diagram", { capture, source, png });
+export const math = (
+  capture: string,
+  source: string,
+  display: boolean,
+  png: string,
+) => invoke("power_math", { capture, source, display, png });
 export const prepare = (request: Request) =>
   invoke<{ token: string; summary: string }>("power_prepare", { request });
 export const run = (token: string) =>

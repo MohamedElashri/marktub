@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, io::Write, sync::Arc};
 
 const BOM: &[u8] = b"\xef\xbb\xbf";
-const INDEX_STRIDE: usize = 128;
+const INDEX_STRIDE: usize = 512;
 const MAX_CHANGES: usize = 1024;
 const MAX_INSERT: usize = 1024 * 1024;
 const MAX_PIECES: usize = 100_000;
@@ -104,7 +104,7 @@ impl Source {
             byte += width;
             logical += units;
             scalars += 1;
-            if scalars % INDEX_STRIDE == 0 {
+            if scalars % INDEX_STRIDE == 0 && byte < bytes.len() {
                 checkpoints.push(Checkpoint {
                     logical,
                     byte,
@@ -869,6 +869,37 @@ mod tests {
         assert!(doc.is_empty());
         doc.apply("undo", &undo).unwrap();
         assert_eq!(bytes(&doc), text.as_bytes());
+    }
+    #[test]
+    fn sparse_index_storage_stays_below_a_fifth_of_backing_bytes_with_scalar_exact_seeks() {
+        for text in ["a".repeat(1024 * 1024), "文🦀\r\nabc\rnext\n".repeat(65536)] {
+            let source = Source::new(text.as_bytes().into(), 0).unwrap();
+            let index_bytes = source.checkpoints.capacity() * std::mem::size_of::<Checkpoint>();
+            assert!(
+                index_bytes <= text.len() / 5 + 1024,
+                "index {index_bytes}, source {}",
+                text.len()
+            );
+            let mut seed = 19_u64;
+            for _ in 0..48 {
+                seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1);
+                let mut byte = seed as usize % text.len();
+                while !text.is_char_boundary(byte) {
+                    byte -= 1;
+                }
+                if byte > 0 && text.as_bytes()[byte - 1] == b'\r' && text.as_bytes()[byte] == b'\n'
+                {
+                    byte -= 1;
+                }
+                let logical = text[..byte]
+                    .replace("\r\n", "\n")
+                    .replace('\r', "\n")
+                    .encode_utf16()
+                    .count();
+                assert_eq!(source.logical_at_byte(byte), logical);
+                assert_eq!(source.byte_at(logical).unwrap(), byte);
+            }
+        }
     }
     #[test]
     fn repairs_cr_lf_join_and_restores_original_terminators_on_undo() {

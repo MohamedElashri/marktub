@@ -11,6 +11,26 @@ use std::{
 };
 use uuid::Uuid;
 pub const STORE_QUOTA: u64 = 512 * 1024 * 1024;
+fn unused_source_proof(folder: &Path, id: &str) -> bool {
+    let Ok(raw) = read(&folder.join("unused-source.json"), 16384) else {
+        return false;
+    };
+    let Ok(proof) = serde_json::from_slice::<serde_json::Value>(&raw) else {
+        return false;
+    };
+    let Some(base) = proof["baseHash"].as_str() else {
+        return false;
+    };
+    if proof["schema"] != 1 || proof["id"] != id {
+        return false;
+    }
+    let Ok(journal) = read(&folder.join("journal.jsonl"), 65536) else {
+        return false;
+    };
+    use sha2::{Digest, Sha256};
+    crate::document::journal::is_untouched_base_header(&journal, id, base)
+        && proof["journalHash"] == format!("{:x}", Sha256::digest(journal))
+}
 pub fn sync(file: &File) -> std::io::Result<()> {
     file.sync_all()?;
     #[cfg(target_os = "macos")]
@@ -164,7 +184,56 @@ impl PrivateStore {
             store.reset_cache()?;
             atomic(&root.join("cache/format"), b"1")?;
         }
+        for entry in fs::read_dir(root.join("cache"))? {
+            let entry = entry?;
+            if entry.file_type()?.is_dir()
+                && let Some(id) = entry
+                    .file_name()
+                    .to_str()
+                    .and_then(|name| name.strip_prefix("unused-source-"))
+                    .map(str::to_owned)
+                && Uuid::parse_str(&id).is_ok()
+                && unused_source_proof(&entry.path(), &id)
+            {
+                let _ = fs::remove_dir_all(entry.path());
+            }
+        }
         Ok(store)
+    }
+    pub(crate) fn retire_unused_source(&self, id: &str, expected: &str) -> Result<(), FileError> {
+        if Uuid::parse_str(id).is_err() {
+            return Err(FileError::new("state", "Invalid source cache identity."));
+        }
+        let folder = self.recovery().join(id);
+        let journal = read(&folder.join("journal.jsonl"), 65536)?;
+        if !crate::document::journal::is_untouched_base_header(&journal, id, expected) {
+            return Err(FileError::new("state", "Source history is not disposable."));
+        }
+        let cache = self.root.join("cache");
+        directory(&cache)?;
+        let destination = cache.join(format!("unused-source-{id}"));
+        match fs::symlink_metadata(&destination) {
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            _ => {
+                return Err(FileError::new(
+                    "exists",
+                    "Source cache slot is occupied; recovery retained.",
+                ));
+            }
+        }
+        use sha2::{Digest, Sha256};
+        let proof = serde_json::json!({"schema":1,"id":id,"baseHash":expected,"journalHash":format!("{:x}",Sha256::digest(&journal))});
+        atomic(
+            &folder.join("unused-source.json"),
+            &serde_json::to_vec(&proof)
+                .map_err(|_| FileError::new("state", "Cannot encode source retirement proof."))?,
+        )?;
+        fs::rename(&folder, &destination)?;
+        File::open(self.recovery())?.sync_all()?;
+        File::open(&cache)?.sync_all()?;
+        fs::remove_dir_all(&destination)?;
+        File::open(&cache)?.sync_all()?;
+        Ok(())
     }
     pub fn recovery(&self) -> PathBuf {
         self.root.join("recovery")

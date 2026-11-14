@@ -20,7 +20,12 @@ export async function exportStandalone(
       const rich = page.rich[Number(target.dataset.rich)];
       if (!rich) continue;
       try {
-        target.innerHTML = await renderRich(rich);
+        target.innerHTML = await renderRich(
+          rich,
+          "auto",
+          () => !client.dead,
+          client.math,
+        );
         hasKatex ||= !!target.querySelector(".katex");
       } catch (error) {
         target.textContent = `${String(error)}\n${rich.source}`;
@@ -81,6 +86,8 @@ export async function exportStandalone(
   const style = doc.createElement("style");
   style.textContent = `body{max-width:760px;margin:40px auto;padding:0 24px;font:18px/1.7 Palatino,Georgia,serif;color:#24352f;background:#fafbf9}pre{white-space:pre-wrap;background:#f0f4f1;padding:18px}table{border-collapse:collapse}td,th{border:1px solid #dce3df;padding:8px}svg{max-width:100%;height:auto}.export-revision{font:13px system-ui;color:#66736d} ${fonts}`;
   doc.head.append(style);
+  style.textContent +=
+    ".sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}";
   const label = doc.createElement("p");
   label.className = "export-revision";
   label.textContent = revision;

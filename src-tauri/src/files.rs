@@ -196,8 +196,16 @@ impl Documents {
             .lock()
             .map_err(|_| FileError::new("state", "Document unavailable."))?;
         file.rewind()?;
-        let mut bytes = vec![];
-        file.read_to_end(&mut bytes)?;
+        let mut bytes = Vec::with_capacity(doc.length as usize + 1);
+        Read::by_ref(&mut *file)
+            .take(doc.length + 1)
+            .read_to_end(&mut bytes)?;
+        if bytes.len() as u64 != doc.length {
+            return Err(FileError::new(
+                "changed",
+                "The private reading snapshot changed. Reopen the selected document; no Source session was created.",
+            ));
+        }
         Ok((
             doc.scoped.clone(),
             bytes,
@@ -513,6 +521,26 @@ mod tests {
         assert_eq!(docs.read_range(&doc.id, 0, 64).unwrap().text, "original");
         // Selection authorized the resolved target for reading, not the alias or its folder.
         assert_eq!(docs.status(&doc.id).unwrap(), "unchanged");
+    }
+    #[test]
+    fn source_base_refuses_private_snapshot_length_changes_without_reading_the_selected_path() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("selected.txt");
+        let original = b"original\r\nbytes";
+        fs::write(&path, original).unwrap();
+        let docs = Documents::default();
+        let descriptor = docs.grant(&path, |_| {}).unwrap();
+        let doc = docs.get(&descriptor.id).unwrap();
+        doc.file.lock().unwrap().set_len(doc.length + 1024).unwrap();
+        let error = docs.editing_base(&descriptor.id).err().unwrap();
+        assert_eq!(error.code, "changed");
+        assert_eq!(fs::read(&path).unwrap(), original);
+        doc.file.lock().unwrap().set_len(1).unwrap();
+        assert_eq!(
+            docs.editing_base(&descriptor.id).err().unwrap().code,
+            "changed"
+        );
+        assert_eq!(fs::read(&path).unwrap(), original);
     }
     #[test]
     fn review_saved_and_disk_captures_keep_original_grants_and_recognize_renames() {

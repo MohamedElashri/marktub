@@ -73,6 +73,19 @@ struct Header {
     #[serde(default)]
     checkpoint: Option<CheckpointRef>,
 }
+pub(crate) fn is_untouched_base_header(bytes: &[u8], id: &str, expected: &str) -> bool {
+    bytes.len() <= 65536
+        && bytes.ends_with(b"\n")
+        && bytes.iter().filter(|&&b| b == b'\n').count() == 1
+        && expected.len() == 64
+        && expected.bytes().all(|b| b.is_ascii_hexdigit())
+        && serde_json::from_slice::<Header>(bytes).is_ok_and(|header| {
+            header.schema == SCHEMA
+                && header.generation == id
+                && header.checkpoint.is_none()
+                && header.base_hash == expected
+        })
+}
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct CheckpointRef {
@@ -174,6 +187,93 @@ fn lock_log(file: &File) -> std::io::Result<()> {
 }
 
 impl Session<File> {
+    /// Constant-space catalogue validation for the unique zero-history form.
+    /// This is not a restored session; edits/checkpoints always use full replay.
+    pub(crate) fn zero_history_summary(
+        root: &Path,
+        id: &str,
+    ) -> Result<Option<String>, JournalError> {
+        private_root(root)?;
+        if Uuid::parse_str(id)
+            .map_err(|_| JournalError::Format)?
+            .to_string()
+            != id
+        {
+            return Err(JournalError::Format);
+        }
+        let folder = root.join(id);
+        private_root(&folder)?;
+        let mut log = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .custom_flags(libc::O_NOFOLLOW | libc::O_CLOEXEC | libc::O_NONBLOCK)
+            .open(folder.join("journal.jsonl"))?;
+        lock_log(&log)?;
+        let log_before = crate::atomic_save::Identity::of(&log.metadata()?);
+        if !log.metadata()?.is_file() {
+            return Err(JournalError::Format);
+        }
+        if log.metadata()?.len() > 65536 {
+            return Ok(None);
+        }
+        let mut header_bytes = vec![];
+        Read::by_ref(&mut log)
+            .take(65537)
+            .read_to_end(&mut header_bytes)?;
+        let Ok(header) = serde_json::from_slice::<Header>(&header_bytes) else {
+            return Ok(None);
+        };
+        if !is_untouched_base_header(&header_bytes, id, &header.base_hash) {
+            return Ok(None);
+        }
+        let mut base = OpenOptions::new()
+            .read(true)
+            .custom_flags(libc::O_NOFOLLOW | libc::O_CLOEXEC | libc::O_NONBLOCK)
+            .open(folder.join("base.bin"))?;
+        let metadata = base.metadata()?;
+        if !metadata.is_file() || metadata.len() > MAX_BASE as u64 {
+            return Err(JournalError::Capacity);
+        }
+        let before = crate::atomic_save::Identity::of(&metadata);
+        let mut input = Read::by_ref(&mut base).take(metadata.len() + 1);
+        let mut buffer = [0_u8; 65540];
+        let mut carry = 0;
+        let mut length = 0_u64;
+        let mut digest = Sha256::new();
+        loop {
+            let n = input.read(&mut buffer[carry..carry + 65536])?;
+            if n == 0 {
+                break;
+            }
+            length += n as u64;
+            digest.update(&buffer[carry..carry + n]);
+            let total = carry + n;
+            if buffer[..total].contains(&0) {
+                return Err(JournalError::Edits(EditError::Encoding));
+            }
+            match std::str::from_utf8(&buffer[..total]) {
+                Ok(_) => carry = 0,
+                Err(error) if error.error_len().is_none() => {
+                    let valid = error.valid_up_to();
+                    carry = total - valid;
+                    buffer.copy_within(valid..total, 0);
+                }
+                Err(_) => return Err(JournalError::Edits(EditError::Encoding)),
+            }
+        }
+        if carry != 0 {
+            return Err(JournalError::Edits(EditError::Encoding));
+        }
+        let actual = format!("{:x}", digest.finalize());
+        if length != metadata.len()
+            || actual != header.base_hash
+            || before != crate::atomic_save::Identity::of(&base.metadata()?)
+            || log_before != crate::atomic_save::Identity::of(&log.metadata()?)
+        {
+            return Err(JournalError::Base);
+        }
+        Ok(Some(actual))
+    }
     /// `root` is app-private native storage, never a frontend-supplied path.
     /// The caller must retain this ID until an explicit discard; drop never deletes recovery.
     pub fn create(root: &Path, base: &[u8]) -> Result<(String, Self), JournalError> {
@@ -181,7 +281,9 @@ impl Session<File> {
         if base.len() > MAX_BASE {
             return Err(JournalError::Capacity);
         }
-        Provenance::new(base)?; // Validate before creating any recovery files.
+        // Build and validate once before creating recovery files. Keep this
+        // exact provenance for the live session instead of allocating it twice.
+        let source = Provenance::new(base)?;
         let id = Uuid::new_v4().to_string();
         let folder = root.join(&id);
         fs::DirBuilder::new().mode(0o700).create(&folder)?;
@@ -190,7 +292,7 @@ impl Session<File> {
         crate::private_store::sync(&file)?;
         let log = create_file(&folder.join("journal.jsonl"))?;
         lock_log(&log)?;
-        let session = Self::start(base, &id, log)?;
+        let session = Self::start_source(base, &id, log, source)?;
         File::open(&folder)?.sync_all()?;
         File::open(root)?.sync_all()?;
         Ok((id, session))
@@ -331,11 +433,20 @@ impl Session<File> {
     }
 }
 impl<S: LogStore> Session<S> {
-    fn start(base: &[u8], generation: &str, mut log: S) -> Result<Self, JournalError> {
+    #[cfg(test)]
+    fn start(base: &[u8], generation: &str, log: S) -> Result<Self, JournalError> {
         if base.len() > MAX_BASE {
             return Err(JournalError::Capacity);
         }
         let source = Provenance::new(base)?;
+        Self::start_source(base, generation, log, source)
+    }
+    fn start_source(
+        base: &[u8],
+        generation: &str,
+        mut log: S,
+        source: Provenance,
+    ) -> Result<Self, JournalError> {
         if Uuid::parse_str(generation).is_err() {
             return Err(JournalError::Generation);
         }
@@ -871,5 +982,146 @@ mod tests {
         drop(live);
         let recovered = Session::recover(root.path(), &id).unwrap();
         assert_eq!(output(recovered.source()), b"Abc");
+    }
+}
+
+#[cfg(test)]
+mod zero_history_catalogue_tests {
+    use super::*;
+    fn private() -> tempfile::TempDir {
+        let root = tempfile::tempdir().unwrap();
+        fs::set_permissions(root.path(), fs::Permissions::from_mode(0o700)).unwrap();
+        root
+    }
+    #[test]
+    fn streaming_zero_history_matches_full_replay_at_utf8_boundaries_without_changing_metadata() {
+        let mut boundary = vec![b'a'; 65535];
+        boundary.extend_from_slice("🦀文\r\n".as_bytes());
+        boundary.extend_from_slice("文🦀\rnext\n".repeat(10000).as_bytes());
+        for bytes in [
+            vec![],
+            "\u{feff}\u{feff}a\r\n文🦀\rnext\n".as_bytes().to_vec(),
+            boundary,
+        ] {
+            let root = private();
+            let (id, session) = Session::create(root.path(), &bytes).unwrap();
+            drop(session);
+            let folder = root.path().join(&id);
+            let before = ["base.bin", "journal.jsonl"].map(|name| {
+                crate::atomic_save::Identity::of(&fs::metadata(folder.join(name)).unwrap())
+            });
+            let streamed = Session::zero_history_summary(root.path(), &id)
+                .unwrap()
+                .unwrap();
+            let restored = Session::recover(root.path(), &id).unwrap();
+            assert_eq!(restored.received_revision(), 0);
+            assert_eq!(
+                streamed,
+                crate::atomic_save::source_hash(&restored.source().snapshot()).unwrap()
+            );
+            assert_eq!(streamed, hash(&bytes));
+            drop(restored);
+            let after = ["base.bin", "journal.jsonl"].map(|name| {
+                crate::atomic_save::Identity::of(&fs::metadata(folder.join(name)).unwrap())
+            });
+            assert_eq!(before, after);
+        }
+    }
+    #[test]
+    fn streaming_refuses_corrupt_utf8_nul_checksums_symlinks_and_oversized_bases() {
+        for invalid in [vec![0], vec![255], vec![240, 159, 166]] {
+            let root = private();
+            let (id, session) = Session::create(root.path(), b"original").unwrap();
+            drop(session);
+            let folder = root.path().join(&id);
+            let log = folder.join("journal.jsonl");
+            let mut header: Header = serde_json::from_slice(&fs::read(&log).unwrap()).unwrap();
+            header.base_hash = hash(&invalid);
+            fs::write(&log, encode(&header).unwrap()).unwrap();
+            fs::write(folder.join("base.bin"), &invalid).unwrap();
+            assert!(matches!(
+                Session::zero_history_summary(root.path(), &id),
+                Err(JournalError::Edits(EditError::Encoding))
+            ));
+            assert!(matches!(
+                Session::recover(root.path(), &id),
+                Err(JournalError::Edits(EditError::Encoding))
+            ));
+            assert_eq!(fs::read(folder.join("base.bin")).unwrap(), invalid);
+        }
+        let root = private();
+        let (id, session) = Session::create(root.path(), b"original").unwrap();
+        drop(session);
+        let base = root.path().join(&id).join("base.bin");
+        fs::write(&base, b"tampered").unwrap();
+        assert!(matches!(
+            Session::zero_history_summary(root.path(), &id),
+            Err(JournalError::Base)
+        ));
+        assert!(matches!(
+            Session::recover(root.path(), &id),
+            Err(JournalError::Base)
+        ));
+        fs::OpenOptions::new()
+            .write(true)
+            .open(&base)
+            .unwrap()
+            .set_len(MAX_BASE as u64 + 1)
+            .unwrap();
+        assert!(matches!(
+            Session::zero_history_summary(root.path(), &id),
+            Err(JournalError::Capacity)
+        ));
+        fs::remove_file(&base).unwrap();
+        let secret = root.path().join("secret");
+        fs::write(&secret, b"keep secret").unwrap();
+        std::os::unix::fs::symlink(&secret, &base).unwrap();
+        assert!(Session::zero_history_summary(root.path(), &id).is_err());
+        assert_eq!(fs::read(&secret).unwrap(), b"keep secret");
+    }
+    #[test]
+    fn streaming_defers_receipts_checkpoints_and_torn_frames_to_full_replay() {
+        for case in ["receipt", "checkpoint", "torn"] {
+            let root = private();
+            let (id, mut session) = Session::create(root.path(), b"original\r\n").unwrap();
+            if case == "receipt" {
+                session
+                    .append(Batch {
+                        schema: SCHEMA,
+                        generation: id.clone(),
+                        operation_id: "edit".into(),
+                        base_revision: 0,
+                        new_revision: 1,
+                        changes: vec![Change {
+                            from: 0,
+                            to: 1,
+                            insert: super::super::Insert::Text { text: "O".into() },
+                        }],
+                    })
+                    .unwrap();
+                session.flush().unwrap();
+            } else if case == "checkpoint" {
+                session.checkpoint(root.path(), &id).unwrap();
+            }
+            drop(session);
+            let log = root.path().join(&id).join("journal.jsonl");
+            if case == "torn" {
+                OpenOptions::new()
+                    .append(true)
+                    .open(&log)
+                    .unwrap()
+                    .write_all(b"{\"partial\":")
+                    .unwrap();
+            }
+            let before = fs::read(&log).unwrap();
+            assert!(
+                Session::zero_history_summary(root.path(), &id)
+                    .unwrap()
+                    .is_none()
+            );
+            assert_eq!(fs::read(&log).unwrap(), before);
+            let restored = Session::recover(root.path(), &id).unwrap();
+            assert_eq!(restored.received_revision(), u64::from(case == "receipt"));
+        }
     }
 }

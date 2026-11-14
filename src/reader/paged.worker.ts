@@ -59,6 +59,7 @@ self.onmessage = async ({ data }) => {
             complete: next.complete,
             scanned: next.scanned,
             total: next.total,
+            math: next.complete ? next.math : undefined,
           });
           sent = next.sections.length;
           headings = next.headings.length;
@@ -93,6 +94,11 @@ self.onmessage = async ({ data }) => {
         provisional: !index.complete,
         ...(section.fallback ? { fallback: section.fallback } : {}),
       };
+      if (index.math?.needsContext) {
+        let ordinal = section.mathStart ?? 0;
+        for (const rich of result.rich)
+          if (rich.kind === "math") rich.mathIndex = ordinal++;
+      }
       self.postMessage({ type: "page", id: data.id, result });
     } catch (error) {
       self.postMessage({ type: "page", id: data.id, error: String(error) });

@@ -1,6 +1,7 @@
 import { grammar, emptyContext, noteId } from "./grammar";
 import type { Environment } from "./grammar";
 import type { Index, Read, Section, Heading, Context } from "./model";
+import { appendMath, emptyMathPlan, mathExpressions } from "./math-context";
 const md = grammar();
 const encoder = new TextEncoder();
 export const MAX_BLOCK = 256 * 1024;
@@ -67,6 +68,7 @@ export async function buildIndex(
   let group: Section | undefined;
   const duplicates = new Map<string, number>();
   const headingIds = new Set<string>();
+  const math = emptyMathPlan();
   const emit = (text: string, start: number, fallback?: string) => {
     if (!fallback && encoder.encode(text).length > 16384) {
       const tokens = md.parse(normalize(text, start === 0), {
@@ -119,6 +121,12 @@ export async function buildIndex(
       const env: Environment = { ...emptyContext() };
       env.beginning = start === 0;
       const tokens = md.parse(normalize(text, start === 0), env);
+      const formulas = mathExpressions(tokens);
+      if (formulas.length) {
+        group.mathStart ??= math.expressions.length;
+        appendMath(math, formulas);
+        index.math = math;
+      }
       for (const [key, value] of Object.entries(env.references ?? {}))
         if (!Object.hasOwn(index.context.references, key))
           index.context.references[key] = value;
@@ -175,6 +183,18 @@ export async function buildIndex(
         section: index.sections.length,
       });
       index.sections.push({ start: index.total, end: index.total, note: id });
+      const section = index.sections.at(-1)!;
+      const formulas = mathExpressions(
+        md.parse(
+          `### Footnote ${id}\n\n${index.context.notes[id]}`,
+          envClone(index.context),
+        ),
+      );
+      if (formulas.length) {
+        section.mathStart = math.expressions.length;
+        appendMath(math, formulas);
+        index.math = math;
+      }
     }
     index.complete = true;
     publish(index);

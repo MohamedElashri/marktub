@@ -162,7 +162,7 @@ export function grammar() {
     if (!silent) {
       const t = state.push("math", "", 0);
       t.content = state.src.slice(from + width, end);
-      t.meta = { display };
+      t.meta = { display, from, to: end + marker.length };
     }
     state.pos = end + marker.length;
     return true;

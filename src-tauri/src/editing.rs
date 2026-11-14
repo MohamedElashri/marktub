@@ -337,6 +337,7 @@ impl Editing {
         let (target, bytes, can_save, name) = docs.editing_base(id)?;
         self.store.reserve(bytes.len() as u64 * 3 + 65536)?;
         let (recovery, session) = Session::create(&self.store.recovery(), &bytes).map_err(error)?;
+        drop(bytes);
         let expected = atomic_save::source_hash(&session.source().snapshot())?;
         // The captured snapshot stays recoverable after Trash/missing/revoked-path errors.
         // A failed native target validation never grants that path again: this becomes Save As only.
@@ -950,22 +951,29 @@ impl Editing {
                 let marker = private_store::read(&entry.path().join("marker.json"), 65536)
                     .ok()
                     .and_then(|b| serde_json::from_slice::<Marker>(&b).ok());
-                let row = match Session::recover(&self.store.recovery(), &id) {
-                    Ok(session) => {
-                        let dirty = marker.as_ref().is_none_or(|m| {
-                            m.pending
-                                || atomic_save::source_hash(&session.source().snapshot())
-                                    .ok()
-                                    .as_deref()
-                                    != Some(m.saved_hash.as_str())
-                        });
+                let validated = Session::zero_history_summary(&self.store.recovery(), &id)
+                    .and_then(|zero| {
+                        if let Some(hash) = zero {
+                            Ok((0, hash))
+                        } else {
+                            let session = Session::recover(&self.store.recovery(), &id)?;
+                            let hash = atomic_save::source_hash(&session.source().snapshot())
+                                .map_err(|e| JournalError::Io(std::io::Error::other(e.message)))?;
+                            Ok((session.received_revision(), hash))
+                        }
+                    });
+                let row = match validated {
+                    Ok((revision, hash)) => {
+                        let dirty = marker
+                            .as_ref()
+                            .is_none_or(|m| m.pending || hash != m.saved_hash);
                         Recovery {
                             id: id.clone(),
                             name: marker
                                 .as_ref()
                                 .map_or("Recovered document", |m| m.name.as_str())
                                 .into(),
-                            revision: session.received_revision(),
+                            revision,
                             updated: marker.map_or(0, |m| m.updated),
                             damaged: false,
                             clean: !dirty,
@@ -981,7 +989,7 @@ impl Editing {
                     },
                 };
                 // Cache only a complete, unchanged flat-file fingerprint around
-                // the existing full replay/hash validation. Never trust a marker alone.
+                // complete-byte replay/zero-history validation. Never trust a marker alone.
                 if let Some(stamp) = before
                     && !row.damaged
                     && recovery_stamp(&entry.path()).as_ref() == Some(&stamp)
@@ -1074,7 +1082,15 @@ impl Editing {
         Ok(descriptor)
     }
     pub fn release(&mut self, id: &str, generation: &str, discard: bool) -> Result<(), FileError> {
-        self.get(id, generation)?;
+        let live = self.get(id, generation)?;
+        let untouched = !discard
+            && live.target.is_some()
+            && live.session.received_revision() == 0
+            && !live.state().dirty
+            && self
+                .status(id, generation)
+                .is_ok_and(|status| status == "unchanged");
+        let redundant_base = untouched.then(|| live.expected.clone());
         if !discard {
             self.flush(id, generation)?;
         }
@@ -1082,6 +1098,11 @@ impl Editing {
         if discard {
             fs::remove_dir_all(self.folder(id)?)?;
             File::open(self.store.recovery())?.sync_all()?;
+        } else if let Some(expected) = redundant_base {
+            // Housekeeping cannot turn a successful close into a stale editor.
+            // Any failed proof/retirement keeps the original recovery or cache bytes.
+            let _ = self.store.retire_unused_source(id, &expected);
+            self.recovery_catalogue.borrow_mut().remove(id);
         }
         Ok(())
     }
@@ -1311,6 +1332,157 @@ mod tests {
         let edit = editing.begin(&docs, &doc.id).unwrap();
         (dir, path, docs, doc, editing, edit)
     }
+    fn retain_edited_history(service: &mut Editing, editor: &EditDescriptor) {
+        let ack = service
+            .apply(
+                &editor.id,
+                &editor.generation,
+                vec![batch(editor, 1, vec![text(0, 0, "x")])],
+                vec![],
+            )
+            .unwrap();
+        let undone = service
+            .apply(
+                &editor.id,
+                &editor.generation,
+                vec![batch(editor, 2, ack.acknowledgements[0].inverse.clone())],
+                vec!["op1".into()],
+            )
+            .unwrap();
+        assert!(!undone.state.dirty);
+    }
+    #[test]
+    fn untouched_close_retires_only_redundant_authorized_bases_and_keeps_undo_history() {
+        let (_dir, path, docs, doc, mut service, editor) = fixture();
+        let original = fs::read(&path).unwrap();
+        service
+            .release(&editor.id, &editor.generation, false)
+            .unwrap();
+        assert!(!service.folder(&editor.id).unwrap().exists());
+        assert!(service.list_with_saved(true).unwrap().is_empty());
+        assert_eq!(fs::read(&path).unwrap(), original);
+        let edited = service.begin(&docs, &doc.id).unwrap();
+        retain_edited_history(&mut service, &edited);
+        service
+            .release(&edited.id, &edited.generation, false)
+            .unwrap();
+        assert!(service.folder(&edited.id).unwrap().exists());
+        assert!(service.list_with_saved(true).unwrap()[0].clean);
+        let restored = service.restore(&edited.id).unwrap();
+        assert!(restored.needs_save_as);
+        assert_eq!(restored.text, "a\nb\nc\n🦀");
+        service
+            .release(&restored.id, &restored.generation, false)
+            .unwrap();
+        assert!(service.folder(&edited.id).unwrap().exists());
+        assert_eq!(fs::read(&path).unwrap(), original);
+    }
+    #[test]
+    fn untouched_retirement_keeps_changed_targets_failed_proofs_and_occupied_cache_slots() {
+        for case in ["changed", "proof failure", "occupied"] {
+            let (dir, path, _docs, _doc, mut service, editor) = fixture();
+            let original = fs::read(&path).unwrap();
+            let folder = service.folder(&editor.id).unwrap();
+            let destination = service
+                .store
+                .root
+                .join("cache")
+                .join(format!("unused-source-{}", editor.id));
+            match case {
+                "changed" => fs::write(&path, b"external revision").unwrap(),
+                "proof failure" => private_store::fail_next("unused-source"),
+                _ => {
+                    private_store::directory(&destination).unwrap();
+                    fs::write(destination.join("canary"), b"keep unrelated cache").unwrap();
+                }
+            }
+            service
+                .release(&editor.id, &editor.generation, false)
+                .unwrap();
+            assert_eq!(fs::read(folder.join("base.bin")).unwrap(), original);
+            drop(service);
+            let mut service = Editing::open(&dir.path().join("private")).unwrap();
+            if case == "occupied" {
+                assert_eq!(
+                    fs::read(destination.join("canary")).unwrap(),
+                    b"keep unrelated cache"
+                );
+            }
+            let recovered = service.restore(&editor.id).unwrap();
+            assert!(recovered.needs_save_as);
+            assert_eq!(recovered.text, "a\nb\nc\n🦀");
+            assert_eq!(
+                fs::read(&path).unwrap(),
+                if case == "changed" {
+                    b"external revision".to_vec()
+                } else {
+                    original
+                }
+            );
+        }
+    }
+    #[test]
+    fn retirement_cache_replays_zero_history_proof_and_refuses_receipt_bearing_records() {
+        use std::os::unix::fs::PermissionsExt;
+        let (dir, path, _docs, _doc, mut service, editor) = fixture();
+        let original = fs::read(&path).unwrap();
+        let cache = service.store.root.join("cache");
+        fs::set_permissions(&cache, fs::Permissions::from_mode(0o500)).unwrap();
+        service
+            .release(&editor.id, &editor.generation, false)
+            .unwrap();
+        let folder = service.folder(&editor.id).unwrap();
+        assert!(folder.join("unused-source.json").is_file());
+        fs::set_permissions(&cache, fs::Permissions::from_mode(0o700)).unwrap();
+        let retired = cache.join(format!("unused-source-{}", editor.id));
+        fs::rename(&folder, &retired).unwrap();
+        drop(service);
+        let mut service = Editing::open(&dir.path().join("private")).unwrap();
+        assert!(!retired.exists());
+        let docs = Documents::default();
+        let doc = docs.grant(&path, |_| {}).unwrap();
+        let edited = service.begin(&docs, &doc.id).unwrap();
+        retain_edited_history(&mut service, &edited);
+        service
+            .release(&edited.id, &edited.generation, false)
+            .unwrap();
+        let folder = service.folder(&edited.id).unwrap();
+        let journal = fs::read(folder.join("journal.jsonl")).unwrap();
+        let proof = serde_json::json!({"schema":1,"id":edited.id,"baseHash":format!("{:x}",Sha256::digest(&original)),"journalHash":format!("{:x}",Sha256::digest(&journal))});
+        private_store::atomic(
+            &folder.join("unused-source.json"),
+            &serde_json::to_vec(&proof).unwrap(),
+        )
+        .unwrap();
+        let retired = cache.join(format!("unused-source-{}", edited.id));
+        fs::rename(&folder, &retired).unwrap();
+        drop(service);
+        let _service = Editing::open(&dir.path().join("private")).unwrap();
+        assert_eq!(fs::read(retired.join("base.bin")).unwrap(), original);
+        assert_eq!(fs::read(retired.join("journal.jsonl")).unwrap(), journal);
+        assert_eq!(fs::read(&path).unwrap(), original);
+    }
+    #[test]
+    fn repeated_untouched_hundred_mib_source_does_not_fill_the_private_quota() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("large.txt");
+        fs::write(&path, vec![b'x'; 100 * 1024 * 1024]).unwrap();
+        let docs = Documents::default();
+        let doc = docs.grant(&path, |_| {}).unwrap();
+        let mut service = Editing::open(&dir.path().join("private")).unwrap();
+        for _ in 0..4 {
+            let editor = service.begin(&docs, &doc.id).unwrap();
+            assert!(editor.range.is_some());
+            assert_eq!(editor.state.received_revision, 0);
+            service
+                .release(&editor.id, &editor.generation, false)
+                .unwrap();
+            assert!(!service.folder(&editor.id).unwrap().exists());
+            assert_eq!(fs::read_dir(service.store.recovery()).unwrap().count(), 0);
+        }
+        assert_eq!(docs.status(&doc.id).unwrap(), "unchanged");
+        assert!(service.list_with_saved(true).unwrap().is_empty());
+    }
     #[test]
     fn recovery_catalogue_repeated_scan_observation() {
         let dir = tempfile::tempdir().unwrap();
@@ -1321,6 +1493,7 @@ mod tests {
         let doc = docs.grant(&path, |_| {}).unwrap();
         let mut service = Editing::open(&dir.path().join("private")).unwrap();
         let editor = service.begin(&docs, &doc.id).unwrap();
+        retain_edited_history(&mut service, &editor);
         service
             .release(&editor.id, &editor.generation, false)
             .unwrap();
@@ -1343,6 +1516,7 @@ mod tests {
     #[test]
     fn recovery_catalogue_invalidates_changes_and_restore_never_uses_cached_authority() {
         let (_dir, path, _docs, _doc, mut service, editor) = fixture();
+        retain_edited_history(&mut service, &editor);
         service
             .release(&editor.id, &editor.generation, false)
             .unwrap();
@@ -1373,6 +1547,7 @@ mod tests {
     fn recovery_catalogue_cannot_hide_corruption_or_follow_replaced_symlinks() {
         for symlink in [false, true] {
             let (_dir, path, _docs, _doc, mut service, editor) = fixture();
+            retain_edited_history(&mut service, &editor);
             service
                 .release(&editor.id, &editor.generation, false)
                 .unwrap();

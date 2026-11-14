@@ -158,6 +158,90 @@ fn valid_dimension(value: &str) -> bool {
         .parse::<f64>()
         .is_ok_and(|n| n.is_finite() && n > 0.0 && n <= max)
 }
+pub(crate) fn math_key(source: &str, display: bool) -> String {
+    format!("math:{}:{}", display, hash(source.trim().as_bytes()))
+}
+fn context_math(source: &str) -> bool {
+    let bytes = source.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'%' {
+            while i < bytes.len() && !matches!(bytes[i], b'\r' | b'\n') {
+                i += 1;
+            }
+        } else if bytes[i] == b'\\' {
+            i += 1;
+            let start = i;
+            while i < bytes.len() && bytes[i].is_ascii_alphabetic() {
+                i += 1;
+            }
+            let command = &source[start..i];
+            if [
+                "label",
+                "ref",
+                "eqref",
+                "autoref",
+                "nameref",
+                "pageref",
+                "gdef",
+                "xdef",
+                "global",
+                "def",
+                "let",
+                "newcommand",
+                "renewcommand",
+                "providecommand",
+                "DeclareMathOperator",
+                "DeclarePairedDelimiter",
+                "DeclarePairedDelimiterX",
+                "DeclarePairedDelimiterXPP",
+                "Newextarrow",
+                "newenvironment",
+                "renewenvironment",
+                "numberwithin",
+                "setcounter",
+                "addtocounter",
+            ]
+            .contains(&command)
+            {
+                return true;
+            }
+            if command == "begin" {
+                let tail = source[i..].trim_start();
+                if let Some(rest) = tail.strip_prefix('{')
+                    && let Some((environment, _)) = rest.split_once('}')
+                    && [
+                        "equation", "align", "alignat", "gather", "multline", "eqnarray",
+                    ]
+                    .contains(&environment.trim())
+                {
+                    return true;
+                }
+            }
+            if i == start {
+                i += 1;
+            }
+        } else {
+            i += 1;
+        }
+    }
+    false
+}
+fn document_context_math(value: &Value, depth: usize) -> bool {
+    if depth > 64 {
+        return true;
+    }
+    if value.get("t").and_then(Value::as_str) == Some("Math")
+        && context_math(value.pointer("/c/1").and_then(Value::as_str).unwrap_or(""))
+    {
+        return true;
+    }
+    match value {
+        Value::Array(values) => values.iter().any(|v| document_context_math(v, depth + 1)),
+        Value::Object(values) => values.values().any(|v| document_context_math(v, depth + 1)),
+        _ => false,
+    }
+}
 fn clean(
     v: &mut Value,
     p: &Prepared,
@@ -165,6 +249,18 @@ fn clean(
     warnings: &mut Vec<String>,
     nodes: &mut usize,
     depth: usize,
+) -> Result<(), FileError> {
+    let contextual = document_context_math(v, 0);
+    clean_node(v, p, dir, warnings, nodes, depth, contextual)
+}
+fn clean_node(
+    v: &mut Value,
+    p: &Prepared,
+    dir: &Path,
+    warnings: &mut Vec<String>,
+    nodes: &mut usize,
+    depth: usize,
+    contextual: bool,
 ) -> Result<(), FileError> {
     *nodes += 1;
     if *nodes > 100000 || depth > 64 {
@@ -230,12 +326,20 @@ fn clean(
                     v["c"][0] = attr();
                 }
             }
-            "Math" if !math_safe(c.get(1).and_then(Value::as_str).unwrap_or("")) => {
-                *v = code(
-                    c.get(1).and_then(Value::as_str).unwrap_or(""),
-                    p.request.mode == Mode::PdfTex,
+            "Math" => {
+                let source = c.get(1).and_then(Value::as_str).unwrap_or("");
+                let key = math_key(
+                    source,
+                    c.pointer("/0/t").and_then(Value::as_str) == Some("DisplayMath"),
                 );
-                warnings.push("Unsupported/unsafe math commands were kept as source; use a separately trusted local TeX job if intended.".into());
+                if let Some(bytes) = p.capture.assets.get(&key) {
+                    let image = reader_assets::image_bytes(bytes)?;
+                    let width = format!("{}px", image.width.div_ceil(2).max(1));
+                    *v = json!({"t":"Span","c":[attr(),[{"t":"Image","c":[["",[],[["width",width]]],[{"t":"Str","c":format!("TeX math: {source}")}],[key,""]]}]]});
+                } else if contextual || !math_safe(source) {
+                    *v = code(source, p.request.mode == Mode::PdfTex);
+                    warnings.push("Context-dependent or unsafe math was kept as source because no validated captured math raster was supplied; separately trusted local TeX is independent.".into());
+                }
             }
             "Header" => v["c"][1] = attr(),
             "Code" => {
@@ -248,9 +352,9 @@ fn clean(
             "Str" | "Space" | "SoftBreak" | "LineBreak" | "Para" | "Plain" | "Emph" | "Strong"
             | "Strikeout" | "Superscript" | "Subscript" | "SmallCaps" | "Quoted" | "Cite"
             | "Note" | "BlockQuote" | "OrderedList" | "BulletList" | "DefinitionList"
-            | "HorizontalRule" | "LineBlock" | "Math" | "AlignDefault" | "AlignLeft"
-            | "AlignRight" | "AlignCenter" | "ColWidthDefault" | "ColWidth" | "DefaultStyle"
-            | "Decimal" | "Example" | "LowerRoman" | "UpperRoman" | "LowerAlpha" | "UpperAlpha"
+            | "HorizontalRule" | "LineBlock" | "AlignDefault" | "AlignLeft" | "AlignRight"
+            | "AlignCenter" | "ColWidthDefault" | "ColWidth" | "DefaultStyle" | "Decimal"
+            | "Example" | "LowerRoman" | "UpperRoman" | "LowerAlpha" | "UpperAlpha"
             | "DefaultDelim" | "Period" | "OneParen" | "TwoParens" | "SingleQuote"
             | "DoubleQuote" | "DisplayMath" | "InlineMath" | "AuthorInText" | "SuppressAuthor"
             | "NormalCitation" => {}
@@ -264,13 +368,13 @@ fn clean(
     match v {
         Value::Array(a) => {
             for child in a {
-                clean(child, p, dir, warnings, nodes, depth + 1)?;
+                clean_node(child, p, dir, warnings, nodes, depth + 1, contextual)?;
             }
         }
         Value::Object(o) => {
             for (k, child) in o {
                 if k != "t" {
-                    clean(child, p, dir, warnings, nodes, depth + 1)?;
+                    clean_node(child, p, dir, warnings, nodes, depth + 1, contextual)?;
                 }
             }
         }
@@ -424,6 +528,8 @@ mod tests {
     #[test]
     fn ast_policy_removes_paths_raw_options_and_unsafe_math() {
         let t = tempfile::tempdir().unwrap();
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(t.path(), fs::Permissions::from_mode(0o700)).unwrap();
         let c = Arc::new(
             Capture::new("doc".into(), b"source".to_vec(), "Saved".into(), None, None).unwrap(),
         );
@@ -437,7 +543,7 @@ mod tests {
             mode: Mode::Pdf,
             toc: false,
         };
-        let p = Prepared {
+        let mut p = Prepared {
             request,
             capture: c,
             block: None,
@@ -457,6 +563,29 @@ mod tests {
         assert_eq!(v[3]["t"], "Code");
         assert!(!v.to_string().contains("https://"));
         assert_eq!(fs::read_dir(t.path()).unwrap().count(), 0);
+        let formula = "\\abc";
+        let mut captured = json!([
+            {"t":"Math","c":[{"t":"DisplayMath"},"\\gdef\\abc{q}"]},
+            {"t":"Math","c":[{"t":"InlineMath"},formula]}
+        ]);
+        let raster = include_bytes!("../../../tests/fixtures/approved-image.png").to_vec();
+        Arc::make_mut(&mut p.capture)
+            .assets
+            .insert(math_key(formula, false), raster.clone());
+        clean(&mut captured, &p, t.path(), &mut warnings, &mut 0, 0).unwrap();
+        assert_eq!(captured[0]["t"], "Code");
+        assert_eq!(captured[1]["t"], "Span");
+        let image = &captured[1]["c"][1][0];
+        assert_eq!(image["t"], "Image");
+        let staged = image["c"][2][0].as_str().unwrap();
+        assert!(staged.starts_with("asset-"));
+        assert_eq!(fs::read(t.path().join(staged)).unwrap(), raster);
+        let mut wrong_mode = json!([
+            {"t":"Math","c":[{"t":"DisplayMath"},"\\gdef\\abc{q}"]},
+            {"t":"Math","c":[{"t":"DisplayMath"},formula]}
+        ]);
+        clean(&mut wrong_mode, &p, t.path(), &mut warnings, &mut 0, 0).unwrap();
+        assert_eq!(wrong_mode[1]["t"], "Code");
     }
 }
 

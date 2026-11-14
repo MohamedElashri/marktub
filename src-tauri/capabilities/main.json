@@ -94,6 +94,7 @@
     "allow-power-release",
     "allow-power-image",
     "allow-power-diagram",
+    "allow-power-math",
     "allow-power-prepare",
     "allow-power-run",
     "allow-power-poll",

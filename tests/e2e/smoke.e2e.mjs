@@ -2354,8 +2354,22 @@ describe("Git workbench", () => {
     fs.writeFileSync(fixture.path, changed);
     await browser.$(".tabbar").$("button=Git").click();
     await panel().waitForDisplayed();
+    await panel()
+      .$("button=Choose repository")
+      .waitForEnabled({ timeout: 30000 });
     await panel().$("button=Choose repository").click();
+    await browser.waitUntil(
+      async () =>
+        (await panel().$(".git-heading p").getText()).startsWith(
+          path.basename(path.dirname(fixture.path)),
+        ) && (await panel().$("button=Choose repository").isEnabled()),
+      {
+        timeout: 30000,
+        timeoutMsg: "New native repository selection must settle",
+      },
+    );
     await panel().$(".git-files button").waitForDisplayed({ timeout: 30000 });
+    await panel().$(".git-files button").waitForEnabled({ timeout: 30000 });
     await panel().$(".git-files button").click();
     await panel()
       .$(".git-diff-title strong")
@@ -2365,6 +2379,44 @@ describe("Git workbench", () => {
   it("stages only selected native hunks, unstages against HEAD and refuses live Source mutation", async () => {
     await seed();
     const fs = await import("node:fs");
+    const choosingAtClose = await browser.tauri.execute(async () => {
+      const workbench = document.querySelector("dialog.git-workbench");
+      const choose = workbench.querySelector("button.primary");
+      choose.click();
+      await Promise.resolve();
+      const pending = choose.disabled;
+      workbench
+        .querySelector('button[aria-label="Close Git workbench"]')
+        .click();
+      await Promise.resolve();
+      return { pending, stillBusy: choose.disabled };
+    });
+    expect(choosingAtClose).toEqual({ pending: true, stillBusy: true });
+    await browser.$(".tabbar").$("button=Git").click();
+    await panel()
+      .$("button=Choose repository")
+      .waitForEnabled({ timeout: 30000 });
+    await panel().$(".git-files button").waitForEnabled({ timeout: 30000 });
+    const loadingAtClose = await browser.tauri.execute(async () => {
+      const workbench = document.querySelector("dialog.git-workbench");
+      workbench.querySelector(".git-files button").click();
+      await Promise.resolve();
+      const loading = workbench.querySelector("button.primary").disabled;
+      workbench
+        .querySelector('button[aria-label="Close Git workbench"]')
+        .click();
+      return loading;
+    });
+    expect(loadingAtClose).toBe(true);
+    await browser.$(".tabbar").$("button=Git").click();
+    await panel()
+      .$("button=Choose repository")
+      .waitForEnabled({ timeout: 30000 });
+    await panel().$(".git-files button").click();
+    await panel()
+      .$(".git-diff-title strong")
+      .waitForDisplayed({ timeout: 30000 });
+    await panel().$(".git-row").waitForExist({ timeout: 30000 });
     expect(await panel().$$(".git-hunk-list input").length).toBe(2);
     await panel().$('input[aria-label="Select hunk 1"]').click();
     await panel()
@@ -3139,7 +3191,7 @@ describe("Export and local jobs", () => {
     const path = await import("node:path");
     const { execFileSync } = await import("node:child_process");
     const source =
-      "# Native PDF\n\nEnglish, العربية, 中文 and $E=mc^2$.\n\n$$\\int_0^1 x^2\\,dx=\\frac{1}{3}$$\n\n| Item | Value |\n|---|---|\n| Test | 42 |\n\nA note.[^one]\n\n[^one]: Exported footnote.\n\n![Approved](selected.png){width=120px height=60px}\n\n![No grant](http://127.0.0.1:9/no-fetch)\n\n```mermaid\ngraph TD\nRead-->Review\n```\n\n```sh\nprintf NEVER_AUTOMATIC > never-automatic.txt\n```\n";
+      "# Native PDF\n\nEnglish, العربية, 中文 and $E=mc^2$.\n\n$\\eqref{later}$\n\n$$\\gdef\\nativevalue{q}$$\n\n$$\\begin{equation}\\nativevalue=x\\label{later}\\end{equation}$$\n\n$$\\int_0^1 x^2\\,dx=\\frac{1}{3}$$\n\n| Item | Value |\n|---|---|\n| Test | 42 |\n\nA note.[^one]\n\n[^one]: Exported footnote.\n\n![Approved](selected.png){width=120px height=60px}\n\n![No grant](http://127.0.0.1:9/no-fetch)\n\n```mermaid\ngraph TD\nRead-->Review\n```\n\n```sh\nprintf NEVER_AUTOMATIC > never-automatic.txt\n```\n";
     await seed(source);
     const folder = path.dirname(fixture.path);
     await open();
@@ -3171,6 +3223,12 @@ describe("Export and local jobs", () => {
     await consent();
     await panel().$("button=Prepare PDF…").click();
     expect(await finish()).toContain("PDF ready");
+    expect(await panel().getText()).not.toContain(
+      "Document math remains source",
+    );
+    expect(await panel().getText()).not.toContain(
+      "Context-dependent or unsafe math",
+    );
     expect(await call("execution_status")).toBe(false);
     expect(fs.existsSync(path.join(folder, "never-automatic.txt"))).toBe(false);
     const output = path.join(folder, "marktub-export-export.pdf");
@@ -3190,7 +3248,10 @@ describe("Export and local jobs", () => {
       encoding: "utf8",
     });
     await writeFile("artifacts/export-webview-pdf-images.txt", info);
-    expect(info.split("\n").length).toBeGreaterThan(4);
+    expect(
+      info.split("\n").filter((line) => /^\s*\d+\s+\d+\s+image\b/.test(line))
+        .length,
+    ).toBeGreaterThanOrEqual(7);
     await panel().$("button=Open PDF to inspect / print").click();
     await panel().$("button=Close export and jobs").waitForEnabled();
     await choose("pdf-destination", output);
@@ -3982,7 +4043,7 @@ describe("Everyday workflows", () => {
 });
 
 describe("Math context policy", () => {
-  it("preserves unsupported equation context across unmounted sections and standalone export", async () => {
+  it("renders finalized equation context across unmounted sections and standalone export", async () => {
     const call = (command, args = {}) =>
       browser.tauri.execute(
         ({ core }, command, args) => core.invoke(command, args),
@@ -3991,9 +4052,9 @@ describe("Math context policy", () => {
       );
     const pane = () => browser.$(".document-tab:not([hidden])");
     const source =
-      "# Local math policy\n\n$$x\\label{first}$$\n\n$\\def\\local{q}\\local$\n\n$$x=y\\tag{7}$$\n\n" +
+      "# Local math policy\n\n$$\\begin{equation}x\\label{first}\\end{equation}$$\n\n$\\gdef\\local{q}\\local$\n\n$$x=y\\tag{7}$$\n\n" +
       "Padding for independent section navigation.\n\n".repeat(400) +
-      "# Later reference\n\n$$\\eqref{first}$$\n\n";
+      "# Later reference\n\n$$\\eqref{first}$$\n\n$$(1)$$\n\n";
     await call("e2e_fixture", { action: "seed", text: source });
     const close = await browser.$$('.tabs button[aria-label^="Close "]');
     for (const button of close) {
@@ -4006,16 +4067,9 @@ describe("Math context policy", () => {
     await pane().$("button.open-button").click();
     await expect(pane().$("article h1")).toHaveText("Local math policy");
     await pane().$("button=Export HTML").waitForEnabled({ timeout: 60000 });
-    await browser.waitUntil(async () =>
-      (await pane().$(".render-error").getText()).includes(
-        "Document-wide math context",
-      ),
-    );
-    await expect(pane().$("button=Try MathJax")).not.toExist();
-    expect(await pane().$(".render-error pre").getText()).toBe(
-      "x\\label{first}",
-    );
-    await expect(pane().$(".katex")).toExist();
+    await pane().$("[data-rich] svg").waitForExist({ timeout: 30000 });
+    await expect(pane().$(".render-error")).not.toExist();
+    await expect(pane().$('[data-rich] svg[role="img"]')).toExist();
     await call("e2e_fixture", { action: "export" });
     await pane().$("button=Export HTML").click();
     await pane().$("button=Export HTML").waitForEnabled({ timeout: 60000 });
@@ -4026,14 +4080,49 @@ describe("Math context policy", () => {
     const html = await (
       await import("node:fs/promises")
     ).readFile(info.path, "utf8");
-    expect(html).toContain("Document-wide math context is unsupported");
+    expect(html).not.toContain("Document-wide math context is unsupported");
+    expect(html).not.toContain("Unresolved document math reference");
+    expect((html.match(/<svg\b/g) ?? []).length).toBeGreaterThanOrEqual(5);
     expect(html).toContain("\\eqref{first}");
     expect(html).toContain("\\label{first}");
     expect(html).not.toContain("<script");
+    await pane().$("button=Source").click();
+    await pane().$(".cm-content").waitForExist({ timeout: 30000 });
+    await pane().$("button=Visual").click();
+    await pane()
+      .$('.cm-author-block svg[role="img"]')
+      .waitForExist({ timeout: 30000 });
+    await pane().$(".cm-author-block").$("button=Edit math").click();
+    const controls = pane().$("dialog.author-dialog[open]");
+    await controls.$("button=Preview locally").click();
+    await controls.$('svg[role="img"]').waitForExist({ timeout: 30000 });
+    await expect(controls.$('[role="alert"]')).not.toExist();
+    await controls.$("button=Close").click();
+    await pane().$("button=Read").click();
+    await pane().$("button=Export HTML").waitForEnabled({ timeout: 60000 });
     await pane().$("button=Outline & find").click();
     await pane().$(".outline nav").$("button=Later reference").click();
     await expect(pane().$("article h1")).toHaveText("Later reference");
-    await expect(pane().$(".render-error pre")).toHaveText("\\eqref{first}");
+    await pane().$("[data-rich] svg").waitForExist({ timeout: 30000 });
+    await browser.waitUntil(
+      async () => (await pane().$$("[data-rich] svg")).length >= 2,
+    );
+    const formulaPaths = await browser.tauri.execute(() =>
+      [
+        ...document.querySelectorAll(
+          ".document-tab:not([hidden]) article [data-rich] svg",
+        ),
+      ]
+        .slice(0, 2)
+        .map((svg) =>
+          [...svg.querySelectorAll("path")].map((path) =>
+            path.getAttribute("d"),
+          ),
+        ),
+    );
+    expect(formulaPaths[0].length).toBeGreaterThan(0);
+    expect(formulaPaths[0]).toEqual(formulaPaths[1]);
+    await expect(pane().$(".render-error")).not.toExist();
     expect((await call("e2e_fixture", { action: "read" })).text).toBe(source);
     await writeFile("artifacts/math-context-export.html", html);
   });

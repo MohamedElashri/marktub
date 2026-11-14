@@ -31,6 +31,8 @@ with tempfile.TemporaryDirectory(prefix="marktub-package-mount-", dir="/private/
     finally:
         if attached: run(["hdiutil", "detach", mount])
 run(["codesign", "--verify", "--deep", "--strict", str(installed)])
+signature = run(["codesign", "--display", "--verbose=4", str(installed)])
+assert "Signature=adhoc" in signature and "TeamIdentifier=not set" in signature, "Expected the supported ad-hoc signature, without an Apple developer identity"
 binary = installed / "Contents/MacOS/marktub"
 original = a.app / "Contents/MacOS/marktub"
 assert digest(binary) == digest(original), "DMG executable differs from normal app"

@@ -50,7 +50,7 @@ jobs:
         run: xvfb-run -a dbus-run-session -- pnpm test:e2e
       - name: Production macOS bundle
         if: runner.os == 'macOS'
-        run: pnpm tauri build --bundles app,dmg
+        run: python3 scripts/build-macos.py
       - name: Production Linux package
         if: runner.os == 'Linux'
         run: pnpm tauri build --bundles deb

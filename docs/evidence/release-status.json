@@ -1,6 +1,6 @@
 {
   "date": "2026-11-14",
-  "status": "prerelease; local publication preparation verified, qualification gates remain open",
+  "status": "local implementation, verification and source/prerelease preparation complete; general release qualification gates remain open",
   "host": {
     "os": "macOS 27.2 (26B123)",
     "architecture": "arm64",
@@ -9,15 +9,15 @@
   },
   "checks": {
     "frontend": {
-      "passed": 779,
-      "testFiles": 18
+      "passed": 787,
+      "testFiles": 19
     },
     "tooling": {
       "nodePassed": 10,
       "pythonPassed": 6
     },
     "rust": {
-      "passed": 136,
+      "passed": 145,
       "ignored": 6,
       "ignoredScope": "four subprocess workers exercised by parent tests; installed-tool and mounted-filesystem helpers require explicit selection (passed separately at the previous checkpoint)"
     },
@@ -25,23 +25,19 @@
       "passed": 53,
       "scope": "real WKWebView/backend; fixture-selected pickers and synthetic keys, not physical IME/accessibility certification"
     },
-    "finalRunnerNativeRegression": {
-      "passed": 3,
-      "scope": "PDF, shell, SQLite and trusted TeX after final supervisor FD handling"
-    },
     "typecheck": "pass",
     "lint": "pass",
     "format": "pass",
     "clippy": "pass, all targets, warnings denied",
-    "frozenOfflineInstall": "pass after registry metadata priming; all 799 supply-chain policies retained",
-    "buildScope": "fresh source extraction with shared serialized local Cargo/dependency cache; not a clean-machine result",
+    "frozenOfflineInstall": "pass at previous source-preparation checkpoint; pinned dependency lockfiles unchanged",
+    "buildScope": "current normal app built after full native suite; previous fresh-source extraction uses unchanged lockfiles and shared local caches; not a clean-machine result",
     "normalReleaseIsolation": "pass; no fixture command, WDIO evaluator/server or test-only marker in normal executable/frontend/ACL/normal dependency graph",
     "productionSupervisor": {
       "passed": 5,
-      "controllerEofCleanupMs": 20.49,
+      "controllerEofCleanupMs": 19.8,
       "scope": "actual normal release binary private supervisor; real parent SIGKILL separately tested in Rust; not physical app SIGKILL or hostile detached-process sandbox certification"
     },
-    "copiedDmgNativeUiSmoke": "pass: launch, bundled example Read/Source/Split/Visual, Save As requirement, Preferences Cancel, clean close and externally verified Quit"
+    "copiedDmgNativeUiSmoke": "pass: 25 pre-restart observed document cycles plus a fresh native-selected 100 MiB Source open/close, five-minute idle observation and externally verified native Quit/all selected helper exits"
   },
   "security": {
     "javaScriptProductionAudit": {
@@ -71,24 +67,106 @@
   "remainingGates": [
     "Linux WebKitGTK, Intel and minimum macOS qualification",
     "Physical IME, screen reader, native input, fonts and printing",
-    "Sustained production memory retention, input/paint/DOM/IPC measurement; prior large-close elevation remains unresolved; old samples belong to executable fedde0a9f9e6aee2c46a1773f160882d8699e5b51a73eb114431c4c3717a9847, not this package",
-    "Ordered document-wide math labels, references, macros and automatic numbering remain unsupported with source diagnostics",
+    "Sustained production resource and compositor input/paint/DOM/IPC matrices; same-host observations do not certify a latency SLA or all-workload memory plateau",
+    "Beyond-budget or unsupported TeX retains source; repeated identical PDF math with different context outputs retains source; physical accessibility and font/tool/platform matrix",
     "Broader Git/filesystem/storage/crash/tool-version fault matrices",
     "Strict dependency advisory disposition and distribution/license review",
-    "Developer ID signing, notarization, clean installs and actual remote CI"
+    "Downloaded-app/clean-install qualification and actual remote CI; paid signing/notarization excluded by owner"
   ],
   "evidencePolicy": "phase completion/deviation summaries stay in plan.md; raw host reports and prototypes are local ignored history; measurements belong to their recorded executable hash; no external publication or release waiver",
   "package": {
-    "binarySha256": "8b254ca109d0c7de6cd7f275cc689a1b74a0aee91749afe224230be0353b8812",
-    "binaryBytes": 18243008,
-    "bundleBytes": 22948252,
-    "dmgSha256": "f72e08ebb815c3e9dff6c72d114ef1893d76207b8f93f9c1a66848e0224edac6",
-    "dmgBytes": 9476178,
+    "binarySha256": "ff2039b83127f2250e23a87e2dff4dffb16d7b2a1c2a4e5aaefdcca673627ba7",
+    "binaryBytes": 19211728,
+    "bundleBytes": 23916972,
+    "dmgSha256": "7838aafa06bbad57115c0d946e3bb96dbe0b8e927be89780647c449ac024ba99",
+    "dmgBytes": 10447248,
     "architectures": "arm64",
     "minimumSystemVersion": "13.0",
     "resourcesByteIdentical": true,
     "strictAdHocSignature": "pass",
     "volumeDetached": true,
-    "qualification": "local ad-hoc signed package; no public signing, notarization or clean-machine Gatekeeper certification"
+    "qualification": "local ad-hoc package, no Apple account credentials; downloaded-app/clean-machine Gatekeeper qualification not performed"
+  },
+  "distributionDecision": {
+    "macOS": "ad-hoc signing; no paid Apple Developer account",
+    "notarization": "not planned for the selected channel",
+    "opening": "macOS may block downloaded apps; per-app user trust decision remains necessary; no automatic Gatekeeper/quarantine bypass"
+  },
+  "documentMath": {
+    "status": "implemented for bounded finalized document context",
+    "formulaLimit": 128,
+    "sourceLimitUtf16Units": 131072,
+    "formulaLimitUtf16Units": 8192,
+    "workerDeadlineSeconds": 8,
+    "outputs": "Read, verified ordinary-document author previews, standalone HTML with resolved MathML, selected-revision PDF PNGs",
+    "limits": "explicit source fallback; large Source windows remain local; PDF shared 16-asset/24 MiB cap and ambiguous identical spellings retain source; physical screen reader not certified"
+  },
+  "recoveryRetention": {
+    "untouchedClose": "Only newly closed, zero-revision, nonuncertain Source sessions with clean saved provenance and unchanged authorized native target retire their redundant base after the durable close barrier. Failed proof/IO retains bytes.",
+    "preserved": "all prior archives, edited-then-undone receipts, recovered/Save As-only sessions and changed targets",
+    "catalogue": "strict header-only zero-history records receive constant-space complete-byte UTF-8/NUL/checksum and stable-identity validation; all other records and every Restore use full replay"
+  },
+  "sourceBenchmark": {
+    "scope": "isolated native optimized Provenance; five alternating runs per stride per 1/10/100 MiB tier; not whole-app footprint or input/paint certification",
+    "allInputAndSampledRangeHashesIdentical": true,
+    "hundredMiB": {
+      "oldStride": 128,
+      "newStride": 512,
+      "oldMedianPeakRssBytes": 238616576,
+      "newMedianPeakRssBytes": 224837632,
+      "oldMedianCreationMs": 164.66,
+      "newMedianCreationMs": 160.347,
+      "oldMedianThousandRangesMs": 40.049,
+      "newMedianThousandRangesMs": 41.163
+    }
+  },
+  "productionIntegrity": {
+    "existingRecoveryFiles": 59,
+    "allOriginalRecoveryBytesPreserved": true,
+    "allFixtureBytesUnchanged": true,
+    "privateBytesBefore": 104893161,
+    "privateBytesAfter25Cycles": 104896971,
+    "ordinaryFourModeCycles": 10,
+    "documentMathFourModeCycles": 10,
+    "largeSourceOpenCloseCycles": 5,
+    "largeFixtureBytes": 104857600,
+    "allOriginalRecoveryBytesPreservedAfterFinalQuit": true,
+    "allFixtureBytesUnchangedAfterFinalQuit": true,
+    "additionalFreshLargeSourceCycle": 1,
+    "privateBytesAfterFinalQuit": 104896971
+  },
+  "productionResources": {
+    "binarySha256": "ff2039b83127f2250e23a87e2dff4dffb16d7b2a1c2a4e5aaefdcca673627ba7",
+    "scope": "fresh post-restart normal ad-hoc copied app; one real 100 MiB Source open/close and five-minute no-agent-input idle; uncontrolled page/GC caches; not paint/latency or all-workload plateau certification",
+    "samples": 8,
+    "allOwnershipAndLifecycleChecks": true,
+    "allCounterIntervalsComplete": true,
+    "noFootprintOrCounterErrors": true,
+    "nativeQuitAndHelperExit": true,
+    "footprintsMiB": {
+      "empty-resumed": 107.64,
+      "large-source-resumed": 352.33,
+      "closed-resumed": 348.86,
+      "idle-60s-resumed": 371.54,
+      "idle-120s-resumed": 267.63,
+      "idle-180s-resumed": 267.64,
+      "idle-240s-resumed": 267.64,
+      "idle-300s-resumed": 167.38
+    },
+    "idleCpuPercentOfOneCore": [
+      0.11838, 0.017689, 0.017219, 0.006326, 0.021891
+    ],
+    "idlePackageWakeupsPerSecond": [0.0, 0.0, 0.0, 0.0, 0.0],
+    "idleInterruptWakeupsPerSecond": [
+      4.128715, 1.522355, 1.498937, 0.750101, 1.583458
+    ],
+    "priorTrace": "14 pre-restart exploratory samples and 25 observed cycles retained; post-restart absence cannot satisfy original lifecycle protocol; one idle sample also has incomplete ownership; interrupted five-minute sequence not a pass"
+  },
+  "publicationPreparation": {
+    "inventoryFiles": 188,
+    "verifiedNonSummaryInputs": 185,
+    "sourceArchive": "deterministic snapshot, all entries hash-verified; excludes Git history, generated output, caches and local historical evidence",
+    "repository": "reviewed local commit; no remote push or publication",
+    "cleanup": "project build/dependency/generated caches removed after verification; maintained tests/notices, verified packages and local evidence retained"
   }
 }

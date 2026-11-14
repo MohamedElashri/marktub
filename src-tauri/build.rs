@@ -25,6 +25,7 @@ fn main() {
         "power_release",
         "power_image",
         "power_diagram",
+        "power_math",
         "power_prepare",
         "power_run",
         "power_poll",

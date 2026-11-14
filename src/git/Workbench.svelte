@@ -37,6 +37,7 @@
   let chosen = new SvelteSet<string>(),
     generation = 0,
     pageGeneration = 0;
+  let comparisonRequest: number | undefined;
   const visible = $derived(
     repoState?.files.filter((f) =>
       f.path.toLocaleLowerCase().includes(filter.toLocaleLowerCase()),
@@ -62,6 +63,12 @@
     dialog.querySelector<HTMLElement>("button")?.focus();
   }
   function close() {
+    // Invalidated diff requests cannot clear their busy flag in finally.
+    // Other native operations retain their barrier until they settle.
+    if (comparisonRequest === generation) {
+      comparisonRequest = undefined;
+      busy = false;
+    }
     ++generation;
     ++pageGeneration;
     dialog.close();
@@ -142,6 +149,7 @@
     if (!repoState || !file) return;
     const request = ++generation,
       repo = repoState.id;
+    comparisonRequest = request;
     busy = true;
     failure = "";
     selected = file;
@@ -161,7 +169,10 @@
     } catch (e) {
       if (request === generation) failure = errorMessage(e);
     } finally {
-      if (request === generation) busy = false;
+      if (request === generation) {
+        comparisonRequest = undefined;
+        busy = false;
+      }
     }
   }
   async function loadPage() {

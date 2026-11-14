@@ -9,7 +9,20 @@ import {
 import { syntaxTree } from "@codemirror/language";
 import { tableAt, imageSpan, writableBlock } from "./author";
 import { grammar, emptyContext } from "../reader/grammar";
+import { AuthorMath } from "./math";
 const display = grammar();
+const mathViews = new WeakMap<
+  EditorView,
+  { doc: EditorState["doc"]; context: AuthorMath }
+>();
+function documentMath(view: EditorView) {
+  const prior = mathViews.get(view);
+  if (prior?.doc === view.state.doc) return prior.context;
+  prior?.context.destroy();
+  const context = new AuthorMath(view.state.doc.toString());
+  mathViews.set(view, { doc: view.state.doc, context });
+  return context;
+}
 const images = new WeakMap<EditorView, Map<string, string>>();
 const refreshImage = StateEffect.define<null>();
 let imageEpoch = 0;
@@ -50,6 +63,7 @@ class Block extends WidgetType {
     readonly from: number,
     readonly source: string,
     readonly rows?: string[][],
+    readonly doc?: EditorState["doc"],
   ) {
     super();
   }
@@ -58,7 +72,8 @@ class Block extends WidgetType {
       this.from === other.from &&
       this.kind === other.kind &&
       this.source === other.source &&
-      this.epoch === other.epoch
+      this.epoch === other.epoch &&
+      this.doc === other.doc
     );
   }
   toDOM(view: EditorView) {
@@ -147,15 +162,22 @@ class Block extends WidgetType {
         // widgets must not keep queued diagram work running after a mode/close.
         void Promise.resolve()
           .then(() =>
-            renderRich(
-              {
-                kind: this.kind === "math" ? "math" : "mermaid",
-                source: this.source,
-                display: this.kind !== "math",
-              },
-              "auto",
-              () => preview.isConnected,
-            ),
+            this.kind === "math"
+              ? documentMath(view).render(
+                  this.from,
+                  this.from + 1,
+                  this.source,
+                  () => preview.isConnected && view.state.doc === this.doc,
+                )
+              : renderRich(
+                  {
+                    kind: this.kind === "math" ? "math" : "mermaid",
+                    source: this.source,
+                    display: this.kind !== "math",
+                  },
+                  "auto",
+                  () => preview.isConnected,
+                ),
           )
           .then((result) => {
             if (preview.isConnected)
@@ -279,10 +301,9 @@ function build(
       if (!writableBlock(state, from) || !writableBlock(state, to)) continue;
       if (decorations.some((d) => d.from < to && d.to > from)) continue;
       decorations.push(
-        Decoration.replace({ widget: new Block("math", from, match[2]) }).range(
-          from,
-          to,
-        ),
+        Decoration.replace({
+          widget: new Block("math", from, match[2], undefined, state.doc),
+        }).range(from, to),
       );
       count++;
     }
@@ -330,6 +351,11 @@ const track = ViewPlugin.fromClass(
       this.publish();
     }
     update(update: { viewportChanged: boolean; view: EditorView }) {
+      const prior = mathViews.get(this.view);
+      if (prior && prior.doc !== this.view.state.doc) {
+        prior.context.destroy();
+        mathViews.delete(this.view);
+      }
       if (update.viewportChanged) this.publish();
     }
     publish() {
@@ -345,6 +371,9 @@ const track = ViewPlugin.fromClass(
     }
     destroy() {
       this.dead = true;
+      mathViews.get(this.view)?.context.destroy();
+      mathViews.delete(this.view);
+      images.delete(this.view);
     }
   },
 );

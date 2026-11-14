@@ -2,6 +2,7 @@ import { sanitizeRich, sanitizeReader } from "../reader/safe";
 import { escape } from "../reader/grammar";
 import { MathPolicyError, requireLocalMath } from "./math-policy";
 import type { Rich } from "../reader/model";
+import type { DocumentMath } from "./math-document";
 let queue: Promise<void> = Promise.resolve();
 let uid = 0;
 const cache = new Map<string, string>();
@@ -34,6 +35,7 @@ export async function renderRich(
   rich: Rich,
   engine: "auto" | "mathjax" = "auto",
   current: () => boolean = () => true,
+  math?: Pick<DocumentMath, "render">,
 ): Promise<string> {
   const checkCurrent = () => {
     if (!current())
@@ -48,15 +50,26 @@ export async function renderRich(
     )
   )
     throw new MathPolicyError("Math resource/HTML commands are disabled.");
-  if (rich.kind === "math") requireLocalMath(rich.source);
+  const contextual = rich.kind === "math" && rich.mathIndex !== undefined;
+  if (rich.kind === "math" && !contextual) requireLocalMath(rich.source);
   const key = JSON.stringify([rich, engine, "v1"]);
-  const cached = cache.get(key);
+  const cached = contextual ? undefined : cache.get(key);
   if (cached) return sanitizeRich(cached, `cached-${++uid}`);
   const epoch = cacheEpoch;
   let result: string;
   let svgAlternative = rich.kind === "mermaid";
   if (rich.kind === "math") {
-    if (
+    if (contextual) {
+      if (!math)
+        throw new MathPolicyError(
+          "Document math is provisional until context scanning finishes. Source preserved.",
+        );
+      result = sanitizeRich(
+        await math.render(rich.mathIndex!, rich.source, rich.display, current),
+        `math-${++uid}`,
+      );
+      svgAlternative = true;
+    } else if (
       engine === "mathjax" ||
       /\\(?:prescript|mathclap|DeclarePairedDelimiter)\b/.test(rich.source)
     ) {
@@ -164,10 +177,12 @@ export async function renderRich(
         "aria-label",
         `${rich.kind === "math" ? "TeX math" : "Diagram source"}: ${rich.source}`,
       );
+      if (accessible.content.querySelector(".math-alternative math"))
+        svg.setAttribute("aria-hidden", "true");
     }
     result = accessible.innerHTML;
   }
-  if (epoch !== cacheEpoch) return result;
+  if (contextual || epoch !== cacheEpoch) return result;
   cacheBytes -= (cache.get(key)?.length ?? 0) * 2;
   cache.set(key, result);
   cacheBytes += result.length * 2;
@@ -182,6 +197,7 @@ export async function hydrate(
   host: HTMLElement,
   rich: Rich[],
   current: () => boolean,
+  math?: DocumentMath,
 ) {
   const targets = Array.from(host.querySelectorAll<HTMLElement>("[data-rich]"));
   for (const target of targets.slice(4)) {
@@ -201,6 +217,7 @@ export async function hydrate(
         item,
         "auto",
         () => current() && target.isConnected,
+        math,
       );
       if (current() && target.isConnected) {
         target.innerHTML = html;

@@ -13,11 +13,14 @@
   import { renderRich } from "../renderers/rich";
   import { sanitizeRich } from "../reader/safe";
   import { tick } from "svelte";
+  import { onDestroy } from "svelte";
+  import { AuthorMath } from "./math";
   import { errorMessage } from "../bridge";
   let {
     getView,
     onimage,
     onerror,
+    wholeDocument = true,
   }: {
     getView: () => EditorView | undefined;
     onimage: (
@@ -31,6 +34,7 @@
       height?: number;
     } | null>;
     onerror: (text: string) => void;
+    wholeDocument?: boolean;
   } = $props();
   let dialog: HTMLDialogElement;
   let kind = $state(""),
@@ -58,6 +62,8 @@
     request = 0,
     before = "",
     after = "";
+  let mathPreview: AuthorMath | undefined;
+  onDestroy(() => mathPreview?.destroy());
   function capture(at?: number) {
     const v = getView();
     if (!v) throw Error("Editor unavailable.");
@@ -160,6 +166,10 @@
   }
   function close() {
     ++request;
+    mathPreview?.destroy();
+    mathPreview = undefined;
+    original = undefined;
+    preview = "";
     dialog.close();
     getView()?.focus();
   }
@@ -199,15 +209,31 @@
   async function render() {
     const epoch = ++request;
     try {
-      const result = await renderRich(
-        {
-          kind: kind === "mermaid" ? "mermaid" : "math",
-          source: body,
-          display: true,
-        },
-        "auto",
-        () => epoch === request && dialog.open,
-      );
+      mathPreview?.destroy();
+      mathPreview = undefined;
+      const current = () => epoch === request && dialog.open;
+      let result: string;
+      if (kind === "math" && wholeDocument && original) {
+        const inserted = before + body + after;
+        mathPreview = new AuthorMath(
+          original.sliceString(0, from) + inserted + original.sliceString(to),
+        );
+        result = await mathPreview.render(
+          from + before.length,
+          from + before.length + body.length,
+          body,
+          current,
+        );
+      } else
+        result = await renderRich(
+          {
+            kind: kind === "mermaid" ? "mermaid" : "math",
+            source: body,
+            display: true,
+          },
+          "auto",
+          current,
+        );
       if (epoch === request) preview = result;
     } catch (e) {
       if (epoch === request && dialog.open) error = errorMessage(e);

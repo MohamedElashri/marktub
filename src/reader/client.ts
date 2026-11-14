@@ -1,4 +1,5 @@
 import type { Read, Section, Heading, Page } from "./model";
+import { DocumentMath } from "../renderers/math-document";
 export interface Update {
   sections: Section[];
   headings: Heading[];
@@ -7,6 +8,7 @@ export interface Update {
   total: number;
 }
 export class ReaderClient {
+  math?: DocumentMath;
   approvedImages = new Map<string, string>();
   private imagePixels = new Map<string, number>();
   approveImage(
@@ -79,6 +81,10 @@ export class ReaderClient {
         // that array into a call (WebView argument limits differ by platform).
         for (const heading of data.headings) this.headings.push(heading);
         this.complete = data.complete;
+        if (data.complete && data.math?.needsContext) {
+          this.math?.destroy();
+          this.math = new DocumentMath(data.math);
+        }
         update({
           ...data,
           sections: [...this.sections],
@@ -131,6 +137,8 @@ export class ReaderClient {
     this.worker.onerror = null;
     for (const p of this.pending.values()) p.reject(Error("Reader closed."));
     this.pending.clear();
+    this.math?.destroy();
+    this.math = undefined;
     this.approvedImages.clear();
     this.imagePixels.clear();
     this.sections.length = 0;

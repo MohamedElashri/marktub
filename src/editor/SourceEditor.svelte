@@ -615,6 +615,7 @@
 <RichTools
   bind:this={tools}
   getView={() => view}
+  wholeDocument={!session.range}
   onimage={async (copy, offer, bytes) => {
     const result = await onimage(copy, offer, bytes);
     if (result && view) rememberImage(view, result.path, result.dataUrl);

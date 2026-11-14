@@ -1,6 +1,16 @@
 // @vitest-environment jsdom
 import { expect, it } from "vitest";
 import { sanitizeReader, sanitizeRich, safeLink } from "../../src/reader/safe";
+it("assigns unique SVG/MathML IDs while keeping references to the first original ID", () => {
+  const host = document.createElement("div");
+  host.innerHTML = sanitizeRich(
+    '<svg><g id="same"></g><g id="same"></g><g id="next"></g><use href="#same"></use></svg><math><mrow id="same"></mrow></math>',
+    "duplicates",
+  );
+  const ids = [...host.querySelectorAll("[id]")].map((node) => node.id);
+  expect(new Set(ids).size).toBe(ids.length);
+  expect(host.querySelector("use")?.getAttribute("href")).toBe("#" + ids[0]);
+});
 import { admissibleDiagram, renderRich } from "../../src/renderers/rich";
 import { renderText } from "../../src/reader/indexer";
 import { emptyContext } from "../../src/reader/grammar";

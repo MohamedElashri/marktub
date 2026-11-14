@@ -1,4 +1,6 @@
 import { grammar, emptyContext } from "../reader/grammar";
+import { mathPlanForText } from "../reader/math-context";
+import { DocumentMath } from "../renderers/math-document";
 type Token = ReturnType<ReturnType<typeof grammar>["parse"]>[number];
 export function resources(text: string) {
   const images = new Set<string>(),
@@ -24,15 +26,29 @@ export function resources(text: string) {
 export async function diagramPng(source: string) {
   const { renderRich } = await import("../renderers/rich");
   const html = await renderRich({ kind: "mermaid", source, display: true });
-  const doc = new DOMParser().parseFromString(html, "image/svg+xml");
-  const svg = doc.querySelector("svg");
-  if (!svg || doc.querySelector("parsererror"))
-    throw Error("Diagram SVG unavailable.");
+  return svgPng(html);
+}
+async function svgPng(html: string, math = false) {
+  const template = document.createElement("template");
+  template.innerHTML = html;
+  const svg = template.content.querySelector("svg")?.cloneNode(true) as
+    SVGElement | undefined;
+  if (!svg) throw Error("Rendered SVG unavailable.");
+  svg.removeAttribute("xmlns");
+  svg.removeAttribute("xmlns:xlink");
   const view = (svg.getAttribute("viewBox") ?? "0 0 800 600")
     .split(/[ ,]+/)
     .map(Number);
   let width = view[2],
     height = view[3];
+  if (math) {
+    width = (svg.getAttribute("width") ?? "").endsWith("ex")
+      ? parseFloat(svg.getAttribute("width")!) * 9
+      : width * 0.018;
+    height = (svg.getAttribute("height") ?? "").endsWith("ex")
+      ? parseFloat(svg.getAttribute("height")!) * 9
+      : height * 0.018;
+  }
   if (
     !Number.isFinite(width) ||
     !Number.isFinite(height) ||
@@ -59,4 +75,49 @@ export async function diagramPng(source: string) {
   context.fillRect(0, 0, width, height);
   context.drawImage(image, 0, 0, width, height);
   return canvas.toDataURL("image/png").split(",")[1];
+}
+export async function documentMathPngs(
+  text: string,
+  admit: (source: string, display: boolean, png: string) => Promise<unknown>,
+) {
+  const plan = mathPlanForText(text);
+  if (!plan.needsContext) return;
+  const math = new DocumentMath(plan);
+  const { sanitizeRich } = await import("../reader/safe");
+  try {
+    const images = new Map<
+      string,
+      { source: string; display: boolean; html: string }
+    >();
+    const ambiguous = new Set<string>();
+    for (const [index, expression] of plan.expressions.entries()) {
+      const html = await math.render(
+        index,
+        expression.source,
+        expression.display,
+      );
+      const key = JSON.stringify([
+        expression.source.trim(),
+        expression.display,
+      ]);
+      if (images.has(key) && images.get(key)!.html !== html) ambiguous.add(key);
+      else images.set(key, { ...expression, html });
+    }
+    if (plan.issue) throw Error(plan.issue);
+    for (const [key, expression] of images) {
+      if (ambiguous.has(key)) continue;
+      const clean = sanitizeRich(expression.html, "pdf-math");
+      await admit(
+        expression.source,
+        expression.display,
+        await svgPng(clean, true),
+      );
+    }
+    if (ambiguous.size)
+      throw Error(
+        "Repeated formulas with different document context remain source in PDF; HTML keeps their distinct rendering.",
+      );
+  } finally {
+    math.destroy();
+  }
 }

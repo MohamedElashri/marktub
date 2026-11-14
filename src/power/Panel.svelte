@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onDestroy } from "svelte";
   import * as api from "./bridge";
-  import { resources, diagramPng } from "./assets";
+  import { resources, diagramPng, documentMathPngs } from "./assets";
   import { errorMessage } from "../bridge";
   let {
     oncapture,
@@ -122,6 +122,18 @@
       warning = "";
       rowAt = 0;
       exportId = null;
+      if (mode === "pdf" || mode === "pdf_tex") {
+        try {
+          await documentMathPngs(capture!.text, (source, display, png) =>
+            api.math(capture!.id, source, display, png),
+          );
+        } catch (e) {
+          warning +=
+            "Document math remains source where no validated raster is available: " +
+            errorMessage(e) +
+            "\n";
+        }
+      }
       if (mode === "pdf" || mode === "pdf_tex")
         for (const source of asset.diagrams) {
           try {

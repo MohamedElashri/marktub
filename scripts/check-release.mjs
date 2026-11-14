@@ -4,6 +4,11 @@ import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 
 const config = JSON.parse(readFileSync("src-tauri/tauri.conf.json"));
+assert.equal(
+  config.bundle.macOS.signingIdentity,
+  "-",
+  "the supported macOS channel is ad-hoc signing without Apple account credentials",
+);
 assert.deepEqual(config.app.security.capabilities, ["main"]);
 assert.notEqual(config.app.withGlobalTauri, true);
 assert.equal(config.app.windows.length, 1, "one normal WebView window");

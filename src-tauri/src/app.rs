@@ -572,7 +572,7 @@ async fn close_application(app: tauri::AppHandle) -> Result<(), FileError> {
     Ok(())
 }
 
-macro_rules! commands {($($extra:ident),*)=>{tauri::generate_handler![take_os_open,power_state,power_enable,power_choose_tool,power_trust,power_choose_database,power_capture,power_release,power_image,power_diagram,power_prepare,power_run,power_poll,power_cancel,power_clear,power_save_pdf,power_open_pdf,review_begin,review_sync,review_displayed,review_end,review_update,review_compare,review_export,review_save,review_list,review_delete,review_archive_export,review_archive_save,git_badges,git_history_files,git_choose,git_refresh,git_revoke,git_compare,git_page,git_mutate,git_open,git_backups,git_export_backup,git_forget_backup,capture_edit_read,read_edit_snapshot,import_author_image,change_edit_window,preference_catalogue,list_fonts,preview_settings,library_location,library_session,library_remember_document,library_accept_drop,library_state,library_choose_root,library_page,library_open,library_preview,library_scan,library_job,library_prepare,library_commit,library_configure,library_pin,library_remove_root,open_document_link,choose_image,export_html,choose_document,open_example,read_range,release_document,document_status,runtime_info,execution_status,
+macro_rules! commands {($($extra:ident),*)=>{tauri::generate_handler![take_os_open,power_state,power_enable,power_choose_tool,power_trust,power_choose_database,power_capture,power_release,power_image,power_diagram,power_math,power_prepare,power_run,power_poll,power_cancel,power_clear,power_save_pdf,power_open_pdf,review_begin,review_sync,review_displayed,review_end,review_update,review_compare,review_export,review_save,review_list,review_delete,review_archive_export,review_archive_save,git_badges,git_history_files,git_choose,git_refresh,git_revoke,git_compare,git_page,git_mutate,git_open,git_backups,git_export_backup,git_forget_backup,capture_edit_read,read_edit_snapshot,import_author_image,change_edit_window,preference_catalogue,list_fonts,preview_settings,library_location,library_session,library_remember_document,library_accept_drop,library_state,library_choose_root,library_page,library_open,library_preview,library_scan,library_job,library_prepare,library_commit,library_configure,library_pin,library_remove_root,open_document_link,choose_image,export_html,choose_document,open_example,read_range,release_document,document_status,runtime_info,execution_status,
     begin_edit,apply_edits,flush_edits,save_document,save_as_document,editing_status,compare_document,reopen_document,release_editor,
     list_recoveries,restore_recovery,discard_recovery,get_settings,update_settings,import_settings,export_settings,document_position,remember_position,storage_warning,close_application,reset_settings,$($extra),*]};}
 
@@ -2271,6 +2271,51 @@ fn power_diagram(
         &app,
         &capture,
         format!("mermaid:{}", power::hash(source.trim().as_bytes())),
+        bytes,
+    )
+}
+#[tauri::command]
+fn power_math(
+    app: tauri::AppHandle,
+    capture: String,
+    source: String,
+    display: bool,
+    png: String,
+) -> Result<(), FileError> {
+    if source.len() > 32768 || png.len() > 12 * 1024 * 1024 {
+        return Err(power::err("Rendered math exceeds its export budget."));
+    }
+    {
+        let host = powers(&app);
+        let p = host
+            .lock()
+            .map_err(|_| power::err("Local jobs unavailable."))?;
+        let c = p
+            .captures
+            .get(&capture)
+            .ok_or_else(|| power::err("Capture ended."))?;
+        if source.trim().is_empty()
+            || !c
+                .view
+                .text
+                .replace("\r\n", "\n")
+                .replace('\r', "\n")
+                .contains(source.trim())
+        {
+            return Err(power::err("Math source is outside this capture."));
+        }
+    }
+    use base64::Engine;
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(png)
+        .map_err(|_| power::err("Invalid rendered PNG."))?;
+    if !bytes.starts_with(b"\x89PNG\r\n\x1a\n") {
+        return Err(power::err("Rendered math must be PNG."));
+    }
+    power_asset(
+        &app,
+        &capture,
+        power::pdf::math_key(&source, display),
         bytes,
     )
 }

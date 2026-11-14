@@ -3,6 +3,7 @@ export interface Section {
   end: number;
   fallback?: string;
   note?: string;
+  mathStart?: number;
 }
 export interface Heading {
   title: string;
@@ -21,11 +22,28 @@ export interface Index {
   complete: boolean;
   scanned: number;
   total: number;
+  math?: MathPlan;
+}
+export interface MathExpression {
+  source: string;
+  display: boolean;
+}
+export interface MathSpan extends MathExpression {
+  from: number;
+  to: number;
+  index: number;
+}
+export interface MathPlan {
+  expressions: MathExpression[];
+  sourceUnits: number;
+  needsContext: boolean;
+  issue?: string;
 }
 export interface Rich {
   kind: "math" | "mermaid";
   source: string;
   display: boolean;
+  mathIndex?: number;
 }
 export interface Page {
   html: string;

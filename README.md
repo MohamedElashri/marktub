@@ -6,7 +6,8 @@ system WebView.
 
 **Prerelease.** Native acceptance is verified on macOS ARM64. Linux, Intel and
 minimum-macOS qualification, physical IME/screen-reader checks, sustained memory
-qualification and public signing remain open. The complete status and architecture
+qualification remain open. macOS distribution uses ad-hoc signing without a paid
+Apple account; packages are not notarized. The complete status and architecture
 decisions are maintained in [plan.md](plan.md), with a portable
 [verification summary](docs/evidence/release-status.json).
 
@@ -30,11 +31,21 @@ remain on disk after text Undo. Review relative image references after Save As t
 another folder.
 
 KaTeX, MathJax, Mermaid, highlighting and renderer fonts are bundled and loaded
-locally on demand. Math is expression-local: global definitions, cross-expression
-labels/references and automatic numbering retain source with a diagnostic. Explicit
-tags and unnumbered environments are supported. Standalone HTML embeds finalized
-sections, local assets/notices and approved images, without scripts. PDF export
-uses separately installed, selected Pandoc and Typst or TeX.
+locally on demand. Finalized documents support ordered AMS equation numbering,
+labels, forward references and shared macro definitions through local MathJax.
+Document context admits 128 formulas and 128 KiB of math source; unsupported,
+unresolved or oversized math retains source with a diagnostic. Context-dependent
+author previews use verified inline spans. Large Source windows keep local previews;
+Read uses the full native revision. Resolved MathML accompanies document-math SVG
+for assistive technology; physical screen-reader qualification remains open.
+
+Standalone HTML embeds finalized sections, local assets/notices and approved
+images, without scripts. PDF export uses separately installed, selected Pandoc and
+Typst or TeX. Document math is rasterized from the captured revision, with native
+PNG validation, rather than forwarding global TeX commands to those converters.
+The 16-asset/24 MiB PDF budget applies to images, diagrams and math together.
+Repeated formulas whose document context produces different output retain source
+in PDF; standalone HTML keeps their distinct rendering.
 
 ## Navigate and configure
 
@@ -95,7 +106,7 @@ pnpm tauri dev
 ```
 
 ```sh
-pnpm tauri build --bundles app,dmg   # macOS
+python3 scripts/build-macos.py      # macOS, ad-hoc app/DMG; no Apple credentials
 pnpm tauri build --bundles deb       # Linux
 pnpm check:release
 ```
@@ -104,7 +115,13 @@ The installed app needs no Node server. Vite and the loopback WebDriver server a
 restricted to development/test configurations. Normal release builds reject the
 e2e feature and exclude fixture commands/evaluators. Rebuild normally after native
 testing before distributing an artifact. Local macOS packages are ad-hoc signed;
-Developer ID signing/notarization requires a separate release-owner decision.
+Developer ID, notarization and App Store distribution are outside the chosen channel.
+Ad-hoc signing verifies bundle integrity; it does not establish an Apple-verified
+publisher. Downloaded packages can be blocked by Gatekeeper. Check the published
+SHA-256 checksum before opening; if you choose to trust the app, follow Apple's
+[per-app Privacy & Security instructions](https://support.apple.com/en-us/102445).
+Marktub does not disable Gatekeeper or remove download quarantine. A locally built
+app launching successfully does not certify a downloaded app's first-run experience.
 
 ## Verify and prepare source
 
@@ -163,7 +180,11 @@ No normal-release evaluator or profiling endpoint is exposed.
 ## Recovery and release limits
 
 After an interrupted edit, **Restore**, inspect the recovered text, then **Save As**.
-Recovery never restores the old path's write authority. Keep local edits and use
+Recovery never restores the old path's write authority. A successfully closed,
+never-edited Source session can retire its redundant private base after native
+verification that the authorized disk file still matches. Receipt-bearing history,
+recovered/Save As-only documents and changed files keep their archives. Historical
+archives are preserved. Keep local edits and use
 Compare/independent copies when a file changes externally. Do not delete app-private
 storage to dismiss a warning: it can contain unsaved work, feedback or discard
 backups. Capacity refusals preserve existing records. Large-session range changes
