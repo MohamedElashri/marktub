@@ -141,7 +141,7 @@
     "cleanup": "completed project build/dependency/generated caches removed after verification; maintained tests/notices, verified packages, raw evidence and all private histories retained"
   },
   "currentMacQualification": {
-    "status": "finite available-Mac checks complete except explicit Git-grant approval; broader release qualifications remain open",
+    "status": "finite available-Mac checks complete, including explicitly approved shipping Git UI; broader release qualifications remain open",
     "osSettings": "unchanged; owner declined Japanese/VoiceOver activation",
     "storeLease": "explicit logical-owner unlock; duplicate-description regression and full native suite pass",
     "finalRust": {
@@ -198,8 +198,12 @@
       "scope": "installed fonts/tool versions; not launchd WebKit network denial, physical print or universal layout certification"
     },
     "nativeGitUi": {
-      "status": "Not Run on final binary; explicit repository-grant question pending after automatic approval review rejection",
-      "scope": "owned disposable four-file fixture; no stage/unstage/discard/commit or transport; chooser cancelled, no app Git grant"
+      "status": "pass on exact f139d193 shipping executable after explicit owner approval",
+      "scope": "native chooser, one saved hunk, side-by-side, local history and bounded large-file refusal; repository grant revoked, home shortcuts still require folder selection, native Quit and all sampled helper exits; no Git mutation or transport",
+      "privateFilesByteIdentical": 68,
+      "workloadFilesByteIdentical": 4,
+      "gitMetadataFilesAndInventoryByteIdentical": 29,
+      "resourceScope": "three ownership/incarnation/lifecycle-admitted loaded points over two approximately 20-second idle intervals; not a latency SLA, peak or sustained plateau certification"
     },
     "notRun": [
       "owner-declined OS setting changes for Japanese input and VoiceOver",
