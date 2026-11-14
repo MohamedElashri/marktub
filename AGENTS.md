@@ -1,5 +1,73 @@
 # Working on Marktub
 
+Contributor and maintainer guide. See [README.md](README.md) for product usage and [plan.md](plan.md) for the specification, phase history and release qualifications.
+
+## Contributing
+
+Keep changes focused on a concrete use case or defect. For bugs, include the OS, app revision, reproduction steps and a minimal redacted fixture; preserve evidence before fixing a file-integrity failure. Describe the resulting behavior and relevant validation in a pull request. Avoid unrelated reformatting, new runtime dependencies and speculative performance claims.
+
+Read the relevant phase's completion/deviation notes before implementation. Keep new phase decisions and evidence in that section of plan.md. This repository uses three Markdown documentation entry points; required legal notices and machine-readable evidence remain separate.
+
+## Development
+
+| Tool | Pinned version                                     |
+| ---- | -------------------------------------------------- |
+| Node | 26.13.1 (`.node-version`)                          |
+| pnpm | 12.18.0 (`package.json`)                           |
+| Rust | 1.99.1, rustfmt and Clippy (`rust-toolchain.toml`) |
+
+Install the [Tauri native prerequisites](https://v2.tauri.app/start/prerequisites/) for your host. The declared Linux target is Ubuntu 24.04 amd64 with GTK 3/WebKitGTK 4.1. Rust, Tauri 2, Svelte 5, TypeScript and CodeMirror 6 are the locked stack; the installed app uses one local system WebView.
+
+```sh
+pnpm install --frozen-lockfile
+cargo fetch --manifest-path src-tauri/Cargo.toml --locked
+pnpm tauri dev
+```
+
+## Checks
+
+```sh
+pnpm check:repository
+pnpm check
+cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
+cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --locked -- -D warnings
+cargo test --manifest-path src-tauri/Cargo.toml --locked
+pnpm test:e2e
+```
+
+`pnpm check` covers typechecking, lint, frontend tests, Node/Python tooling tests and formatting. Native e2e tests build an isolated test configuration and exercise the actual WebView/backend with disposable fixtures and synthetic keys. They do not certify physical IME or accessibility. Serialize Cargo/Tauri builds; rebuild normally after e2e testing before distributing an artifact.
+
+Security checks use `pnpm audit --prod`, `pnpm audit`, and pinned `cargo-audit 0.23.0` with `cargo audit --file src-tauri/Cargo.lock --deny unsound --deny unmaintained`. Record database revision, failures and Not Run scope; do not hide findings with ignores. Current results belong in Phase 9 of plan.md, with portable facts in `docs/evidence/release-status.json`.
+
+## Build and package
+
+```sh
+python3 scripts/build-macos.py       # macOS: ad-hoc app + DMG, no Apple credentials
+pnpm tauri build --bundles deb        # Linux: Debian package on a Linux host
+pnpm check:release
+```
+
+Use the command for your host. Outputs are under `src-tauri/target/release/bundle/`. The macOS channel is ad-hoc and unnotarized; it does not establish an Apple-verified publisher. Never change trust/quarantine settings in build scripts. `check:release` checks the normal frontend, permissions, executable and dependency graph for test hooks. Validate an actual local DMG separately:
+
+```sh
+python3 scripts/check-macos-package.py --dmg <path-to-dmg>
+```
+
+Before preparing source, run `pnpm check:repository`, then `pnpm source:archive`. The deterministic archive and hash manifest land in `artifacts/releases/`; Git history, caches, generated files and local reports are excluded. The inventory guard detects common credential/token/home-path leaks but cannot replace human review. Tests, benchmarks and license texts are maintained source. Never delete app-private histories as part of repository cleanup.
+
+## Measurement
+
+Use `pnpm fixtures`, `pnpm bench:open` and `pnpm bench:dom` for their documented fixture/DOM scopes. `pnpm bench:baseline` creates the blank-app control; rebuild the normal app afterward. Native tools require a selected executable, for example:
+
+```sh
+python3 benchmarks/startup.py --binary <app-executable>
+python3 benchmarks/release_profile.py --binary <app-executable> --label empty --rusage --samples 3 --interval 10 --output artifacts/empty-profile.json
+```
+
+Measure without concurrent compilation and bind results to the executable hash, host, workload and helper lifecycles. Page load is not interactive paint; RSS is not physical footprint; browser mocks are not native behavior. Startup timing is explicit opt-in (`MARKTUB_PROFILE_STARTUP=1`). Optional macOS `source_memory.py --responsibility` uses ownership/incarnation checks; unknown ownership or surviving helpers makes attribution inconclusive. No release evaluator is exposed.
+
+## Implementation constraints
+
 Read `plan.md`, including previous completion/deviation notes, before changing architecture or advancing scope.
 Do not create new Markdown files. Keep all phase plans, decisions, evidence summaries,
 completion and deviation notes in that phase’s section of `plan.md`. Non-Markdown

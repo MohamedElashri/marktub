@@ -134,8 +134,8 @@
     }
   },
   "publicationPreparation": {
-    "inventoryFiles": 191,
-    "verifiedNonSummaryInputs": 188,
+    "inventoryFiles": 192,
+    "verifiedNonSummaryInputs": 189,
     "sourceArchive": "deterministic snapshot; every archive entry compared with manifest/current source; excludes Git history, generated output, caches and ignored local evidence",
     "repository": "reviewed local checkpoint; no remote push or external publication",
     "cleanup": "completed project build/dependency/generated caches removed after verification; maintained tests/notices, verified packages, raw evidence and all private histories retained"

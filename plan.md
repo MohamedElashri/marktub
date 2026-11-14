@@ -1,6 +1,8 @@
 # Implementation Plan
 
-Private implementation ledger and authoritative product specification for **Marktub**. This document follows the structure of `MohamedElashri/agentic/templates/plan.md`: Goal, Scope, Constraints, Current State, Commands, Acceptance Criteria, Test Plan, and Phases. Keep the plan specific and current as implementation proceeds. The project is not implemented merely because a feature is described here.
+Product specification, architecture decisions, phase records and release qualifications. Start with [README.md](README.md) for the product and [AGENTS.md](AGENTS.md) for contributor workflows. Historical phase evidence is retained here; planned scope does not imply completed or qualified behavior.
+
+[Goal](#goal) · [Scope](#scope) · [Constraints](#constraints) · [Acceptance](#acceptance-criteria) · [Phases](#phases) · [Release qualification](#phase-9-performance-hardening-accessibility-packaging-release-review)
 
 **Project:** Marktub  
 **Product:** Offline-first Markdown reader, hybrid editor, filesystem workbench, and optional agent-document reviewer  
@@ -493,52 +495,9 @@ Before adding any dependency: record license, maintained release/version, binary
 
 ## Commands
 
-The commands below are the **intended developer interface**, not a claim they already run. In Phase 0 install the official Tauri 2 macOS or Linux prerequisites (Linux must have compatible WebKitGTK development/runtime packages) and freeze Node/pnpm/Rust versions. Update commands if the created repository differs, with evidence.
+The current executable workflows are consolidated in [AGENTS.md](AGENTS.md): [setup](AGENTS.md#development), [checks](AGENTS.md#checks), [packaging](AGENTS.md#build-and-package) and [measurement](AGENTS.md#measurement). The package scripts and CI configuration are the runnable command definitions. Historical commands/results remain under the phase that ran them.
 
-```bash
-# Bootstrap once: install a pinned pnpm by the method supported by the pinned Node
-# release; do not assume Corepack is bundled. Create package files, then resolve
-# the initial lockfile with pnpm install. These files do not exist yet.
-# Reproducible setup AFTER lockfiles have been created and committed:
-pnpm install --frozen-lockfile
-cargo --version
-
-# Dev desktop app (Tauri launches Vite + Rust backend)
-pnpm tauri dev
-
-# Production build / runnable install artifacts
-pnpm tauri build
-
-# Frontend checks
-pnpm typecheck
-pnpm lint
-pnpm test
-pnpm test:e2e      # test-only actual Tauri WebView driver; manual native checks separately
-pnpm format:check
-
-# Rust backend checks
-cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
-cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
-cargo test --manifest-path src-tauri/Cargo.toml
-
-# Performance: scripts and target fixture names to implement
-pnpm bench:startup
-pnpm bench:memory
-pnpm bench:open
-pnpm bench:scroll
-pnpm bench:edit
-pnpm bench:git
-
-# Dependency/security audits (add and document pinned tooling)
-pnpm audit
-cargo audit --file src-tauri/Cargo.lock
-```
-
-**Phase 0 command availability:** current runnable commands and required benchmark `--binary` arguments are documented in [README.md](README.md). `bench:scroll`, `bench:edit`, `bench:git` and `cargo audit` are not implemented/installed or claimed as passing in Phase 0. pnpm 12 project settings live in `pnpm-workspace.yaml`; an explicit frozen offline install has been verified.
-
-Provide scripts for fixtures that create: ordinary Markdown, deeply nested syntax, tricky Unicode, GFM tables, many equations, Mermaid-rich source, binary/invalid UTF-8, mixed line endings, pathological long lines, 1/10/100 MB files and a reproducible Git staging repository. `pnpm` frontend scripts may orchestrate Rust tests; ensure CI covers both. Never claim a command passes until it has actually been executed.
-
-Pin Node/pnpm/Rust toolchains and lockfiles together; choose compatible versions at bootstrap, not speculative versions in this document. No root Cargo workspace is assumed: Rust tools receive the backend manifest/lockfile explicitly. Git CLI is required for Git correctness tests, and pinned optional tools are required only for their integration tests. Missing tools/platforms produce Not Run with a reason, not a pass. Audit commands may need registry access in development; runtime offline guarantees are separate.
+Use the explicit backend manifest/lockfile for Cargo tools. Serialize Cargo/Tauri builds; record the platform, executable hash, actual outcome and Not Run scope. Registry access during development is separate from runtime offline behavior. A command listed in the specification is not itself a test result.
 
 ## Acceptance Criteria
 
@@ -2153,6 +2112,13 @@ Follow-up completion/deviation notes:
 - The copied normal app passes real NSOpenPanel owned-repository and Unicode-file selection, three-hunk Git inspection/revocation, Read/Source local icons and accessible names, Settings Cancel/focus return, native palette shortcut/Escape, close/home/contextual recents and Quit. No edits, saves, preference commits or Git mutations. The 94-byte BOM/mixed-EOL fixture SHA stays `75377655cb5cff33df64cc0d9d9450cd04feaa6bb4d6e31b66389a1e4de20be7`; owned Git working bytes/index/config/HEAD hashes stay exact. A post-quit accessibility refresh relaunched the app; that unmeasured inspection instance was subsequently quit via its native menu and process absence verified without refreshing the target again.
 - P10-014 production Git capture is now admitted for this final binary: native-selected owned 10,000-line fixture, three hunks/28 display rows; three whole-app samples with contemporaneous responsibility/incarnation proof, complete counters, zero footprint errors, three helpers and confirmed app/helper exit. Physical footprint 136.75/136.96/136.96 MiB; RSS sum 183.69/170.06/170.39 MiB. Actual intervals 24.57/23.99 seconds; CPU 0.0054%/0.0262% of one core, package-idle wakeups 0/0.0417 and interrupt wakeups 0.6918/2.6677 per second. These are bounded idle observations after UI loading, not true peaks, energy, frame/input latency or sustained plateau certification. No builds or mutations during sampling. Raw `artifacts/phase-10-modern-git-memory.json` and package/UI/input bindings are retained. Historical rejected profiles remain inconclusive.
 - The defined follow-up is complete. Broader corpus and fresh Git resource admission close those local evidence gaps; all 18 cross-platform release criteria remain honestly open where their composite requirements are unfulfilled. Global math context, stressed handoff investigation, sustained production performance, physical accessibility/input/printing, declared other platforms, advisory disposition, public signing and clean-machine/CI/distribution checks remain in Phase 9. No new Markdown files, project commit, push, external message or runtime dependency. `artifacts/publication-history/docs/evidence/phase-10-macos-arm64.json` preserves both checkpoints and exact revision scopes.
+
+
+#### Documentation consolidation (2026-11-14)
+
+- P10-016 — Owner requests thorough, professional, concise repository documentation in two or three files, including branding and a screenshot. Reuse the three existing Markdown entry points: README for product/quickstart/usage/safety/status; AGENTS for contributors, checked workflows and implementation constraints; plan.md for the specification and all phase decisions/evidence. Remove stale bootstrap command placeholders and duplicate operational recipes from this plan's Commands section. Preserve every phase's historical completion/deviation record, all existing implementation constraints and separate mandatory legal notices; do not create another Markdown document.
+- README reuses the app's existing icon and typography-first identity, with one authentic, unmodified native Git-workbench screenshot and an explicit disposable-test-repository caption. Native CUA screenshot startup fails three times, including after reset, so no fresh capture is claimed; the existing actual WebView capture is copied byte-for-byte into docs/assets/. No generated/fabricated app image, UI change, new dependency, OS preference change or release qualification waiver. Documentation links and documented commands must be checked against current source/scripts; source publication output is refreshed after verification.
+- P10-016 verification: README is reduced from 213 to approximately 100 lines; contributor commands move to the existing AGENTS entry point and all prior implementation constraints remain verbatim. Three Markdown documents parse successfully and all 55 local links/assets/anchors resolve. Pinned Prettier checks pass for README/AGENTS; plan keeps its established formatting exclusion. Four existing publication-tooling tests pass. Screenshot is 2160×1520, 358,244 bytes, unchanged from the actual native capture; metadata contains only resolution, colorspace and dimensions. Tauri's official prerequisite link is fetched; the existing Apple support link returns HTTP 429, so a fresh remote-content verification is not claimed. No fake download/CI badge, hosted release URL or new Markdown guide is introduced. Runtime/dependency inputs and the app/DMG remain unchanged. The refreshed source snapshot includes the screenshot and 192 maintained publication files; normal build caches remain absent.
 
 ### Agent working protocol (applies to every phase)
 
