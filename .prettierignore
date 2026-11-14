@@ -1,0 +1,11 @@
+plan.md
+pnpm-lock.yaml
+src-tauri/Cargo.lock
+src-tauri/gen/
+src-tauri/target/
+node_modules/
+.pnpm-store/
+dist/
+artifacts/
+tests/generated/
+tests/fixtures/

@@ -1,0 +1,17 @@
+storeDir: .pnpm-store
+saveExact: true
+engineStrict: true
+verifyDepsBeforeRun: false
+allowBuilds:
+  esbuild: true
+  edgedriver: false
+  geckodriver: false
+overrides:
+  "@wdio/tauri-service>@wdio/globals": 9.33.1
+  "mocha@10>serialize-javascript": 7.1.3
+  "get-uri@6>basic-ftp": 6.2.4
+  "glob@>=9.0.0 <=14.0.1": 14.0.4
+  "minimatch@>=7.0.0 <11.0.1": 11.0.8
+patchedDependencies:
+  deepmerge@4.3.1: patches/deepmerge@4.3.1.patch
+  extract-zip@2.0.1: patches/extract-zip@2.0.1.patch

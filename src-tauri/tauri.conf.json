@@ -1,0 +1,64 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Marktub",
+  "version": "0.0.0",
+  "identifier": "app.marktub.desktop",
+  "build": {
+    "beforeDevCommand": "pnpm dev",
+    "devUrl": "http://127.0.0.1:1420",
+    "beforeBuildCommand": "pnpm build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Marktub",
+        "width": 1080,
+        "height": 760,
+        "minWidth": 640,
+        "minHeight": 480,
+        "dragDropEnabled": true
+      }
+    ],
+    "security": {
+      "capabilities": ["main"],
+      "csp": "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src ipc: http://ipc.localhost; worker-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'",
+      "devCsp": "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src ipc: http://ipc.localhost http://127.0.0.1:1420 ws://127.0.0.1:1420; worker-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'",
+      "assetProtocol": {
+        "enable": false,
+        "scope": []
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["app", "dmg", "deb"],
+    "resources": {
+      "../tests/fixtures/specimen.md": "fixtures/specimen.md",
+      "../THIRD_PARTY_LICENSES.txt": "THIRD_PARTY_LICENSES.txt"
+    },
+    "macOS": {
+      "minimumSystemVersion": "13.0",
+      "signingIdentity": "-"
+    },
+    "linux": {
+      "deb": {
+        "desktopTemplate": "marktub.desktop",
+        "depends": ["libwebkit2gtk-4.1-0", "libgtk-3-0"]
+      }
+    },
+    "fileAssociations": [
+      {
+        "ext": ["md", "markdown"],
+        "name": "Markdown document",
+        "role": "Editor",
+        "rank": "Alternate",
+        "mimeType": "text/markdown"
+      }
+    ],
+    "shortDescription": "Offline Markdown reader and source-preserving editor",
+    "longDescription": "Read, edit and review local Markdown with explicit native file grants. Optional local tools remain off until enabled.",
+    "category": "Productivity"
+  }
+}

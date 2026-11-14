@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["node", "vitest/globals"]
+  },
+  "include": [
+    "vite.config.ts",
+    "tests/**/*.ts",
+    "benchmarks/**/*.ts",
+    "src/assets.d.ts"
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "app": {
+    "withGlobalTauri": true,
+    "security": {
+      "capabilities": [
+        "main",
+        {
+          "identifier": "e2e",
+          "windows": ["main"],
+          "permissions": [
+            "wdio:default",
+            "wdio-webdriver:default",
+            "allow-e2e-fixture",
+            "core:window:allow-set-focus",
+            "core:window:allow-is-focused"
+          ]
+        }
+      ]
+    }
+  }
+}

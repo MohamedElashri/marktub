@@ -1,0 +1,63 @@
+Marktub's original source and code-generated icon are MIT licensed.
+System fonts and WebKit are OS-provided, not bundled font/browser distributions.
+
+License inventories and retained-text coverage:
+  docs/evidence/javascript-licenses.json — installed production JavaScript graph
+  docs/evidence/rust-licenses.json — Cargo resolved graph across target platforms
+  docs/evidence/rust-license-coverage.json — archive/supplement notice coverage
+
+The JavaScript inventory includes MIT, Apache-2.0, BSD-2-Clause, PSF-2.0 and
+DOMPurify's MPL-2.0 OR Apache-2.0 choice. Retain applicable upstream license and
+copyright notices when distributing their code. Cargo metadata declares licenses
+for every recorded dependency; platform-only packages are not all shipped on
+every target. An inventory is not a completed distribution notice audit.
+
+The app retains available Rust archive notices and exact-commit upstream
+supplements (src/rust-notice-supplements.json), with standard MPL 2.0 text for
+selectors and source-archive links. The resolved graph is a conservative superset
+including target/build/test-only packages. Remaining notice gaps and security
+findings are explicit release gates in plan.md. This is not legal clearance.
+No bundled production library or font source is modified; development-only
+patches are listed below. For MPL-covered components,
+corresponding unmodified source is available from each version's linked registry
+archive or pinned upstream repository. Keep this notice and bundled texts when
+redistributing; review all vendored/system/distribution obligations for the target.
+
+Local renderers add KaTeX (MIT code; SIL OFL 1.1 fonts as recorded in
+font metadata), Mermaid (MIT), MathJax/source and TeX SVG font data (Apache-2.0),
+and highlight.js (BSD-3-Clause). The generated THIRD_PARTY_LICENSES.txt is bundled
+with the app and included in standalone HTML exports. It records the installed
+production graph, including packages not necessarily present in shipped chunks.
+Font files remain unmodified, with their reserved names and copyright notices.
+
+Folder matching adds ignore 0.4.33, globset, bstr and Crossbeam queue
+primitives. Their MIT option and upstream notices are retained in
+src/library-notices.txt and the generated bundled THIRD_PARTY_LICENSES.txt.
+
+Author find/replace adds @codemirror/search 6.7.1 (MIT). Its upstream
+notice is retained in the generated bundled THIRD_PARTY_LICENSES.txt.
+
+Git uses git2 0.21.0 / libgit2 1.9.7 without SSH/HTTPS transports,
+zlib and SHA-1 index checksums. Added upstream notices, including libgit2's
+GPLv2 linking exception, are retained in src/git-notices.txt and the generated
+bundled THIRD_PARTY_LICENSES.txt.
+
+The app bundles native rusqlite/SQLite support; external Pandoc, Typst and TeX
+remain separately installed tools and are not distributed by Marktub.
+The app uses the official tauri-plugin-single-instance 2.5.5 (MIT OR Apache-2.0),
+without a general shell/network/path bridge. The app bundle includes the complete
+retained Rust/JavaScript/font notice superset. Standalone HTML includes only
+JavaScript/font notices relevant to its embedded assets, from
+src/frontend-notices.txt, rather than unrelated Rust library texts.
+
+Development test fixture: CommonMark 0.31.2 examples by John MacFarlane,
+https://spec.commonmark.org/0.31.2/spec.json, CC BY-SA 4.0.
+Original examples are unchanged inside an attributed JSON wrapper.
+License: tests/fixtures/commonmark-LICENSE.txt.
+This corpus is not bundled in the application or document exports.
+
+Development dependency mitigations (2026-11-14): local patches to MIT-licensed
+deepmerge 4.3.1 and BSD-2-Clause-licensed extract-zip 2.0.1 are retained in patches/.
+They filter prototype-mutating keys and refuse symlink/replacement ZIP extraction.
+Original package notices are also retained in patches/LICENSES.txt. Upstream affected versions
+still fail the strict registry advisory audit; these patches are not a waiver.

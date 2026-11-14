@@ -1,0 +1,221 @@
+import type {
+  Ack,
+  Batch,
+  Change,
+  EditDescriptor,
+  EditState,
+  Transport,
+} from "./protocol";
+export const MAX_QUEUE = 2 * 1024 * 1024;
+const encoder = new TextEncoder();
+export const wireBytes = (value: unknown) =>
+  encoder.encode(JSON.stringify(value)).length;
+export class EditQueue {
+  revision: number;
+  state: EditState;
+  pending: Batch[] = [];
+  receipts = new Map<string, Ack>();
+  error: unknown = null;
+  batchDelay = 500;
+  private timer: ReturnType<typeof setTimeout> | undefined;
+  private interval: ReturnType<typeof setInterval>;
+  private flight: Promise<void> | undefined;
+  private fence = Infinity;
+  private dead = false;
+  retained: () => string[] = () => [];
+  constructor(
+    readonly descriptor: Omit<EditDescriptor, "text">,
+    private transport: Transport,
+    private notify: () => void,
+  ) {
+    this.revision = descriptor.state.receivedRevision;
+    this.state = descriptor.state;
+    this.interval = setInterval(() => {
+      if (
+        !this.error &&
+        !this.dead &&
+        this.fence === Infinity &&
+        this.revision > this.state.durableRevision
+      )
+        void this.flush().catch(() => {});
+    }, 1000);
+  }
+  private emit() {
+    if (!this.dead) this.notify();
+  }
+  get bytes() {
+    return wireBytes(this.pending);
+  }
+  get dirty() {
+    return this.revision !== this.state.receivedRevision || this.state.dirty;
+  }
+  get durable() {
+    return this.revision === this.state.durableRevision && !this.error;
+  }
+  canAccept(changes: Change[]) {
+    if (
+      !changes.length ||
+      changes.length > 1024 ||
+      wireBytes(changes) > 1024 * 1024
+    )
+      return false;
+    return this.bytes + wireBytes(changes) + 512 < MAX_QUEUE;
+  }
+  enqueue(changes: Change[]): string {
+    if (!this.canAccept(changes))
+      throw new Error(
+        "Recovery backlog is full. Retry recovery before entering more text.",
+      );
+    const operationId = crypto.randomUUID();
+    this.pending.push({
+      schema: 1,
+      generation: this.descriptor.journalGeneration,
+      operationId,
+      baseRevision: this.revision,
+      newRevision: ++this.revision,
+      changes,
+    });
+    if (!this.timer && !this.error)
+      this.timer = setTimeout(() => {
+        this.timer = undefined;
+        void this.drain(Math.min(this.revision, this.fence)).catch(() => {});
+      }, this.batchDelay);
+    this.emit();
+    return operationId;
+  }
+  private async drain(target: number): Promise<void> {
+    if (this.dead) throw new Error("Editing session is closed.");
+    if (this.flight) {
+      await this.flight;
+      if (this.state.receivedRevision < target) return this.drain(target);
+      return;
+    }
+    while (this.state.receivedRevision < target) {
+      const chunk: Batch[] = [];
+      for (const batch of this.pending) {
+        if (batch.newRevision > target || chunk.length >= 64) break;
+        if (chunk.length && wireBytes([...chunk, batch]) > MAX_QUEUE - 1024)
+          break;
+        chunk.push(batch);
+      }
+      if (!chunk.length)
+        throw new Error("Missing queued revision; input was kept.");
+      const retained = [
+        ...new Set([
+          ...this.retained(),
+          ...this.pending.map((b) => b.operationId),
+          ...this.pending.flatMap((b) =>
+            b.changes.flatMap((c) =>
+              c.insert.kind === "restore" ? [c.insert.token.split(":")[0]] : [],
+            ),
+          ),
+        ]),
+      ];
+      const send = async () => {
+        try {
+          const result = await this.transport.apply(chunk, retained);
+          if (result.acknowledgements.length !== chunk.length)
+            throw new Error("Incomplete edit acknowledgement.");
+          for (let i = 0; i < chunk.length; i++) {
+            const ack = result.acknowledgements[i];
+            if (
+              ack.generation !== this.descriptor.journalGeneration ||
+              ack.appliedRevision !== chunk[i].newRevision ||
+              ack.durableRevision > ack.receivedRevision ||
+              ack.receivedRevision > this.revision
+            )
+              throw new Error(
+                "Stale or invalid edit acknowledgement; queued input was kept.",
+              );
+          }
+          if (
+            result.state.receivedRevision !==
+              chunk[chunk.length - 1].newRevision ||
+            result.state.durableRevision > result.state.receivedRevision
+          )
+            throw new Error("Out-of-order editing state; input was kept.");
+          result.acknowledgements.forEach((ack, i) =>
+            this.receipts.set(chunk[i].operationId, ack),
+          );
+          this.pending.splice(0, chunk.length);
+          this.state = result.state;
+          this.error = null;
+          const keep = new Set([
+            ...this.retained(),
+            ...this.pending.map((b) => b.operationId),
+          ]);
+          for (const id of this.receipts.keys())
+            if (!keep.has(id)) this.receipts.delete(id);
+        } catch (error) {
+          this.error = error;
+          throw error;
+        } finally {
+          this.emit();
+        }
+      };
+      this.flight = send();
+      try {
+        await this.flight;
+      } finally {
+        this.flight = undefined;
+      }
+    }
+  }
+  async flush(target = Math.min(this.revision, this.fence)) {
+    clearTimeout(this.timer);
+    this.timer = undefined;
+    try {
+      await this.drain(target);
+      const state = await this.transport.flush();
+      if (
+        state.receivedRevision !== this.state.receivedRevision ||
+        state.durableRevision < target ||
+        state.durableRevision > state.receivedRevision
+      )
+        throw new Error("Invalid durable acknowledgement; input was kept.");
+      this.state = state;
+      this.error = null;
+    } catch (error) {
+      this.error = error;
+      throw error;
+    } finally {
+      this.emit();
+    }
+  }
+  async saveBarrier() {
+    this.fence = this.revision;
+    const revision = this.fence;
+    try {
+      await this.flush(revision);
+      return revision;
+    } catch (error) {
+      this.resume();
+      throw error;
+    }
+  }
+  pause() {
+    this.fence = this.revision;
+    return this.fence;
+  }
+  resume() {
+    this.fence = Infinity;
+    if (this.pending.length && !this.error) {
+      clearTimeout(this.timer);
+      this.timer = setTimeout(() => {
+        this.timer = undefined;
+        void this.drain(this.revision).catch(() => {});
+      }, 0);
+    }
+    this.emit();
+  }
+  saved(state: EditState) {
+    this.state = state;
+    this.error = null;
+    this.emit();
+  }
+  dispose() {
+    this.dead = true;
+    clearTimeout(this.timer);
+    clearInterval(this.interval);
+  }
+}

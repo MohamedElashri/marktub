@@ -1,0 +1,94 @@
+{
+  "date": "2026-11-14",
+  "status": "prerelease; local publication preparation verified, qualification gates remain open",
+  "host": {
+    "os": "macOS 27.2 (26B123)",
+    "architecture": "arm64",
+    "hardware": "Apple M1, 16 GiB",
+    "webKit": "22625.2.8.11.9"
+  },
+  "checks": {
+    "frontend": {
+      "passed": 779,
+      "testFiles": 18
+    },
+    "tooling": {
+      "nodePassed": 10,
+      "pythonPassed": 6
+    },
+    "rust": {
+      "passed": 136,
+      "ignored": 6,
+      "ignoredScope": "four subprocess workers exercised by parent tests; installed-tool and mounted-filesystem helpers require explicit selection (passed separately at the previous checkpoint)"
+    },
+    "nativeWebView": {
+      "passed": 53,
+      "scope": "real WKWebView/backend; fixture-selected pickers and synthetic keys, not physical IME/accessibility certification"
+    },
+    "finalRunnerNativeRegression": {
+      "passed": 3,
+      "scope": "PDF, shell, SQLite and trusted TeX after final supervisor FD handling"
+    },
+    "typecheck": "pass",
+    "lint": "pass",
+    "format": "pass",
+    "clippy": "pass, all targets, warnings denied",
+    "frozenOfflineInstall": "pass after registry metadata priming; all 799 supply-chain policies retained",
+    "buildScope": "fresh source extraction with shared serialized local Cargo/dependency cache; not a clean-machine result",
+    "normalReleaseIsolation": "pass; no fixture command, WDIO evaluator/server or test-only marker in normal executable/frontend/ACL/normal dependency graph",
+    "productionSupervisor": {
+      "passed": 5,
+      "controllerEofCleanupMs": 20.49,
+      "scope": "actual normal release binary private supervisor; real parent SIGKILL separately tested in Rust; not physical app SIGKILL or hostile detached-process sandbox certification"
+    },
+    "copiedDmgNativeUiSmoke": "pass: launch, bundled example Read/Source/Split/Visual, Save As requirement, Preferences Cancel, clean close and externally verified Quit"
+  },
+  "security": {
+    "javaScriptProductionAudit": {
+      "findings": 0
+    },
+    "javaScriptFullAudit": {
+      "high": 2,
+      "low": 1,
+      "gate": "fail; development dependency versions remain flagged; local patches do not waive advisories"
+    },
+    "rustStrictAudit": {
+      "vulnerabilities": 0,
+      "unmaintained": 4,
+      "unsound": 1,
+      "gate": "fail; full lockfile, no ignored advisory IDs",
+      "advisories": [
+        "RUSTSEC-2024-0370",
+        "RUSTSEC-2024-0429",
+        "RUSTSEC-2026-0371",
+        "RUSTSEC-2026-0370",
+        "RUSTSEC-2026-0372"
+      ],
+      "databaseCommit": "4ef2df8e806a65e2f1ecc14f56f51249062b23d6"
+    },
+    "runner": "exec-created native supervisor; attached process group cleanup on controller EOF or real parent SIGKILL; executable rechecked after handoff; deliberately detached/hostile same-user processes are outside this guarantee"
+  },
+  "remainingGates": [
+    "Linux WebKitGTK, Intel and minimum macOS qualification",
+    "Physical IME, screen reader, native input, fonts and printing",
+    "Sustained production memory retention, input/paint/DOM/IPC measurement; prior large-close elevation remains unresolved; old samples belong to executable fedde0a9f9e6aee2c46a1773f160882d8699e5b51a73eb114431c4c3717a9847, not this package",
+    "Ordered document-wide math labels, references, macros and automatic numbering remain unsupported with source diagnostics",
+    "Broader Git/filesystem/storage/crash/tool-version fault matrices",
+    "Strict dependency advisory disposition and distribution/license review",
+    "Developer ID signing, notarization, clean installs and actual remote CI"
+  ],
+  "evidencePolicy": "phase completion/deviation summaries stay in plan.md; raw host reports and prototypes are local ignored history; measurements belong to their recorded executable hash; no external publication or release waiver",
+  "package": {
+    "binarySha256": "8b254ca109d0c7de6cd7f275cc689a1b74a0aee91749afe224230be0353b8812",
+    "binaryBytes": 18243008,
+    "bundleBytes": 22948252,
+    "dmgSha256": "f72e08ebb815c3e9dff6c72d114ef1893d76207b8f93f9c1a66848e0224edac6",
+    "dmgBytes": 9476178,
+    "architectures": "arm64",
+    "minimumSystemVersion": "13.0",
+    "resourcesByteIdentical": true,
+    "strictAdHocSignature": "pass",
+    "volumeDetached": true,
+    "qualification": "local ad-hoc signed package; no public signing, notarization or clean-machine Gatekeeper certification"
+  }
+}
