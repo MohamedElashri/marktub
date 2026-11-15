@@ -1,0 +1,44 @@
+name: Installation checks
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - README.md
+      - plan.md
+      - scripts/install.sh
+      - tests/tooling/test_installer.py
+      - .github/workflows/install.yml
+  pull_request:
+    paths:
+      - README.md
+      - plan.md
+      - scripts/install.sh
+      - tests/tooling/test_installer.py
+      - .github/workflows/install.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  installer:
+    strategy:
+      matrix:
+        os: [ubuntu-24.04, macos-15]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Installer syntax and failure cases
+        run: |
+          /bin/bash -n scripts/install.sh
+          python3 -m unittest discover -s tests/tooling -p test_installer.py -v
+      - name: Download and verify the latest platform package
+        run: /bin/bash scripts/install.sh --download-only --directory "$RUNNER_TEMP/marktub-download"
