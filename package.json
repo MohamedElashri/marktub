@@ -21,7 +21,7 @@
     "test:e2e": "node scripts/e2e.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm test:tooling && pnpm format:check",
+    "check": "pnpm licenses:generate && pnpm typecheck && pnpm lint && pnpm test && pnpm test:tooling && pnpm format:check",
     "fixtures": "node scripts/fixtures.mjs",
     "bench:open": "node scripts/range-bench.mjs",
     "bench:dom": "vitest run --config benchmarks/vitest.config.ts",
@@ -31,7 +31,8 @@
     "check:release": "node scripts/check-release.mjs",
     "check:repository": "node scripts/check-repository.mjs",
     "source:archive": "python3 scripts/source-archive.py",
-    "check:dependencies": "python3 scripts/check-dependencies.py"
+    "check:dependencies": "python3 scripts/check-dependencies.py",
+    "licenses:generate": "node scripts/licenses.mjs"
   },
   "dependencies": {
     "@codemirror/commands": "6.11.1",

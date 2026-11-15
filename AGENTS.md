@@ -72,7 +72,9 @@ The inventory guard supplements human review. Publication preparation is
 allowed; keep unresolved qualifications explicit. Never delete app-private
 histories as repository cleanup. Builds generate dependency attribution and
 inventories under `artifacts/licenses/`; packages and HTML exports include the
-relevant notices. Keep required upstream source licenses and bundled font notices.
+relevant notices. `pnpm check` prepares these resources for native Rust checks;
+use `pnpm licenses:generate` before running Cargo checks alone on a fresh checkout.
+Keep required upstream source licenses and bundled font notices.
 
 ## Measurement
 
