@@ -6,10 +6,15 @@ import {
   writeFileSync,
   symlinkSync,
   rmSync,
+  unlinkSync,
 } from "node:fs";
 import { tmpdir, homedir } from "node:os";
 import { join } from "node:path";
-import { inspectPublication } from "../../scripts/check-repository.mjs";
+import { execFileSync } from "node:child_process";
+import {
+  inspectPublication,
+  publicationFiles,
+} from "../../scripts/check-repository.mjs";
 
 function fixture(action) {
   const root = mkdtempSync(join(tmpdir(), "marktub-publication-"));
@@ -65,4 +70,14 @@ test("publication refuses outside paths and symlinks", () =>
       ]).length,
       3,
     );
+  }));
+
+test("publication excludes intentionally deleted tracked files and includes new source", () =>
+  fixture((root) => {
+    execFileSync("git", ["init", "-q"], { cwd: root });
+    writeFileSync(join(root, "old.ts"), "obsolete");
+    execFileSync("git", ["add", "old.ts"], { cwd: root });
+    unlinkSync(join(root, "old.ts"));
+    writeFileSync(join(root, "new.ts"), "maintained");
+    assert.deepEqual(publicationFiles(root), ["new.ts"]);
   }));

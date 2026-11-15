@@ -7,6 +7,7 @@ const binary = resolve(
 );
 export const config = {
   runner: "local",
+  outputDir: resolve("artifacts/wdio"),
   specs: [resolve("tests/e2e/smoke.e2e.mjs")],
   maxInstances: 1,
   services: [

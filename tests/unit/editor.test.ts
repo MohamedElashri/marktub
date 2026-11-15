@@ -3,13 +3,17 @@ import { EditorState } from "@codemirror/state";
 import { history, undo, redo } from "@codemirror/commands";
 import { tableCellRange, formattingKind } from "../../src/editor/visual";
 import { markdown } from "@codemirror/lang-markdown";
+import { ensureSyntaxTree } from "@codemirror/language";
 import fixture from "../fixtures/fidelity.json";
 
 describe("CodeMirror source-backed probes", () => {
   it("preserves Markdown-looking text inside fences and indented code", () => {
     const source =
       "# Heading\n\n```md\n# Literal heading\n- Literal list\n```\n\n    # indented code\n\n- outer\n  - inner\n";
-    const state = EditorState.create({ doc: source, extensions: [markdown()] });
+    let state = EditorState.create({ doc: source, extensions: [markdown()] });
+    // Parsing has a scheduling budget; this probe asserts a completed tree.
+    expect(ensureSyntaxTree(state, source.length, 1000)).not.toBeNull();
+    state = state.update({}).state;
     const kind = (text: string) =>
       formattingKind(state, source.indexOf(text), text);
     expect(kind("# Heading")).toBe("heading");

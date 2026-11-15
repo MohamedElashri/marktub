@@ -1,22 +1,17 @@
 # Working on Marktub
 
-Contributor and maintainer guide. See [README.md](README.md) for product usage and [plan.md](plan.md) for the specification, phase history and release qualifications.
-
-## Contributing
-
-Keep changes focused on a concrete use case or defect. For bugs, include the OS, app revision, reproduction steps and a minimal redacted fixture; preserve evidence before fixing a file-integrity failure. Describe the resulting behavior and relevant validation in a pull request. Avoid unrelated reformatting, new runtime dependencies and speculative performance claims.
-
-Read the relevant phase's completion/deviation notes before implementation. Keep new phase decisions and evidence in that section of plan.md. This repository uses three Markdown documentation entry points; required legal notices and machine-readable evidence remain separate.
+Use [README.md](README.md) for product usage and [plan.md](plan.md) for architecture
+and release work. Keep these three documentation entry points concise. Do not add
+Markdown files. Put exact provenance and verification facts in machine-readable
+records; keep raw local reports under ignored artifacts.
 
 ## Development
 
-| Tool | Pinned version                                     |
-| ---- | -------------------------------------------------- |
-| Node | 26.13.1 (`.node-version`)                          |
-| pnpm | 12.18.0 (`package.json`)                           |
-| Rust | 1.99.1, rustfmt and Clippy (`rust-toolchain.toml`) |
-
-Install the [Tauri native prerequisites](https://v2.tauri.app/start/prerequisites/) for your host. The declared Linux target is Ubuntu 24.04 amd64 with GTK 3/WebKitGTK 4.1. Rust, Tauri 2, Svelte 5, TypeScript and CodeMirror 6 are the locked stack; the installed app uses one local system WebView.
+Use the Node pin in `.node-version`, the package manager in `package.json`, and the
+Rust toolchain/components in `rust-toolchain.toml`. Install the
+[Tauri native prerequisites](https://v2.tauri.app/start/prerequisites/) for the host.
+CI defines the tested host matrix. If Homebrew hides Linux GTK/WebKit libraries,
+set `PKG_CONFIG=/usr/bin/pkg-config` for native commands.
 
 ```sh
 pnpm install --frozen-lockfile
@@ -24,120 +19,117 @@ cargo fetch --manifest-path src-tauri/Cargo.toml --locked
 pnpm tauri dev
 ```
 
-## Checks
+## Verification
 
 ```sh
 pnpm check:repository
+pnpm check:dependencies
 pnpm check
 cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
 cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --locked -- -D warnings
 cargo test --manifest-path src-tauri/Cargo.toml --locked
+python3 scripts/check-dependencies.py --native # Linux
 pnpm test:e2e
+pnpm audit --prod
+pnpm audit
+cargo audit --file src-tauri/Cargo.lock --deny unsound --deny unmaintained
 ```
 
-`pnpm check` covers typechecking, lint, frontend tests, Node/Python tooling tests and formatting. Native e2e tests build an isolated test configuration and exercise the actual WebView/backend with disposable fixtures and synthetic keys. They do not certify physical IME or accessibility. Serialize Cargo/Tauri builds; rebuild normally after e2e testing before distributing an artifact.
+Use the audit tool selected by CI. Record its database revision and findings; no
+advisory ignores. Registry audit does not cover local dependency overrides: their
+provenance/integrity checks and optimized regressions are also required.
 
-Security checks use `pnpm audit --prod`, `pnpm audit`, and pinned `cargo-audit 0.23.0` with `cargo audit --file src-tauri/Cargo.lock --deny unsound --deny unmaintained`. Record database revision, failures and Not Run scope; do not hide findings with ignores. Current results belong in Phase 9 of plan.md, with portable facts in `docs/evidence/release-status.json`.
+Native e2e uses an isolated test build and disposable fixtures. It verifies the
+actual WebView/backend with synthetic input, not physical IME or screen-reader
+usability. Export tests need the selected converters and Poppler tools.
+The Linux viewer roundtrip also needs Evince and system Python GI. The
+checksum-pinned test-tool downloader and `MARKTUB_E2E_*` selections are development
+tools; the installed app never downloads packages. Serialize Cargo/Tauri builds.
 
-## Build and package
+## Packaging
 
 ```sh
-python3 scripts/build-macos.py       # macOS: ad-hoc app + DMG, no Apple credentials
-pnpm tauri build --bundles deb        # Linux: Debian package on a Linux host
+python3 scripts/build-macos.py
+pnpm tauri build --bundles deb
 pnpm check:release
 ```
 
-Use the command for your host. Outputs are under `src-tauri/target/release/bundle/`. The macOS channel is ad-hoc and unnotarized; it does not establish an Apple-verified publisher. Never change trust/quarantine settings in build scripts. `check:release` checks the normal frontend, permissions, executable and dependency graph for test hooks. Validate an actual local DMG separately:
+Choose the host command. Rebuild normally after e2e or blank-baseline builds.
+Outputs are under `src-tauri/target/release/bundle/`. Validate the actual package
+with `scripts/check-macos-package.py --dmg` or `scripts/check-linux-package.py --deb`.
+The macOS channel is ad-hoc and unnotarized; never change trust/quarantine settings.
 
-```sh
-python3 scripts/check-macos-package.py --dmg <path-to-dmg>
-```
+On Linux, `/usr/bin/python3 scripts/check-linux-installed.py --binary <executable>
+--example` checks the normal app through AT-SPI with an isolated preserved profile.
+It needs system Python GI/AT-SPI and a desktop session; CI supplies Xvfb/Openbox.
 
-Before preparing source, run `pnpm check:repository`, then `pnpm source:archive`. The deterministic archive and hash manifest land in `artifacts/releases/`; Git history, caches, generated files and local reports are excluded. The inventory guard detects common credential/token/home-path leaks but cannot replace human review. Tests, benchmarks and license texts are maintained source. Never delete app-private histories as part of repository cleanup.
+Before preparing source, run `pnpm check:repository`, then `pnpm source:archive`.
+The inventory guard supplements human review. Publication preparation is
+allowed; keep unresolved qualifications explicit. Never delete app-private
+histories as repository cleanup.
 
 ## Measurement
 
-Use `pnpm fixtures`, `pnpm bench:open` and `pnpm bench:dom` for their documented fixture/DOM scopes. `pnpm bench:baseline` creates the blank-app control; rebuild the normal app afterward. Native tools require a selected executable, for example:
+`pnpm fixtures`, `pnpm bench:open` and `pnpm bench:dom` have fixture/range/scaffold
+scopes. `pnpm bench:baseline` produces a blank control; rebuild normally afterward.
+Use `benchmarks/startup.py --binary` and `benchmarks/release_profile.py --binary
+--label --output` for external normal-process measurements. The installed Linux
+check supports mode cycles, bounded large-Source fixtures, multiple tabs and
+post-close sampling.
 
-```sh
-python3 benchmarks/startup.py --binary <app-executable>
-python3 benchmarks/release_profile.py --binary <app-executable> --label empty --rusage --samples 3 --interval 10 --output artifacts/empty-profile.json
-```
+Do not compile concurrently. Bind results to binary/workload hashes, host and
+helper lifecycles. Page load is not interactive paint, RSS/PSS is not physical
+footprint, and context switches are not wakeups or energy. Reject uncertain
+ownership or incomplete intervals. Startup timing is opt-in through
+`MARKTUB_PROFILE_STARTUP`; no release evaluator is permitted.
 
-Measure without concurrent compilation and bind results to the executable hash, host, workload and helper lifecycles. Page load is not interactive paint; RSS is not physical footprint; browser mocks are not native behavior. Startup timing is explicit opt-in (`MARKTUB_PROFILE_STARTUP=1`). Optional macOS `source_memory.py --responsibility` uses ownership/incarnation checks; unknown ownership or surviving helpers makes attribution inconclusive. No release evaluator is exposed.
+## Implementation invariants
 
-## Implementation constraints
+- Keep the pinned Rust, Tauri, Svelte, TypeScript and CodeMirror stack with one local WebView.
+  Markdown is untrusted. Keep explicit command permissions and native grants;
+  never expose generic path, shell, network or SQL access.
+- Source is the write authority. Preserve exact bytes, mixed EOL/BOM provenance,
+  expected-base validation, receipt undo and recoverable save failures. Recovered
+  documents and app resources require a new native Save As grant.
+- Reader context stays provisional until scanning finishes. Preserve global
+  definitions/heading order and bounded source fallbacks. Compare paging against
+  whole parsing before parity claims. Keep rich renderers/fonts local and lazy.
+- Preferences use the closed native catalogue/validator; retain literal invalid
+  records with safe defaults/diagnostics. Preserve CM state, undo and journal
+  barriers. Themes are typed values, never CSS or resource URLs. Workspace scope
+  follows an authorized root or file parent; shortcuts are global/session only.
+- Author controls patch verified spans in the ordinary CM view/Text. Never
+  serialize Markdown or fetch image paths from Visual. Images require native
+  selection, opaque offers or validated bytes. Copy is exclusive; text undo
+  never deletes copied assets.
+- Range switches require durable ACKs and new transport generations. Undo/find
+  are local; saves/Read use full provenance. Keep live replay receipts/tokens and
+  skip full checkpoints for large sessions. Capacity rescue is an independent
+  copy/Save As, never discarded edits or path reauthorization.
+- Git uses ephemeral native repository/file/hunk handles and raw captures. Stage
+  holds the real index lock, preserves unrelated metadata and revalidates late.
+  Never remove a foreign/replaced lock or invoke configured filters, hooks,
+  textconv, tools or transports. Unsupported states are read-only. Mutations
+  exclude live Source; discard needs exact durable backup before atomic save.
+- Review is default-off, lazy and uses saved native captures. Freeze displayed
+  revisions; only explicit Mark Reviewed advances acknowledgement. Preserve
+  drafts on failure; leaving requires explicit discard. Verify anchors against
+  retained bytes and never invent positions. Pin history/comments and refuse
+  capacity instead of pruning. Exports omit paths/snippets by default; real paths
+  require consent and a live grant. Archived data restores no authority. Only
+  unique same-parent inode renames may be recognized; following needs selection.
+- PDF uses finalized saved/durable-ACK captures, closed AST/template/options and
+  private approved assets. No repository defaults, filters or raw execution.
+  HTML stays script-free with CSP, sanitization and embedded font notices.
+- Runners are session-default-off with separate per-kind enable/root trust and
+  one-shot native confirmation of captured code/hash/tool/cwd. Flush Source
+  before working captures. SQLite is separately selected, readonly/query-only,
+  defensive/untrusted-schema with a closed authorizer. Confirmed DML rolls back
+  on cancellation/error/bounds; no ATTACH, extensions, pragmas or schema writes.
+- Shell/TeX have ordinary OS privileges. Process-group cancellation and limits
+  are not an OS sandbox; TeX disables shell escape. Open only hash-revalidated
+  app-produced/exported PDFs through the fixed system viewer.
 
-Read `plan.md`, including previous completion/deviation notes, before changing architecture or advancing scope.
-Do not create new Markdown files. Keep all phase plans, decisions, evidence summaries,
-completion and deviation notes in that phase’s section of `plan.md`. Non-Markdown
-fixtures and machine-readable evidence may remain separate.
-Use Rust + Tauri 2 + Svelte 5 + TypeScript + CodeMirror 6; one local WebView.
-Markdown is untrusted data. Keep explicit app-command permissions and backend
-document grants. No generic path read/write, shell, network or SQL bridge.
-Phase 1 Source saves require the documented integrity gates. Preserve native
-grants, exact-byte undo, expected-base checks and recoverable failure paths.
-Recovered documents and app-owned resources require Save As; never auto-reauthorize paths.
-Preserve byte provenance; never assume CodeMirror serialization preserves mixed EOL.
-Run targeted tests and the documented checks. Record platform and Not Run cases.
-Use `--manifest-path src-tauri/Cargo.toml` for Cargo commands. Never claim native
-WebView behavior from browser mocks. Exclude all e2e servers/evaluation hooks from
-normal release builds. Serialize Cargo/Tauri builds in the shared target directory. Publication preparation is authorized. Keep unresolved release qualifications explicit in plan.md.
-
-Reader sections remain provisional until context scanning finishes. Keep global
-definitions/heading order and bounded source fallbacks; compare paging with whole
-parsing before claiming parity. Rich renderers/fonts stay local and lazy. Images
-require native grants; exports use a finalized selected revision and new native
-destination. Preserve standalone CSP, sanitization and embedded font notices.
-
-Preference changes must keep the existing CM state, byte provenance, undo and pending
-journal barriers. Use the native closed catalogue/effective validator for GUI and
-literal imports; custom themes are typed colors/fonts, never CSS or resource URLs.
-Workspace scope follows an authorized root (else the file parent); shortcuts are
-global/session only. Invalid inherited settings retain their literal records and
-apply safe defaults with diagnostics. Recovered documents still require Save As.
-
-Author modes share the ordinary CM view/Text and receipt-backed undo. Rich controls
-patch verified source spans; never serialize Markdown or fetch image paths from
-Visual. Image data requires native selection, opaque offers or validated pasted
-bytes; copy is exclusive and text undo never deletes copied files.
-Range switches require durable ACKs and rotate transport generations. Find/undo
-are local to the window; saves and Read use full native provenance. Large sessions
-retain native replay receipts/tokens across switches and skip full checkpoints;
-never garbage-collect live history differently from replay. Capacity rescue must
-remain independent-copy/Save As, not path reauthorization or discarded edits.
-Synthetic WebView composition events do not certify real OS IME/accessibility.
-
-Git uses explicit ephemeral repository/file/preview handles and raw native captures.
-Stage/unstage consumes native whole-hunk IDs under the real index.lock; preserve
-unrelated entries and metadata, revalidate late, never remove a replaced/foreign lock.
-Unsupported config/attributes/index states remain read-only. Never invoke configured
-filters, textconv, hooks, tools or transports. Git mutations share the no-live-Source
-reservation. Discard needs exact durable backup before expected-base atomic save;
-backup export is a new native destination and never restores a path grant.
-Normal builds use the bounded native-hunk view; exclude experimental renderers.
-
-Review is opt-in and uses bounded native saved captures, never working Source text.
-Freeze the prior displayed revision at view entry; only explicit Mark Reviewed
-advances acknowledgement. Preserve unsaved feedback drafts on failure and require
-explicit discard before leaving. Source remains the only document-write authority.
-Native-verify every anchor against its retained original bytes; ambiguous/orphaned
-matches get no invented current positions. Pin comment/history snapshots and refuse
-capacity rather than prune feedback. Paths/snippets are omitted from exports by
-default; actual paths need consent plus a live grant. Archived exports restore no
-path authority. Recognize unique same-parent inode renames only; following needs
-native selection. Keep Review off by default, lazy and independent of index reset.
-
-PDF export uses a finalized native saved or durable-ACK working capture, closed
-Pandoc AST/template/options and private staged assets; never repository defaults,
-filters/raw code or unapproved paths. HTML stays independent and script-free.
-Local runners remain session-default-off with separate per-kind enable/root trust,
-one-shot native confirmation of captured code/hash/tool/cwd and opaque job handles.
-Settle and flush pending Source edits before validating a working execution capture.
-SQLite uses a separately selected native DB, readonly/query-only by default,
-defensive/untrusted-schema settings and a closed authorizer. Writes are confirmed
-DML transactions; cancellation/errors/bounds roll back. No ATTACH, extensions,
-user pragmas or schema writes. Never treat a mutable DB as immutable.
-Shell/TeX have normal OS privileges; process-group cancel, output/time limits and
-TeX no-shell-escape are not an OS sandbox. No package/network bootstrap. Open only
-hash-revalidated PDFs produced/exported by the app; never document-supplied viewers.
+Keep changes focused, preserve failure evidence and run relevant checks. Include
+OS/revision, reproduction steps and a redacted fixture for integrity bugs. Avoid
+unrelated formatting, speculative performance claims and unnecessary dependencies.

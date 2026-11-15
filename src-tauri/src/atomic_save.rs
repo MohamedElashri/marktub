@@ -586,6 +586,87 @@ mod tests {
             "readonly"
         );
     }
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn linux_acl_and_raw_extended_attributes_survive_atomic_replacement() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("source.txt");
+        fs::write(&path, b"\xef\xbb\xbfbase\r\n").unwrap();
+        // Linux POSIX ACL xattr v2: owner rw, named UID r, group r, mask r, other 0.
+        let mut acl = 2u32.to_le_bytes().to_vec();
+        for (tag, permissions, id) in [
+            (1u16, 6u16, u32::MAX),
+            (2, 4, unsafe { libc::geteuid() }.wrapping_add(1)),
+            (4, 4, u32::MAX),
+            (16, 4, u32::MAX),
+            (32, 0, u32::MAX),
+        ] {
+            acl.extend(tag.to_le_bytes());
+            acl.extend(permissions.to_le_bytes());
+            acl.extend(id.to_le_bytes());
+        }
+        let value = b"\0exact\xff\r\n";
+        let f = File::open(&path).unwrap();
+        for (name, bytes) in [
+            (c"system.posix_acl_access", acl.as_slice()),
+            (c"user.marktub", value.as_slice()),
+        ] {
+            assert_eq!(
+                unsafe {
+                    libc::fsetxattr(
+                        f.as_raw_fd(),
+                        name.as_ptr(),
+                        bytes.as_ptr().cast(),
+                        bytes.len(),
+                        0,
+                    )
+                },
+                0,
+                "{}",
+                std::io::Error::last_os_error()
+            );
+        }
+        let before = f.metadata().unwrap();
+        drop(f);
+        let (target, hash, identity) = target(&path);
+        let result = save(
+            &target,
+            &Provenance::new(b"\xef\xbb\xbfafter\r\n")
+                .unwrap()
+                .snapshot(),
+            &hash,
+            &identity,
+            |_, _| Ok(()),
+        )
+        .unwrap();
+        assert!(!result.noop);
+        assert_eq!(fs::read(&path).unwrap(), b"\xef\xbb\xbfafter\r\n");
+        let f = File::open(&path).unwrap();
+        let after = f.metadata().unwrap();
+        assert_ne!(before.ino(), after.ino());
+        assert_eq!(
+            (before.mode(), before.uid(), before.gid()),
+            (after.mode(), after.uid(), after.gid())
+        );
+        for (name, expected) in [
+            (c"system.posix_acl_access", acl.as_slice()),
+            (c"user.marktub", value.as_slice()),
+        ] {
+            let mut bytes = vec![0; expected.len()];
+            assert_eq!(
+                unsafe {
+                    libc::fgetxattr(
+                        f.as_raw_fd(),
+                        name.as_ptr(),
+                        bytes.as_mut_ptr().cast(),
+                        bytes.len(),
+                    )
+                },
+                expected.len() as isize
+            );
+            assert_eq!(bytes, expected);
+        }
+    }
     #[cfg(target_os = "macos")]
     #[test]
     fn macos_acl_and_extended_attributes_survive_atomic_replacement() {

@@ -23,6 +23,9 @@ use std::{
     time::{Duration, Instant},
 };
 use uuid::Uuid;
+#[cfg(target_os = "linux")]
+#[path = "linux_trash.rs"]
+mod linux_trash;
 const MAX_ENTRIES: usize = 100_000;
 const PAGE: usize = 100;
 fn err(code: &'static str, text: &str) -> FileError {
@@ -1874,7 +1877,7 @@ impl Mutation {
                     return Err(stale());
                 }
                 if self.request.kind == "trash" {
-                    trash(parent, &e.name, e.stamp.0)?;
+                    trash(parent, &e.name, &e.stamp)?;
                     return Ok("Moved to System Trash. Restore using the system file manager; no permanent deletion was attempted.".into());
                 }
                 let (dest, dest_path) = self.destination.as_ref().ok_or_else(stale)?;
@@ -1923,7 +1926,7 @@ impl Mutation {
                         "Verified directory copy completed; source retained for review. Cross-volume directory removal is refused because child files may have changed.",
                     ));
                 }
-                match trash(parent, &e.name, e.stamp.0) {
+                match trash(parent, &e.name, &e.stamp) {
                     Ok(()) => {
                         moved.push((path.join(&e.name), dest_path.join(name)));
                         Ok("Verified copy completed; original retained in System Trash.".into())
@@ -2176,7 +2179,7 @@ fn copy_tree(
     private_store::sync(to)?;
     Ok(())
 }
-fn trash(parent: &File, name: &std::ffi::OsStr, device: u64) -> Result<(), FileError> {
+fn trash(parent: &File, name: &std::ffi::OsStr, expected: &Stamp) -> Result<(), FileError> {
     #[cfg(target_os = "macos")]
     {
         let home = std::env::var_os("HOME")
@@ -2185,7 +2188,7 @@ fn trash(parent: &File, name: &std::ffi::OsStr, device: u64) -> Result<(), FileE
         let path = home.join(".Trash");
         let dir=OpenOptions::new().read(true).custom_flags(libc::O_DIRECTORY|libc::O_NOFOLLOW|libc::O_CLOEXEC).open(path).map_err(|_|err("trash","System Trash unavailable; source retained. No permanent deletion was attempted."))?;
         let meta = dir.metadata()?;
-        if meta.dev() != device
+        if meta.dev() != expected.0
             || meta.uid() != unsafe { libc::geteuid() }
             || meta.mode() & 0o022 != 0
         {
@@ -2195,15 +2198,14 @@ fn trash(parent: &File, name: &std::ffi::OsStr, device: u64) -> Result<(), FileE
             ));
         }
         let new = OsString::from(format!("{}-{}", name.to_string_lossy(), uid()));
+        if stamp(&stat_at(parent, name)?) != *expected {
+            return Err(stale());
+        }
         exclusive_rename(parent, name, &dir, &new)
     }
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "linux")]
     {
-        let _ = (parent, name, device);
-        Err(err(
-            "trash",
-            "System Trash is not verified on this platform; source retained.",
-        ))
+        linux_trash::trash(parent, name, expected)
     }
 }
 
@@ -2715,7 +2717,9 @@ mod tests {
         fs::write(t.path().join("root/a.txt"), b"keep").unwrap();
         let item = all(&mut l, &r.id).items[0].id.clone();
         let (e, parent, _) = l.entry(&item).unwrap();
-        assert!(trash(&parent, &e.name, e.stamp.0.wrapping_add(1)).is_err());
+        let mut wrong = e.stamp;
+        wrong.0 = wrong.0.wrapping_add(1);
+        assert!(trash(&parent, &e.name, &wrong).is_err());
         assert_eq!(fs::read(t.path().join("root/a.txt")).unwrap(), b"keep");
     }
     #[test]

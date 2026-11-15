@@ -14,11 +14,53 @@ import { MathPolicyError } from "./math-policy";
 import { MATH_EXPRESSIONS, MATH_SOURCE } from "../reader/math-context";
 import type { MmlNode } from "@mathjax/src/js/core/MmlTree/MmlNode.js";
 import { SerializedMmlVisitor } from "@mathjax/src/js/core/MmlTree/SerializedMmlVisitor.js";
+import type { LiteElement } from "@mathjax/src/js/adaptors/lite/Element.js";
 const adaptor = liteAdaptor();
 RegisterHTMLHandler(adaptor);
 // The pinned MathJax API accepts a FontData instance. Reuse glyph metrics, not
 // parser/macro/label/document state, instead of rebuilding the font per formula.
 let font: InstanceType<typeof MathJaxTexFont> | undefined;
+// MathJax 4's responsive labelled tables need its live stylesheet and data
+// attributes. Freeze their generated geometry before sanitization/export so
+// every admitted expression remains a self-contained SVG on both WebKits.
+function staticSvg(root: LiteElement) {
+  for (const svg of adaptor.tags(root, "svg")) {
+    adaptor.setAttribute(svg, "overflow", "visible");
+    const responsive = String(
+      adaptor.getAttribute(svg, "data-mjx-viewBox") ?? "",
+    );
+    if (!responsive) continue;
+    const box: number[] = responsive.split(/\s+/).map(Number);
+    const height = String(adaptor.getAttribute(svg, "height") ?? "");
+    const ex = parseFloat(height);
+    if (
+      box.length !== 4 ||
+      box.some((v) => !Number.isFinite(v)) ||
+      box[2] <= 0 ||
+      box[3] <= 0 ||
+      !height.endsWith("ex") ||
+      !Number.isFinite(ex) ||
+      ex <= 0
+    )
+      throw new MathPolicyError(
+        "Unsupported responsive math geometry. Source preserved.",
+      );
+    const width = (ex * box[2]) / box[3];
+    if (!Number.isFinite(width * 9) || !Number.isFinite(ex * 9) || width <= 0)
+      throw new MathPolicyError(
+        "Math geometry exceeds its finite bounds. Source preserved.",
+      );
+    adaptor.setAttribute(svg, "width", `${width}ex`);
+    // The existing generated group transform uses CSS-pixel coordinates here,
+    // rather than the thousandths-of-em coordinates in data-mjx-viewBox.
+    adaptor.setAttribute(svg, "viewBox", `0 0 ${width * 9} ${ex * 9}`);
+    adaptor.removeAttribute(svg, "data-mjx-viewBox");
+    adaptor.setStyle(svg, "min-width", "");
+  }
+  adaptor.removeAttribute(root, "width");
+  adaptor.setStyle(root, "min-width", "");
+  return root;
+}
 export function mathjaxDocument(expressions: MathExpression[]) {
   if (
     expressions.length > MATH_EXPRESSIONS ||
@@ -49,13 +91,14 @@ export function mathjaxDocument(expressions: MathExpression[]) {
   const output = new SVG({
     fontCache: "none",
     fontData: font ?? MathJaxTexFont,
+    linebreaks: { inline: false },
   });
   font ??= output.font as InstanceType<typeof MathJaxTexFont>;
   const doc = mathjax.document("", { InputJax: input, OutputJax: output });
   try {
     const items = expressions.map(({ source, display }) => {
       const item = new doc.options.MathItem(source, input, display);
-      item.setMetrics(18, 9, 720, 100000, 1);
+      item.setMetrics(18, 9, 720, 1);
       doc.math.push(item);
       return item;
     });
@@ -84,7 +127,7 @@ export function mathjaxDocument(expressions: MathExpression[]) {
     let bytes = 0;
     return items.map((item) => {
       const html =
-        adaptor.outerHTML(item.typesetRoot) +
+        adaptor.outerHTML(staticSvg(item.typesetRoot)) +
         `<span class="sr-only math-alternative">${new SerializedMmlVisitor().visitTree(item.root)}</span>`;
       bytes += html.length * 2;
       if (html.length > 1024 * 1024 || bytes > 8 * 1024 * 1024)
@@ -111,10 +154,13 @@ export function mathjaxSvg(source: string, display: boolean) {
   const output = new SVG({
     fontCache: "none",
     fontData: font ?? MathJaxTexFont,
+    linebreaks: { inline: false },
   });
   font ??= output.font as InstanceType<typeof MathJaxTexFont>;
   const document = mathjax.document("", { InputJax: input, OutputJax: output });
   return adaptor.outerHTML(
-    document.convert(source, { display, em: 18, ex: 9, containerWidth: 720 }),
+    staticSvg(
+      document.convert(source, { display, em: 18, ex: 9, containerWidth: 720 }),
+    ),
   );
 }

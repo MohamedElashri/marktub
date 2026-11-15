@@ -3,11 +3,59 @@ import { spawnSync } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
 import { resolve, dirname, join } from "node:path";
 
+const nativeWebView = process.platform === "darwin" ? "WKWebView" : "WebKitGTK";
+
+function installedTool(role, command = role) {
+  const configured = process.env[`MARKTUB_E2E_${role.toUpperCase()}`];
+  if (configured) return resolve(configured);
+  const found = spawnSync("which", [command], { encoding: "utf8" });
+  if (found.status !== 0 || !found.stdout.trim())
+    throw new Error(
+      `Install ${command} or set MARKTUB_E2E_${role.toUpperCase()} to its native executable before running the export suite.`,
+    );
+  return found.stdout.trim();
+}
+
 // Mocha's root hook runs after the native service attaches browser.tauri. The
 // config-level before hook runs too early in the pinned WDIO service.
 before(async () => {
   await browser.tauri.switchWindow("main");
   expect(await browser.tauri.listWindows()).toEqual(["main"]);
+  await browser.tauri.execute(() => {
+    window.marktubTestErrors = [];
+    const record = (error) => {
+      window.marktubTestErrors.push(String(error).slice(0, 2000));
+      window.marktubTestErrors = window.marktubTestErrors.slice(-20);
+    };
+    addEventListener("error", (event) => record(event.error ?? event.message));
+    addEventListener("unhandledrejection", (event) => record(event.reason));
+  });
+});
+
+afterEach(async function () {
+  if (this.currentTest?.state !== "failed") return;
+  const prefix = `artifacts/native-failure-${Date.now()}`;
+  await mkdir("artifacts", { recursive: true });
+  const state = await browser.tauri.execute(() => ({
+    text: document.body.innerText.slice(0, 8000),
+    errors: window.marktubTestErrors,
+    userAgent: navigator.userAgent,
+    tabs: [...document.querySelectorAll(".document-tab")].map((tab) => ({
+      hidden: tab.hidden,
+      mode: tab.querySelector('[aria-pressed="true"]')?.textContent,
+      busy: tab.querySelector(".window-shell")?.getAttribute("data-busy"),
+      editors: tab.querySelectorAll(".cm-editor").length,
+    })),
+    closeControls: [
+      ...document.querySelectorAll('.tabbar button[aria-label^="Close "]'),
+    ].map((button) => ({
+      name: button.getAttribute("aria-label"),
+      disabled: button.disabled,
+    })),
+  }));
+  await writeFile(`${prefix}.json`, JSON.stringify(state, null, 2));
+  await browser.saveScreenshot(`${prefix}.png`);
+  console.error("NATIVE FAILURE SNAPSHOT", prefix, state.errors);
 });
 
 beforeEach(async () => {
@@ -28,10 +76,8 @@ beforeEach(async () => {
     );
   } catch (error) {
     const state = await browser.tauri.execute(async ({ core }) => ({
-      visible: await core.invoke("plugin:window|is_visible", { label: "main" }),
-      minimized: await core.invoke("plugin:window|is_minimized", {
-        label: "main",
-      }),
+      visibility: document.visibilityState,
+      documentFocused: document.hasFocus(),
       focused: await core.invoke("plugin:window|is_focused", { label: "main" }),
       activeElement: document.activeElement?.tagName,
       text: document.body.innerText.slice(0, 2000),
@@ -517,12 +563,14 @@ describe("Source integrity", () => {
     );
     await browser.$("header").$("button=Save").waitForEnabled();
     await browser.$('button[aria-label="Undo"]').click();
+    await browser.$("header").$("button=Save").waitForEnabled();
     await browser.$("header").$("button=Save").click();
     await browser.waitUntil(
       async () => (await fixture("read")).text === original,
     );
     await browser.$("header").$("button=Save").waitForEnabled();
     await browser.$("button=Redo").click();
+    await browser.$("header").$("button=Save").waitForEnabled();
     await browser.$("header").$("button=Save").click();
     await browser.waitUntil(
       async () => (await fixture("read")).text === original + "文",
@@ -1093,8 +1141,7 @@ describe("Ordinary open latency", () => {
       "artifacts/reader-ordinary-latency.json",
       JSON.stringify(
         {
-          profile:
-            "Debug WKWebView, warm imports/OS cache not controlled; native picker injected; main idle and first text assertion, not compositor paint; no compilation during run",
+          profile: `Debug ${nativeWebView}, warm imports/OS cache not controlled; native picker injected; main idle and first text assertion, not compositor paint; no compilation during run`,
           count: 20,
           samplesMs: samples,
           medianMs: (sorted[9] + sorted[10]) / 2,
@@ -1210,8 +1257,7 @@ describe("Library", () => {
           ...metrics,
           nativeEntries: page.total,
           completeListingMs: performance.now() - start,
-          profile:
-            "debug WKWebView; injected native picker; fixture creation excluded; one sample",
+          profile: `debug ${nativeWebView}; injected native picker; fixture creation excluded; one sample`,
         },
         null,
         2,
@@ -1284,7 +1330,11 @@ describe("Library", () => {
     await pane.$("button=Source").waitForEnabled({ timeout: 60000 });
     await pane.$("button=Source").click();
     await pane.$(".cm-content").click();
-    await browser.keys(["META", "END", "NULL"]);
+    await browser.keys([
+      process.platform === "darwin" ? "META" : "CONTROL",
+      "END",
+      "NULL",
+    ]);
     await browser.keys(" tab survives");
     await browser.waitUntil(
       async () =>
@@ -1380,6 +1430,85 @@ describe("Library", () => {
     await expect(
       browser.$(".document-tab:not([hidden]) article h1"),
     ).toHaveText("Library source");
+  });
+  it("moves only a selected Linux entry to isolated system Trash with exact restore metadata", async function () {
+    if (process.platform !== "linux") this.skip();
+    const fs = await import("node:fs/promises");
+    const data = process.env.XDG_DATA_HOME;
+    expect(
+      data?.startsWith(
+        join((await import("node:os")).tmpdir(), "marktub-e2e-data-"),
+      ),
+    ).toBe(true);
+    const name = "000-native-trash العربية 🦀.txt";
+    const path = join(folder, name);
+    const bytes = Buffer.from("\ufeffnative Trash\r\nالعربية\nend\r");
+    await fs.writeFile(path, bytes);
+    const request = {
+      id: root,
+      offset: 0,
+      sort: "name",
+      hidden: false,
+      filter: "all",
+      refresh: true,
+      ignored: false,
+    };
+    let page = await invoke("library_page", request);
+    request.refresh = false;
+    await browser.waitUntil(
+      async () => {
+        page = await invoke("library_page", request);
+        return page.complete;
+      },
+      { timeout: 30000 },
+    );
+    const entry = page.items.find((item) => item.name === name);
+    expect(entry).toBeDefined();
+    const before = new Set(
+      await fs.readdir(join(data, "Trash/info")).catch(() => []),
+    );
+    const result = await operation("trash", [entry.id], null);
+    expect(result.outcomes[0].status).toBe("completed");
+    await expect(fs.stat(path)).rejects.toThrow();
+    const added = (await fs.readdir(join(data, "Trash/info"))).filter(
+      (name) => !before.has(name),
+    );
+    expect(added).toHaveLength(1);
+    const metadata = await fs.readFile(
+      join(data, "Trash/info", added[0]),
+      "utf8",
+    );
+    const original = metadata
+      .split("\n")
+      .find((line) => line.startsWith("Path="))
+      .slice(5);
+    expect(decodeURIComponent(original)).toBe(path);
+    expect(metadata).toMatch(
+      /DeletionDate=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/,
+    );
+    const stored = join(
+      data,
+      "Trash/files",
+      added[0].replace(/\.trashinfo$/, ""),
+    );
+    expect(await fs.readFile(stored)).toEqual(bytes);
+    await fs.rename(stored, path);
+    expect(await fs.readFile(path)).toEqual(bytes);
+    await writeFile(
+      "artifacts/native-linux-trash.json",
+      JSON.stringify(
+        {
+          restoredBytes: bytes.length,
+          exactBytes: true,
+          rawPathMetadataVerified: true,
+          isolatedDataHome: true,
+          scope:
+            "actual WebKitGTK/native grant/mutation/Trash; independent filesystem restore, not physical file-manager input",
+        },
+        null,
+        2,
+      ),
+    );
   });
   it("reviews native create/rename actions and restores the moved selection in the UI", async () => {
     const fs = await import("node:fs");
@@ -1668,6 +1797,7 @@ describe("Preferences and commands", () => {
     );
   });
   it("dispatches contextual fuzzy actions and rebound chords without firing during composition", async () => {
+    await pane().$("button=Read").waitForEnabled();
     await browser.$("button=Commands").click();
     const palette = () => browser.$('dialog[aria-label="Command palette"]');
     await palette().$("input").setValue("outline");
@@ -1675,7 +1805,12 @@ describe("Preferences and commands", () => {
       await palette().$("#command-outline").getAttribute("aria-disabled"),
     ).toBe("true");
     await palette().$("input").setValue("rdmd");
+    await expect(palette().$("#command-read")).toHaveAttribute(
+      "aria-disabled",
+      "false",
+    );
     await palette().$("#command-read").click();
+    await palette().waitForDisplayed({ reverse: true });
     await pane().$("article h1").waitForDisplayed();
     await browser.$("button=Commands").click();
     await palette().$("input").setValue("save");
@@ -1873,6 +2008,9 @@ describe("Author experience", () => {
         expected,
       { timeout: 30000 },
     );
+    await pane()
+      .$('.window-shell[data-busy="false"][data-dirty="false"]')
+      .waitForExist({ timeout: 30000 });
   }
   it("keeps the same editor, document, caret, folds and undo across Source/Split/Visual/Read", async () => {
     await seed();
@@ -2124,10 +2262,13 @@ describe("Author experience", () => {
     await view((v) => v.dispatch({ changes: { from: 0, to: 1, insert: "A" } }));
     await pane().$('input[aria-label="Range start"]').setValue("1000000");
     await pane().$("button=Go to range").click();
+    const rangeStartLabel = await browser.tauri.execute(() =>
+      (1000000).toLocaleString(),
+    );
     await browser.waitUntil(
       async () =>
-        (await pane().$(".range-controls strong").getText()).includes(
-          "1,000,000",
+        (await pane().$(".range-controls strong").getText()).startsWith(
+          `Range ${rangeStartLabel}–`,
         ),
       { timeout: 30000 },
     );
@@ -2326,6 +2467,9 @@ describe("Git workbench", () => {
       );
       const marked = () =>
         browser.$(`.tabbar .tab[data-git-closing="${marker}"]`);
+      await marked()
+        .$('button[aria-label^="Close "]')
+        .waitForEnabled({ timeout: 30000 });
       await marked().$('button[aria-label^="Close "]').click();
       await browser.waitUntil(
         async () =>
@@ -2562,8 +2706,7 @@ describe("Git workbench", () => {
         {
           ...initial,
           setupAndDiffInteractionsMs: Date.now() - start,
-          profile:
-            "debug WKWebView; includes fixture generation/commit, capture, split/intraline and scroll assertions; not input-to-paint",
+          profile: `debug ${nativeWebView}; includes fixture generation/commit, capture, split/intraline and scroll assertions; not input-to-paint`,
         },
         null,
         2,
@@ -3233,8 +3376,8 @@ describe("Export and local jobs", () => {
     );
     expect(await call("execution_status")).toBe(false);
     expect(fs.existsSync(path.join(folder, "never-automatic.txt"))).toBe(false);
-    await tool("pandoc", "/opt/homebrew/bin/pandoc", "Choose Pandoc…");
-    await tool("typst", "/opt/homebrew/bin/typst", "Choose Typst…");
+    await tool("pandoc", installedTool("pandoc"), "Choose Pandoc…");
+    await tool("typst", installedTool("typst"), "Choose Typst…");
     await choose("image", path.resolve("tests/fixtures/approved-image.png"));
     await panel().$(".power-image button").click();
     await panel().$("button=Prepare PDF…").waitForEnabled({ timeout: 60000 });
@@ -3266,12 +3409,33 @@ describe("Export and local jobs", () => {
       encoding: "utf8",
     });
     await writeFile("artifacts/export-webview-pdf-images.txt", info);
-    expect(
-      info.split("\n").filter((line) => /^\s*\d+\s+\d+\s+image\b/.test(line))
-        .length,
-    ).toBeGreaterThanOrEqual(7);
+    const imageRows = info
+      .split("\n")
+      .filter((line) => /^\s*\d+\s+\d+\s+image\b/.test(line));
+    expect(imageRows.length).toBeGreaterThanOrEqual(7);
+    // E=mc² and q=x with its equation tag must include their complete SVGs,
+    // rather than the former first-inline-fragment / clipped table rasters.
+    expect(Number(imageRows[0].trim().split(/\s+/)[3])).toBeGreaterThan(100);
+    expect(Number(imageRows[3].trim().split(/\s+/)[3])).toBeGreaterThan(150);
     await panel().$("button=Open PDF to inspect / print").click();
     await panel().$("button=Close export and jobs").waitForEnabled();
+    if (process.platform === "linux") {
+      execFileSync(
+        "/usr/bin/python3",
+        ["scripts/close-test-viewer.py", output],
+        {
+          stdio: "inherit",
+        },
+      );
+      await browser.waitUntil(
+        () => browser.tauri.execute(() => document.hasFocus()),
+        {
+          timeout: 5000,
+          timeoutMsg:
+            "Wayland did not return focus after closing the PDF viewer",
+        },
+      );
+    }
     await choose("pdf-destination", output);
     await panel().$("button=Export PDF…").click();
     await expect(panel().$('[role="alert"]')).toHaveText(
@@ -3526,11 +3690,7 @@ describe("Export and local jobs", () => {
     await consent();
     await panel().$("button=Trust folder for tex…").click();
     await panel().$("button=Choose TeX engine…").waitForEnabled();
-    await tool(
-      "tex",
-      "/usr/local/texlive/2026/bin/universal-darwin/xelatex",
-      "Choose TeX engine…",
-    );
+    await tool("tex", installedTool("tex", "xelatex"), "Choose TeX engine…");
     options = await panel()
       .$('select[aria-label="Captured fence"]')
       .$$("option");
@@ -3732,6 +3892,7 @@ describe("Everyday workflows", () => {
     const recent = () => pane().$(".recent-files li button");
     await expect(recent()).toHaveText(expect.stringContaining("source.txt"));
     await expect(recent()).toHaveText(expect.stringContaining("Open"));
+    await recent().waitForEnabled({ timeout: 30000 });
     await recent().click();
     await ready();
     await readDocument("Recent العربية");
@@ -3753,12 +3914,14 @@ describe("Everyday workflows", () => {
       }
     }, hint.id);
     expect(denied).toBe(true);
+    await recent().waitForEnabled({ timeout: 30000 });
     await recent().click();
     await browser
       .$(`button[aria-label="Remove root ${rootName}"]`)
       .waitForExist();
     await expect(pane().$(".empty-state h1")).toBeDisplayed();
     await expect(recent()).toHaveText(expect.stringContaining("Open"));
+    await recent().waitForEnabled({ timeout: 30000 });
     await recent().click();
     await ready();
     await readDocument("Recent العربية");
@@ -4049,8 +4212,7 @@ describe("Everyday workflows", () => {
       "artifacts/workflow-layout.json",
       JSON.stringify(
         {
-          method:
-            "actual WKWebView; programmatically constrained pane widths, not physical monitor/OS resize certification",
+          method: `actual ${nativeWebView}; programmatically constrained pane widths, not physical monitor/OS resize certification`,
           observations,
         },
         null,

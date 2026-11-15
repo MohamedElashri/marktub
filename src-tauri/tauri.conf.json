@@ -1,7 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Marktub",
-  "version": "0.0.0",
   "identifier": "app.marktub.desktop",
   "build": {
     "beforeDevCommand": "pnpm dev",
@@ -44,8 +43,7 @@
     },
     "linux": {
       "deb": {
-        "desktopTemplate": "marktub.desktop",
-        "depends": ["libwebkit2gtk-4.1-0", "libgtk-3-0"]
+        "desktopTemplate": "marktub.desktop"
       }
     },
     "fileAssociations": [

@@ -2,6 +2,8 @@
 pub mod pdf;
 pub mod process;
 pub mod sql;
+#[cfg(target_os = "linux")]
+mod viewer;
 use crate::{files::FileError, private_store, scoped_file::ScopedFile};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -18,6 +20,10 @@ use std::{
 };
 use uuid::Uuid;
 pub const CAPTURE_LIMIT: usize = 2 * 1024 * 1024;
+#[cfg(target_os = "linux")]
+pub(crate) fn open_pdf_viewer(path: &Path) -> Result<(), FileError> {
+    viewer::open(path)
+}
 pub fn err(s: impl Into<String>) -> FileError {
     FileError::new("power", s)
 }
@@ -85,9 +91,21 @@ impl Tool {
         if file.metadata()?.len() > 512 * 1024 * 1024 {
             return Err(err("Executable exceeds 512 MiB."));
         }
+        // POSIX sh has no --version option (Ubuntu's /bin/sh is dash). This
+        // fixed identification probe runs only after native tool confirmation;
+        // it contains no document text and inherits the usual cleared environment.
+        let portable_sh = matches!(role, Role::Shell) && name == "sh";
+        let arguments = if portable_sh {
+            vec![
+                "-c".into(),
+                "printf '%s\\n' 'POSIX sh (version not reported)'".into(),
+            ]
+        } else {
+            vec!["--version".into()]
+        };
         let output = process::run(
             &canonical,
-            &["--version".into()],
+            &arguments,
             scratch,
             None,
             &Arc::new(AtomicBool::new(false)),
@@ -97,7 +115,13 @@ impl Tool {
         let valid = output.code == Some(0)
             && version.len() <= 256
             && match role {
-                Role::Shell => !version.is_empty(),
+                Role::Shell => {
+                    if portable_sh {
+                        version == "POSIX sh (version not reported)"
+                    } else {
+                        !version.is_empty()
+                    }
+                }
                 Role::Pandoc => version.starts_with("pandoc 3."),
                 Role::Typst => version.starts_with("typst 0."),
                 Role::Tex => version.contains("TeX"),
@@ -833,6 +857,30 @@ pub fn execute(p: Prepared, scratch: Scratch, job: &Job) -> Result<ResultView, F
 }
 #[cfg(test)]
 mod tests {
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn selected_posix_sh_does_not_require_a_nonportable_version_option() {
+        let scratch = tempfile::tempdir().unwrap();
+        let tool = super::Tool::select(
+            std::path::Path::new("/bin/sh"),
+            super::Role::Shell,
+            scratch.path(),
+        )
+        .unwrap();
+        assert_eq!(tool.view.version, "POSIX sh (version not reported)");
+        tool.validate().unwrap();
+        let output = super::process::run(
+            &tool.path,
+            &["-c".into(), "printf 'selected-sh-ok'".into()],
+            scratch.path(),
+            None,
+            &std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            5,
+        )
+        .unwrap();
+        assert_eq!(output.code, Some(0));
+        assert_eq!(output.stdout, "selected-sh-ok");
+    }
     use super::*;
     #[test]
     fn fences_preserve_raw_coordinates_and_never_offer_nested_or_unclosed_code() {

@@ -1,6 +1,6 @@
 {
   "name": "marktub",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -30,7 +30,8 @@
     "bench:startup": "python3 benchmarks/startup.py",
     "check:release": "node scripts/check-release.mjs",
     "check:repository": "node scripts/check-repository.mjs",
-    "source:archive": "python3 scripts/source-archive.py"
+    "source:archive": "python3 scripts/source-archive.py",
+    "check:dependencies": "python3 scripts/check-dependencies.py"
   },
   "dependencies": {
     "@codemirror/commands": "6.11.1",

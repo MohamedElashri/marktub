@@ -248,7 +248,7 @@
   { "name": "internmap", "versions": ["1.0.1", "2.0.3"], "license": "ISC" },
   { "name": "is-reference", "versions": ["3.0.3"], "license": "MIT" },
   { "name": "katex", "versions": ["0.18.10", "0.19.1"], "license": "MIT" },
-  { "name": "khroma", "versions": ["2.1.0"], "license": "MIT" },
+  { "name": "khroma", "versions": ["2.1.0"], "license": "Unknown" },
   { "name": "layout-base", "versions": ["1.0.2", "2.0.1"], "license": "MIT" },
   { "name": "linkify-it", "versions": ["6.1.0"], "license": "MIT" },
   { "name": "locate-character", "versions": ["3.0.0"], "license": "MIT" },

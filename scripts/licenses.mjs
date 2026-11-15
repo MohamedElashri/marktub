@@ -1,7 +1,7 @@
 import { format } from "prettier";
 import { spawnSync } from "node:child_process";
 import { readFileSync, readdirSync, writeFileSync, existsSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { createHash } from "node:crypto";
 import { licenseFiles } from "./license-files.mjs";
 const result = spawnSync("pnpm", ["licenses", "list", "--prod", "--json"], {
@@ -29,14 +29,26 @@ const metadata = spawnSync(
 );
 if (metadata.status !== 0)
   throw Error(metadata.stderr || "Cargo license inventory failed.");
-const rust = JSON.parse(metadata.stdout).packages.filter((p) => p.source);
+const overrides = JSON.parse(
+  readFileSync("docs/evidence/dependency-overrides.json", "utf8"),
+).packages;
+const localOverride = (pkg) =>
+  overrides.find(
+    (entry) => resolve(entry.path, "Cargo.toml") === resolve(pkg.manifest_path),
+  );
+const rust = JSON.parse(metadata.stdout).packages.filter(
+  (pkg) => pkg.source || localOverride(pkg),
+);
 const rustCoverage = [],
   rustNotices = [];
 const supplements = existsSync("src/rust-notice-supplements.json")
   ? JSON.parse(readFileSync("src/rust-notice-supplements.json", "utf8"))
   : [];
 for (const pkg of rust) {
-  const origin = `Source: https://crates.io/crates/${pkg.name}/${pkg.version} (unmodified registry archive); ${pkg.repository || "origin is recorded in the archive"}`;
+  const override = localOverride(pkg);
+  const origin = override
+    ? `Source: ${override.upstream}; locally modified source in ${override.path}, with original archive/file hashes and changes recorded in docs/evidence/dependency-overrides.json and ${override.patch}. ${override.repository}`
+    : `Source: https://crates.io/crates/${pkg.name}/${pkg.version} (unmodified registry archive); ${pkg.repository || "origin is recorded in the archive"}`;
   const directory = join(pkg.manifest_path, "..");
   const candidates = licenseFiles(directory, pkg.license_file);
   const retained = [];
@@ -67,6 +79,7 @@ for (const pkg of rust) {
     name: pkg.name,
     version: pkg.version,
     license: pkg.license,
+    source: override ? "reviewed local override" : "registry archive",
     retainedFiles: retained.sort(),
     archiveNotices: candidates.map(({ path, sha256 }) => ({ path, sha256 })),
   });
@@ -92,7 +105,7 @@ writeFileSync(
   await format(
     JSON.stringify({
       scope:
-        "Cargo resolved registry graph superset; root and nested vendored notice texts with archive-byte hashes; not legal clearance or active-linkage certification",
+        "Cargo resolved graph superset, including reviewed local overrides; retained notice texts with byte hashes; not legal clearance or active-linkage certification",
       packages: rustCoverage,
       missing: rustCoverage
         .filter((p) => !p.retainedFiles.length)

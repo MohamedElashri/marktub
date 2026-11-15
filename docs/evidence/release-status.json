@@ -1,320 +1,326 @@
 {
-  "date": "2026-11-14",
-  "status": "available-Mac hardening and npm advisory remediation verified; source publication prepared; remaining Rust/platform/physical-input/performance release gates stay open",
+  "schemaVersion": 3,
+  "date": "2026-11-15",
+  "version": "0.1.0",
+  "status": "Local Linux release candidate verified; hosted CI and operator/platform qualifications remain open. Not published.",
+  "source": {
+    "baseCommit": "34af363589d369abf5649571cd61e0900f1106b7",
+    "scope": "Candidate snapshot; the deterministic source-archive manifest binds exact maintained files. Prepared Git revision is recorded with the release artifacts."
+  },
   "host": {
-    "os": "macOS 27.2 (26B123)",
-    "architecture": "arm64",
-    "hardware": "Apple M1, 16 GiB",
-    "webKit": "22625.2.8.11.9"
+    "os": "Zorin OS 18.1, Ubuntu noble base",
+    "architecture": "x86_64",
+    "kernel": "7.0.0-42-generic",
+    "cpu": "AMD Ryzen 7 7735H  with Radeon Graphics",
+    "logicalCpus": 16,
+    "memoryBytes": 63972536320,
+    "gtk": "3.24.41",
+    "webKitGTK": "2.52.6",
+    "sessions": "GNOME Wayland and isolated X11/Xvfb/Openbox"
   },
   "checks": {
     "frontend": {
-      "passed": 787,
-      "testFiles": 19
+      "status": "pass",
+      "files": 19,
+      "tests": 788,
+      "scope": "Typecheck, lint, unit tests, tooling and formatting"
     },
     "tooling": {
-      "nodePassed": 14,
-      "pythonPassed": 6
+      "status": "pass",
+      "nodeTests": 15,
+      "pythonTests": 19
     },
-    "rust": {
-      "passed": 148,
+    "dependencies": {
+      "status": "pass",
+      "overrides": 4,
+      "optimizedSoundnessRegression": "pass; original source reproduced SIGSEGV",
+      "compilerErrorFixtures": 5,
+      "sourceIntegrity": "pass; exact source and patch hashes",
+      "validMacroConsumer": "pass: boxed, variant, strong closure, object subclass and file-template child expansion"
+    },
+    "nativeRust": {
+      "status": "pass",
+      "rustfmt": "pass",
+      "clippy": "all targets; warnings denied",
+      "testsPassed": 159,
       "ignored": 6,
-      "ignoredScope": "six opt-in/worker helpers; installed converter helper passed separately under direct-descendant network denial; other helper scopes remain their recorded prior results"
+      "ignoredScope": "Four subprocess helper entries exercised by parent tests; bounded cross-volume/ENOSPC and selected converter fixtures pass separately",
+      "crossVolume": "pass; network-isolated disposable 128 MiB tmpfs, exact sources and ENOSPC",
+      "converters": "pass; selected Pandoc/Typst/XeLaTeX, hostile Markdown, approved image and no-shell-escape"
     },
     "nativeWebView": {
-      "passed": 53,
-      "seconds": 174.1,
-      "scope": "actual WKWebView/backend on final PDF-policy source and verified development graph; all 15 sampled helper lifecycles confirmed; process-scoped wake assertion, unchanged focus assertions/time bounds; not physical IME/accessibility or latency certification"
+      "x11": {
+        "sha256": "3a8680a99899d51818ed61dbd6202cd118725925175046f987b37f89c92b0c3a",
+        "bytes": 375642928,
+        "passed": 54,
+        "seconds": 308.9,
+        "backend": "X11/Xvfb/Openbox/WebKitGTK; uninterrupted",
+        "pdfViewer": "real Evince with ordinary owned-window close and unchanged focus checks"
+      },
+      "wayland": {
+        "sha256": "3a8680a99899d51818ed61dbd6202cd118725925175046f987b37f89c92b0c3a",
+        "bytes": 375642928,
+        "passed": 54,
+        "seconds": 264.2,
+        "backend": "GNOME Wayland/WebKitGTK; uninterrupted",
+        "pdfViewer": "real Evince, verified owned sole window closed by normal GTK action; unchanged focus assertions",
+        "testHarnessSha256": "92dadadd9cd62cbafb3bd025f59c78b52b89fd87a39d43d21381855e2e7ed6cc"
+      },
+      "helperLifecycles": {
+        "x11": 15,
+        "wayland": 15,
+        "allObservedHelpersExited": true
+      }
     },
-    "typecheck": "pass",
-    "lint": "pass",
-    "format": "pass",
-    "clippy": "pass, all targets, warnings denied",
-    "frozenOfflineInstall": "pass with verified Puppeteer 3.2.7 development override and final lockfile",
-    "buildScope": "normal ad-hoc ARM64 app/DMG rebuilt after verified development-tooling override; executable byte-identical to prior qualified shipping binary; local caches/toolchain, not a clean-machine build",
-    "normalReleaseIsolation": "pass; no fixture command, WDIO evaluator/server or test-only marker in normal executable/frontend/ACL/normal dependency graph",
-    "productionSupervisor": {
-      "binarySha256": "f139d19383c6a160597afa8c817043bb5541683380177b4433282df6822aced3",
-      "passed": 5,
-      "checks": [
-        "exact streams and status",
-        "native carried directory authority",
-        "mismatched token refuses before execution",
-        "controller EOF stops and reaps attached group",
-        "malformed private argv refuses without GUI"
-      ],
-      "controllerEofCleanupMs": 6.42,
-      "controllerEofExitScope": "reply write may fail after caller closes its endpoint; native helper exits 0 or 2, attached leader/child must be gone",
-      "scope": "exact final shipping executable private native supervisor; owned shell fixtures, not public GUI bridge or hostile detached-process sandbox certification"
+    "normalPackage": {
+      "status": "pass",
+      "scope": "locally built deb extraction, executable/resources/desktop/dependencies; not install or GUI certification",
+      "package": {
+        "Package": "marktub",
+        "Version": "0.1.0",
+        "Architecture": "amd64",
+        "Depends": "libwebkit2gtk-4.1-0, libgtk-3-0"
+      },
+      "debSha256": "8b8d72e382cae07a555d5225aebb420bb1413c94e8c64051037a3c75d15ebf3e",
+      "debBytes": 11863528,
+      "binarySha256": "1a9cefd8f846619abde688da781ad65a6f326ec530439101ef994a38c301ea73",
+      "binaryBytes": 22628632,
+      "unbundledBinarySha256": "33ae3ec938a79b7e4033fa7065a5105d7496c5947ce22839d6b13da3f7563f04",
+      "bundleMarkerPatch": "only the fixed Tauri UNK-to-DEB marker; every other byte identical",
+      "desktopFile": "Marktub.desktop",
+      "resourcesSha256": {
+        "specimen.md": "24f52d55b6381919b0e6c96be24fe955cbf52abe49e8c62d4c8d72aea7154aa1",
+        "THIRD_PARTY_LICENSES.txt": "6e1039b3cf7f3c37615de226ab99208577e03a6e6d57dc97f4c0de1f5960d486"
+      },
+      "portableLoaderAndLibraries": true,
+      "releaseIsolation": "pass: normal frontend, ACL, executable and dependency graph exclude test hooks"
     },
-    "copiedDmgNativeUiSmoke": "pass: final exact copied app four-tab Library/modes/Source/saved-Review journey, close/root revocation, five-minute idle, native Quit and all measured helper exits"
+    "offlineInstalledUbuntu": {
+      "status": "pass",
+      "scope": "offline Ubuntu runtime container, installed normal Debian package, 3 four-mode cycles, bundled example and post-close sampling; synthetic AT-SPI, not physical input or a full installed desktop",
+      "installed": "libgtk-3-0t64 3.24.41-4ubuntu1.3\nlibwebkit2gtk-4.1-0 2.52.6-0ubuntu0.24.04.1\nmarktub 0.1.0\n",
+      "binarySha256": "1a9cefd8f846619abde688da781ad65a6f326ec530439101ef994a38c301ea73",
+      "observations": 16,
+      "samples": 18,
+      "allCounterIntervalsComplete": true,
+      "documentUnchanged": true,
+      "sampledHelperLifecycleConfirmed": true,
+      "os": "Ubuntu 24.04.4 LTS runtime container; host kernel shared",
+      "imageId": "sha256:761f0cbd78c25e678776dc2cd6296f914eb0d022591e43e5b1053d2c30b8aba5",
+      "networkMode": "none"
+    },
+    "sourceArchive": {
+      "status": "pass: reproduced byte-for-byte and every member/hash/mode verified against the maintained inventory",
+      "scope": "maintained source, tests and legal notices; excludes Git history, caches, private profiles and local reports",
+      "checksums": "Exact final archive/package hashes are in the adjacent release manifest and SHA256SUMS, outside the source archive to avoid self-reference"
+    },
+    "pdf": {
+      "tools": {
+        "pandoc": {
+          "version": "pandoc 3.14",
+          "sha256": "c6049d8f9f0bb8131d139193683bc91985a50e8fc57e05de865f010647a9d899"
+        },
+        "typst": {
+          "version": "typst 0.15.1 (9dfd3a08)",
+          "sha256": "29273eaa04f6d00edd0c2bec578f565fc9c65be856bfbffc894567c68ed0b237"
+        },
+        "xelatex": {
+          "version": "XeTeX 3.141592653-2.6-0.999998 (TeX Live 2026)",
+          "sha256": "5e3229c24f3bd06c47b6f118e765973902a2c4cfc2ec9a84d7e9138cd61aecba"
+        }
+      },
+      "visualReview": "Two real WebView-exported Typst pages inspected: multilingual text, complete inline/numbered math, reference, table, images, diagram, fence and footnote; no clipping observed",
+      "pdfSha256": "64f23ee87c40fa736383f5029ef803ff0b4c4a6a52b8e8aacdecc1c4d5620113",
+      "javascript": false,
+      "fonts": "All five reported text fonts embedded and subsetted",
+      "hostDiagnostic": {
+        "tool": "Poppler pdfinfo 24.02.0",
+        "message": "Suspects object is wrong type (boolean)",
+        "observedPdfValue": "/Suspects false",
+        "scope": "Older parser diagnostic for a boolean false; current upstream parses false without this diagnostic. Retained unchanged output, not PDF/UA/printing certification.",
+        "parserSource": "https://skia.googlesource.com/third_party/poppler/+/104cc3864bc75dedef3860a44164967afbbcd48b/poppler/Catalog.cc"
+      }
+    }
   },
   "security": {
-    "javaScriptProductionAudit": {
-      "findings": 0
-    },
-    "javaScriptFullAudit": {
-      "high": 0,
-      "low": 0,
-      "gate": "pass; zero findings in full lockfile audit",
-      "scope": "WDIO 9 embedded Tauri runner uses verified @puppeteer/browsers 3.2.7; extract-zip and its former FTP chain are absent; no ignored advisory IDs"
-    },
-    "rustStrictAudit": {
+    "javascriptProduction": "zero findings",
+    "javascriptAll": "zero findings",
+    "rustRegistry": {
       "vulnerabilities": 0,
-      "unmaintained": 4,
-      "unsound": 1,
-      "gate": "fail; full lockfile, no ignored advisory IDs",
-      "advisories": [
-        "RUSTSEC-2024-0370",
-        "RUSTSEC-2024-0429",
-        "RUSTSEC-2026-0371",
-        "RUSTSEC-2026-0370",
-        "RUSTSEC-2026-0372"
-      ],
-      "databaseCommit": "4ef2df8e806a65e2f1ecc14f56f51249062b23d6",
-      "scope": "last full lockfile scan retained; native manifest/lock unchanged, latest upstream Tauri/GTK and single-instance/zbus API requirements rechecked; no waiver"
+      "warnings": {},
+      "database": {
+        "advisory-count": 1509,
+        "last-commit": "4ef2df8e806a65e2f1ecc14f56f51249062b23d6",
+        "last-updated": "2026-11-13T13:33:03+01:00"
+      },
+      "deny": ["unsound", "unmaintained"],
+      "ignores": []
     },
-    "runner": "exec-created native supervisor; attached process group cleanup on controller EOF or real parent SIGKILL; executable rechecked after handoff; deliberately detached/hostile same-user processes are outside this guarantee"
+    "localOverrides": {
+      "coverage": "Cargo audit excludes path dependencies. These application-owned sources retain original identities and licenses, verified file/archive/patch provenance, optimized soundness and native compiler regressions. They are not covered by a clean registry audit.",
+      "record": "dependency-overrides.json",
+      "packages": [
+        {
+          "name": "glib",
+          "version": "0.18.5",
+          "path": "src-tauri/vendor/glib",
+          "patch": "patches/glib.patch",
+          "advisories": ["RUSTSEC-2024-0429"],
+          "reason": "Backport upstream b5a4071: mutable GVariant string out-pointer; optimized iterator regression required."
+        },
+        {
+          "name": "glib-macros",
+          "version": "0.18.5",
+          "path": "src-tauri/vendor/glib-macros",
+          "patch": "patches/glib-macros.patch",
+          "advisories": ["RUSTSEC-2024-0370"],
+          "reason": "Replace unmaintained macro-error handling with existing maintained syn::Error diagnostics."
+        },
+        {
+          "name": "gtk3-macros",
+          "version": "0.18.2",
+          "path": "src-tauri/vendor/gtk3-macros",
+          "patch": "patches/gtk3-macros.patch",
+          "advisories": ["RUSTSEC-2024-0370"],
+          "reason": "Replace unmaintained macro-error handling with existing maintained syn::Error diagnostics."
+        },
+        {
+          "name": "tauri-plugin-single-instance",
+          "version": "2.5.5",
+          "path": "src-tauri/vendor/tauri-plugin-single-instance",
+          "patch": "patches/tauri-plugin-single-instance.patch",
+          "advisories": [
+            "RUSTSEC-2026-0370",
+            "RUSTSEC-2026-0371",
+            "RUSTSEC-2026-0372"
+          ],
+          "reason": "Use maintained zbus with merged wire/names/derive modules; preserve the native single-instance protocol."
+        }
+      ]
+    },
+    "licenses": {
+      "retainedRustPackages": 463,
+      "missing": []
+    }
   },
-  "remainingGates": [
-    "Linux WebKitGTK, Intel and minimum macOS qualification",
-    "Physical IME, screen reader, native input, fonts and printing",
-    "Sustained production resource and compositor input/paint/DOM/IPC matrices; same-host observations do not certify a latency SLA or all-workload memory plateau",
-    "Beyond-budget or unsupported TeX retains source; repeated identical PDF math with different context outputs retains source; physical accessibility and font/tool/platform matrix",
-    "Broader Git/filesystem/storage/crash/tool-version fault matrices",
-    "Strict dependency advisory disposition and distribution/license review",
-    "Downloaded-app/clean-install qualification and actual remote CI; paid signing/notarization excluded by owner"
+  "remainingQualifications": [
+    "Current macOS ARM64, Intel and minimum-system verification; historical packages do not certify shared changes",
+    "Physical IME, screen-reader speech/navigation, keyboard/image integration, font dialogs, HiDPI and printing",
+    "Full installed Ubuntu desktop and downloaded-package channel; offline runtime-container install is narrower",
+    "Sustained large Source, multitab, Git/Review resource distributions and compositor/input-to-paint/DOM/IPC measurements",
+    "Broader filesystem/Git/storage/crash faults, converters/fonts/layout and tool-version combinations",
+    "Actual hosted CI and final distribution review"
   ],
-  "evidencePolicy": "phase completion/deviation summaries stay in plan.md; raw host reports and prototypes are local ignored history; measurements belong to their recorded executable hash; private GitHub source hosting only by owner authorization, no public release waiver",
-  "package": {
-    "dmgSha256": "e120313fd6fa0a7e83e314349d6e4ba636375cb827bd12a48adaee654550dfab",
-    "dmgBytes": 10504916,
-    "binarySha256": "f139d19383c6a160597afa8c817043bb5541683380177b4433282df6822aced3",
-    "binaryBytes": 19228144,
-    "bundleBytes": 24147488,
-    "architectures": "arm64",
-    "minimumSystemVersion": "13.0",
-    "resourcesByteIdentical": true,
-    "strictAdHocSignature": "pass",
-    "volumeDetached": true,
-    "qualification": "local ad-hoc, unnotarized package; downloaded-app/clean-machine Gatekeeper qualification Not Run",
-    "executableIdenticalToPriorQualifiedPackage": true
-  },
   "distributionDecision": {
     "macOS": "ad-hoc signing; no paid Apple Developer account",
     "notarization": "not planned for the selected channel",
     "opening": "macOS may block downloaded apps; per-app user trust decision remains necessary; no automatic Gatekeeper/quarantine bypass"
   },
-  "documentMath": {
-    "status": "implemented for bounded finalized document context",
-    "formulaLimit": 128,
-    "sourceLimitUtf16Units": 131072,
-    "formulaLimitUtf16Units": 8192,
-    "workerDeadlineSeconds": 8,
-    "outputs": "Read, verified ordinary-document author previews, standalone HTML with resolved MathML, selected-revision PDF PNGs",
-    "limits": "explicit source fallback; large Source windows remain local; PDF shared 16-asset/24 MiB cap and ambiguous identical spellings retain source; physical screen reader not certified"
-  },
-  "recoveryRetention": {
-    "untouchedClose": "Only newly closed, zero-revision, nonuncertain Source sessions with clean saved provenance and unchanged authorized native target retire their redundant base after the durable close barrier. Failed proof/IO retains bytes.",
-    "preserved": "all prior archives, edited-then-undone receipts, recovered/Save As-only sessions and changed targets",
-    "catalogue": "strict header-only zero-history records receive constant-space complete-byte UTF-8/NUL/checksum and stable-identity validation; all other records and every Restore use full replay"
-  },
-  "sourceBenchmark": {
-    "scope": "isolated native optimized Provenance; five alternating runs per stride per 1/10/100 MiB tier; not whole-app footprint or input/paint certification",
-    "allInputAndSampledRangeHashesIdentical": true,
-    "hundredMiB": {
-      "oldStride": 128,
-      "newStride": 512,
-      "oldMedianPeakRssBytes": 238616576,
-      "newMedianPeakRssBytes": 224837632,
-      "oldMedianCreationMs": 164.66,
-      "newMedianCreationMs": 160.347,
-      "oldMedianThousandRangesMs": 40.049,
-      "newMedianThousandRangesMs": 41.163
-    }
-  },
-  "publicationPreparation": {
-    "inventoryFiles": 192,
-    "verifiedNonSummaryInputs": 189,
-    "sourceArchive": "deterministic snapshot; every archive entry compared with manifest/current source; excludes Git history, generated output, caches and ignored local evidence",
-    "repository": "owner-authorized private GitHub source repository MohamedElashri/marktub, branch main; public and binary-release qualifications remain open",
-    "cleanup": "completed project build/dependency/generated caches removed after verification; maintained tests/notices, verified packages, raw evidence and all private histories retained"
-  },
-  "currentMacQualification": {
-    "status": "finite available-Mac checks complete, including explicitly approved shipping Git UI; broader release qualifications remain open",
-    "osSettings": "unchanged; owner declined Japanese/VoiceOver activation",
-    "storeLease": "explicit logical-owner unlock; duplicate-description regression and full native suite pass",
-    "finalRust": {
-      "passed": 148,
-      "ignored": 6,
-      "doctests": "pass",
-      "clippy": "pass; all targets, warnings denied",
-      "scope": "final PDF catalogue and private-store lease revision"
-    },
-    "frontend": {
-      "passed": 787,
-      "files": 19,
-      "nodeToolingPassed": 14,
-      "pythonToolingPassed": 6,
-      "typeLintFormat": "pass",
-      "frozenOfflineInstall": "pass"
-    },
-    "nativeWebView": {
-      "passed": 53,
-      "seconds": 174.1,
-      "scope": "actual WKWebView/backend on final PDF-policy source and verified development graph; all 15 sampled helper lifecycles confirmed; process-scoped wake assertion, unchanged focus assertions/time bounds; not physical IME/accessibility or latency certification"
-    },
-    "diagnosticRecovery": {
-      "scope": "actual isolated normal-feature app SIGKILL/restart/Restore/native independent Save As; not shipping-identifier or physical IME certification",
-      "binarySha256": "e3cbda922a7b9312ab4141a61947fa75a74ede2555357f0da0544c23d0ce6752",
-      "actualSigkill": true,
-      "restoreRevision": 15,
-      "previousRecentRequiresFolderSelection": true,
-      "restoredRequiresNewNativeDestination": true,
-      "postRestoreNewEditUndoRedoUndo": true,
-      "savedCopyExactExpectedBytes": true,
-      "savedBytes": 179,
-      "savedSha256": "a391143e2e1f27a3912aaf07823726f992bb8cd3bf72745fd6254908ce4a591d",
-      "originalUnchanged": true,
-      "bomAndUnrelatedMixedEolBytesPreserved": true,
-      "manualAssistance": "owner navigated native picker to fixture parent; agent selected input.txt and clicked Open; path keyboard automation was unreliable",
-      "ui": "Saved an independent copy; Saved; Recovery up to date",
-      "redoAndUndoAcrossIndependentSaveAs": true,
-      "nativeQuitAndExactDiagnosticProcessExit": true,
-      "closedRecentEntriesRequireFolderSelection": true
-    },
-    "installedPdfTools": {
-      "status": "pass with direct-descendant network denial",
-      "tools": ["Pandoc 3.14", "Typst 0.15.1", "XeTeX / TeX Live 2026"],
-      "engines": [
-        "Pandoc + Typst",
-        "Pandoc + XeLaTeX",
-        "separately trusted local XeLaTeX"
-      ],
-      "missingGlyphDiagnostic": "preserved",
-      "ownedFixtureOverfullWarnings": 0,
-      "allFiveLatestPagesVisuallyInspected": true,
-      "privateCanaryAbsent": true,
-      "scope": "installed fonts/tool versions; not launchd WebKit network denial, physical print or universal layout certification"
-    },
-    "nativeGitUi": {
-      "status": "pass on exact f139d193 shipping executable after explicit owner approval",
-      "scope": "native chooser, one saved hunk, side-by-side, local history and bounded large-file refusal; repository grant revoked, home shortcuts still require folder selection, native Quit and all sampled helper exits; no Git mutation or transport",
-      "privateFilesByteIdentical": 68,
-      "workloadFilesByteIdentical": 4,
-      "gitMetadataFilesAndInventoryByteIdentical": 29,
-      "resourceScope": "three ownership/incarnation/lifecycle-admitted loaded points over two approximately 20-second idle intervals; not a latency SLA, peak or sustained plateau certification"
-    },
-    "notRun": [
-      "owner-declined OS setting changes for Japanese input and VoiceOver",
-      "physical input/screen-reader/printing",
-      "Linux, Intel, minimum macOS, clean-machine/downloaded-app and remote CI"
-    ],
-    "remainingChecks": [],
-    "dependencyFollowup": {
-      "npmFullFindings": 0,
-      "npmProductionFindings": 0,
-      "consumerNetworkDenial": "pass; real loopback control returns EPERM",
-      "qualification": "Node 26.13.1, WDIO 9/Tauri embedded provider; browser/driver automatic acquisition remains disabled",
-      "removed": "extract-zip dependency, obsolete local extraction patch and unused FTP override/contract",
-      "nativeRuntimeInputs": "unchanged from f014e73; prior 148-test and strict-Clippy results retained",
-      "normalPackage": "pass; strict ad-hoc signature, read-only mount/copy/detach and release isolation; exact prior f139d193 shipping executable",
-      "frozenOfflineInstall": "pass"
-    }
-  },
-  "historicalProductionEvidence": {
-    "checkpoint": "b4c9094 and its recorded ff2039b8 binary; not a result for current package",
-    "integrity": {
-      "existingRecoveryFiles": 59,
-      "allOriginalRecoveryBytesPreserved": true,
-      "allFixtureBytesUnchanged": true,
-      "privateBytesBefore": 104893161,
-      "privateBytesAfter25Cycles": 104896971,
-      "ordinaryFourModeCycles": 10,
-      "documentMathFourModeCycles": 10,
-      "largeSourceOpenCloseCycles": 5,
-      "largeFixtureBytes": 104857600,
-      "allOriginalRecoveryBytesPreservedAfterFinalQuit": true,
-      "allFixtureBytesUnchangedAfterFinalQuit": true,
-      "additionalFreshLargeSourceCycle": 1,
-      "privateBytesAfterFinalQuit": 104896971
-    },
-    "resources": {
-      "binarySha256": "ff2039b83127f2250e23a87e2dff4dffb16d7b2a1c2a4e5aaefdcca673627ba7",
-      "scope": "fresh post-restart normal ad-hoc copied app; one real 100 MiB Source open/close and five-minute no-agent-input idle; uncontrolled page/GC caches; not paint/latency or all-workload plateau certification",
-      "samples": 8,
-      "allOwnershipAndLifecycleChecks": true,
-      "allCounterIntervalsComplete": true,
-      "noFootprintOrCounterErrors": true,
-      "nativeQuitAndHelperExit": true,
-      "footprintsMiB": {
-        "empty-resumed": 107.64,
-        "large-source-resumed": 352.33,
-        "closed-resumed": 348.86,
-        "idle-60s-resumed": 371.54,
-        "idle-120s-resumed": 267.63,
-        "idle-180s-resumed": 267.64,
-        "idle-240s-resumed": 267.64,
-        "idle-300s-resumed": 167.38
+  "evidencePolicy": "Results apply only to their recorded executable, source, host and scope. Raw local traces and failed runs remain in ignored artifacts; maintained tests, provenance and legal notices remain in source. No ignored advisory, release evaluator or physical-input inference.",
+  "productionMeasurement": {
+    "binarySha256": "33ae3ec938a79b7e4033fa7065a5105d7496c5947ce22839d6b13da3f7563f04",
+    "host": "same Linux desktop host recorded above; no concurrent compilation",
+    "scope": "finite AT-SPI workflows and observed descendants; PSS is not physical footprint, leader context switches are not wakeups or energy; no input-to-paint claim",
+    "workloads": [
+      {
+        "workload": "rich-cycles",
+        "scope": "one specimen, ten four-mode cycles and five minutes after close",
+        "documentSha256": "24f52d55b6381919b0e6c96be24fe955cbf52abe49e8c62d4c8d72aea7154aa1",
+        "tabs": 1,
+        "cycles": 10,
+        "samples": 47,
+        "pssMinBytes": 367083520,
+        "pssMaxBytes": 426011648,
+        "postCloseIdlePssBytes": [
+          406031360, 406031360, 406035456, 406035456, 406039552
+        ],
+        "postCloseIdleCpuPercentOfOneCore": [
+          0.16643357007182444, 0.04993057267794202, 0.03328878499187282,
+          0.033288940758191145, 0.06657840890969854
+        ],
+        "allCounterIntervalsComplete": true,
+        "allDocumentsUnchanged": true,
+        "observedHelperLifecycleConfirmed": true
       },
-      "idleCpuPercentOfOneCore": [
-        0.11838, 0.017689, 0.017219, 0.006326, 0.021891
-      ],
-      "idlePackageWakeupsPerSecond": [0, 0, 0, 0, 0],
-      "idleInterruptWakeupsPerSecond": [
-        4.128715, 1.522355, 1.498937, 0.750101, 1.583458
-      ],
-      "priorTrace": "14 pre-restart exploratory samples and 25 observed cycles retained; post-restart absence cannot satisfy original lifecycle protocol; one idle sample also has incomplete ownership; interrupted five-minute sequence not a pass"
-    }
-  },
-  "productionIntegrity": {
-    "originalRecoveryFiles": 59,
-    "allOriginalRecoveryBytesPreserved": true,
-    "otherStableOriginalPrivateFiles": 3,
-    "allOtherStableOriginalPrivateFilesPreserved": true,
-    "originalCatalogueChanges": "only app-maintained recent/library/session and Review catalogue records permitted to change; no profile/history deletion",
-    "workloadFixtureFiles": 4,
-    "allWorkloadBytesUnchanged": true,
-    "gitMetadataFiles": 29,
-    "allGitMetadataBytesAndInventoryUnchanged": true,
-    "verifiedNonSummaryInputs": 189,
-    "privateBytesAfter": 104902566
-  },
-  "productionResources": {
-    "binarySha256": "f139d19383c6a160597afa8c817043bb5541683380177b4433282df6822aced3",
-    "scope": "one exact final shipping four-tab journey: ordinary/rich Read/Source/Split/Visual, 10 MiB whole-text Source, saved Review; close/revoke and five-minute no-agent-app-input idle; native Quit and helper exit; uncontrolled GC/page cache, not all-workload plateau, frame/paint/input latency or energy certification",
-    "samples": 8,
-    "allOwnershipAndLifecycleChecks": true,
-    "allCounterIntervalsComplete": true,
-    "noFootprintOrCounterErrors": true,
-    "nativeQuitAndHelperExit": true,
-    "wakeAssertionExited": true,
-    "footprintsMiB": {
-      "empty": 100.86,
-      "four-tabs-review": 262.77,
-      "closed-revoked": 220.96,
-      "idle-60s": 220.91,
-      "idle-120s": 214.39,
-      "idle-180s": 214.39,
-      "idle-240s": 214.39,
-      "idle-300s": 214.41
+      {
+        "workload": "source-100MiB-three-tabs",
+        "scope": "three documents open, active tab cycles Source/Read",
+        "documentSha256": "1563d8c3ee66150338bf227e08db6012517b9ad8391ed57232ad1ffcbfeea0e5",
+        "tabs": 3,
+        "cycles": 3,
+        "samples": 10,
+        "pssMinBytes": 421239808,
+        "pssMaxBytes": 734469120,
+        "postCloseIdlePssBytes": [421485568, 421239808],
+        "postCloseIdleCpuPercentOfOneCore": [0.6940591972471759, 0.0],
+        "allCounterIntervalsComplete": true,
+        "allDocumentsUnchanged": true,
+        "observedHelperLifecycleConfirmed": true
+      },
+      {
+        "workload": "source-10MiB-three-tabs",
+        "scope": "three documents open, active tab cycles Source/Read",
+        "documentSha256": "c173c9b97cb4952f9082e91d4acd2330721cab7a18eb85b0cc780475ebd8f572",
+        "tabs": 3,
+        "cycles": 3,
+        "samples": 10,
+        "pssMinBytes": 481618944,
+        "pssMaxBytes": 853721088,
+        "postCloseIdlePssBytes": [606023680, 605777920],
+        "postCloseIdleCpuPercentOfOneCore": [
+          0.9904484265727742, 0.09905170368254017
+        ],
+        "allCounterIntervalsComplete": true,
+        "allDocumentsUnchanged": true,
+        "observedHelperLifecycleConfirmed": true
+      },
+      {
+        "workload": "source-1MiB-three-tabs",
+        "scope": "three documents open, active tab cycles Source/Read",
+        "documentSha256": "e7a6c5bacade968f649217afc80f2b1387a42ef061ed37498265f56725c6fad6",
+        "tabs": 3,
+        "cycles": 3,
+        "samples": 10,
+        "pssMinBytes": 432406528,
+        "pssMaxBytes": 556702720,
+        "postCloseIdlePssBytes": [466746368, 466680832],
+        "postCloseIdleCpuPercentOfOneCore": [0.29741707274724544, 0.0],
+        "allCounterIntervalsComplete": true,
+        "allDocumentsUnchanged": true,
+        "observedHelperLifecycleConfirmed": true
+      }
+    ],
+    "startup": {
+      "metric": "launch-to-WebView-page-load, not first interactive paint",
+      "cacheState": "process cold; filesystem cache uncontrolled/warm",
+      "medianMs": 433.34164249972673,
+      "p95Ms": 446.5234539966332,
+      "helperScope": "Linux descendants observed at page load, pinned by PID/startTicks; other hosts and helpers launched outside the tree are not attributed"
     },
-    "idleIntervalSeconds": [60.2417, 60.2435, 60.2397, 60.2423, 60.2424],
-    "idleCpuPercentOfOneCore": [
-      0.020457, 0.132623, 0.005731, 0.005858, 0.008011
+    "startupRuns": 20,
+    "startupObservedHelperLifecyclesConfirmed": true
+  },
+  "microbenchmarks": {
+    "rangeExecutableSha256": "60bd3e48229d41b46ea32c9af9bb450fb46a9d98e97d1f772d1bd44bf1712c09",
+    "scope": "native file grant and first 64 KiB; DOM check is bounded JSDOM scaffolding, not native layout or paint",
+    "samplesPerSize": 5,
+    "ranges": [
+      {
+        "mib": 1,
+        "meanGrantMs": 2.2452016,
+        "meanFirstRangeMs": 0.1280938
+      },
+      {
+        "mib": 10,
+        "meanGrantMs": 16.530244,
+        "meanFirstRangeMs": 0.1290016
+      },
+      {
+        "mib": 100,
+        "meanGrantMs": 182.5052874,
+        "meanFirstRangeMs": 0.1545916
+      }
     ],
-    "idlePackageWakeupsPerSecond": [0.0, 0.0, 0.0, 0.0, 0.0],
-    "idleInterruptWakeupsPerSecond": [
-      1.560381, 2.058313, 0.630813, 0.630787, 0.647384
-    ],
-    "excludedInterpretation": "empty-to-loaded includes picker navigation and interruptions; no active CPU/latency inference; no Git grant on final binary",
-    "powerContext": "process-scoped caffeinate display/system-idle assertion, automatically ended on app PID exit; no power preference changes",
-    "coarseVmAttribution": {
-      "nativeCurrentMiB": [42.2, 42.1],
-      "webContentCurrentMiB": [173.5, 152.1],
-      "webContentProcessLifetimePeakMiB": 604.5,
-      "nativeProcessLifetimePeakMiB": 89.5,
-      "scope": "loaded/idle coarse VM summaries; independent process lifetime peaks cannot be summed; no allocation-stack, JS-object cause or leak clearance"
-    }
+    "domScaffold": "pass; 64 KiB windows from 1/10/100 MiB fixtures"
   }
 }

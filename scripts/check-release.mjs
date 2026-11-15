@@ -69,8 +69,13 @@ const binaryPath = join(
 );
 const binary = readFileSync(binaryPath);
 assert(
-  binary.includes(Buffer.from("take_os_open")),
-  "normal app OS-open handler absent; reject blank baseline artifact",
+  binary.includes(Buffer.from("take_os_open")) ||
+    ["library_open", "git_compare", "review_begin", "power_prepare"].every(
+      (command) => binary.includes(Buffer.from(command)),
+    ),
+  // Optimizers can compare a short command using separate immediates instead
+  // of retaining its contiguous string. Check multiple native backend areas.
+  "normal app backend absent; reject blank baseline artifact",
 );
 for (const marker of [
   "e2e_fixture",

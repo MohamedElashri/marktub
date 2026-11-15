@@ -1,10 +1,11 @@
 {
-  "scope": "Cargo resolved registry graph superset; root and nested vendored notice texts with archive-byte hashes; not legal clearance or active-linkage certification",
+  "scope": "Cargo resolved graph superset, including reviewed local overrides; retained notice texts with byte hashes; not legal clearance or active-linkage certification",
   "packages": [
     {
       "name": "adler2",
       "version": "2.0.1",
       "license": "0BSD OR MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-0BSD", "LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -25,6 +26,7 @@
       "name": "aho-corasick",
       "version": "1.1.5",
       "license": "Unlicense OR MIT",
+      "source": "registry archive",
       "retainedFiles": ["COPYING", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -41,6 +43,7 @@
       "name": "alloc-no-stdlib",
       "version": "3.0.0",
       "license": "BSD-3-Clause",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -53,6 +56,7 @@
       "name": "alloc-stdlib",
       "version": "0.3.0",
       "license": "BSD-3-Clause",
+      "source": "registry archive",
       "retainedFiles": [
         "https://raw.githubusercontent.com/dropbox/rust-alloc-no-stdlib/0a81fd6928ea3b33c8cd484aa4575d50ffb98012/LICENSE"
       ],
@@ -62,6 +66,7 @@
       "name": "android_system_properties",
       "version": "0.1.6",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -78,6 +83,7 @@
       "name": "anyhow",
       "version": "1.0.104",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -91,153 +97,10 @@
       ]
     },
     {
-      "name": "async-broadcast",
-      "version": "0.7.2",
-      "license": "MIT OR Apache-2.0",
-      "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
-      "archiveNotices": [
-        {
-          "path": "LICENSE-APACHE",
-          "sha256": "e4705ddab847449a2cdcb3c88b005ea10330aa249d9148ca2eef9c84c5d29895"
-        },
-        {
-          "path": "LICENSE-MIT",
-          "sha256": "24e5860bf589d8501643e6ea51ffb3df66db2867492b09033d486183efbfa970"
-        }
-      ]
-    },
-    {
-      "name": "async-channel",
-      "version": "2.5.0",
-      "license": "Apache-2.0 OR MIT",
-      "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
-      "archiveNotices": [
-        {
-          "path": "LICENSE-APACHE",
-          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
-        },
-        {
-          "path": "LICENSE-MIT",
-          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
-        }
-      ]
-    },
-    {
-      "name": "async-executor",
-      "version": "1.14.1",
-      "license": "Apache-2.0 OR MIT",
-      "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
-      "archiveNotices": [
-        {
-          "path": "LICENSE-APACHE",
-          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
-        },
-        {
-          "path": "LICENSE-MIT",
-          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
-        }
-      ]
-    },
-    {
-      "name": "async-io",
-      "version": "2.6.0",
-      "license": "Apache-2.0 OR MIT",
-      "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
-      "archiveNotices": [
-        {
-          "path": "LICENSE-APACHE",
-          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
-        },
-        {
-          "path": "LICENSE-MIT",
-          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
-        }
-      ]
-    },
-    {
-      "name": "async-lock",
-      "version": "3.5.0",
-      "license": "Apache-2.0 OR MIT",
-      "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
-      "archiveNotices": [
-        {
-          "path": "LICENSE-APACHE",
-          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
-        },
-        {
-          "path": "LICENSE-MIT",
-          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
-        }
-      ]
-    },
-    {
-      "name": "async-process",
-      "version": "2.5.0",
-      "license": "Apache-2.0 OR MIT",
-      "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
-      "archiveNotices": [
-        {
-          "path": "LICENSE-APACHE",
-          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
-        },
-        {
-          "path": "LICENSE-MIT",
-          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
-        }
-      ]
-    },
-    {
-      "name": "async-recursion",
-      "version": "1.2.0",
-      "license": "MIT OR Apache-2.0",
-      "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
-      "archiveNotices": [
-        {
-          "path": "LICENSE-APACHE",
-          "sha256": "b8601fc79bdf8d8088f0938bea861ffc63ed0eebbedf25f44ab2cf2e85bd7edc"
-        },
-        {
-          "path": "LICENSE-MIT",
-          "sha256": "cdbd06e25b8c9c5d6019949d2de8123f56d29cee4166396423d2ba8c81700845"
-        }
-      ]
-    },
-    {
-      "name": "async-signal",
-      "version": "0.2.14",
-      "license": "Apache-2.0 OR MIT",
-      "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
-      "archiveNotices": [
-        {
-          "path": "LICENSE-APACHE",
-          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
-        },
-        {
-          "path": "LICENSE-MIT",
-          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
-        }
-      ]
-    },
-    {
-      "name": "async-task",
-      "version": "4.7.1",
-      "license": "Apache-2.0 OR MIT",
-      "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
-      "archiveNotices": [
-        {
-          "path": "LICENSE-APACHE",
-          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
-        },
-        {
-          "path": "LICENSE-MIT",
-          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
-        }
-      ]
-    },
-    {
       "name": "async-trait",
       "version": "0.1.92",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -254,6 +117,7 @@
       "name": "atk",
       "version": "0.18.2",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["COPYRIGHT", "LICENSE"],
       "archiveNotices": [
         {
@@ -270,6 +134,7 @@
       "name": "atk-sys",
       "version": "0.18.2",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -282,6 +147,7 @@
       "name": "atomic-waker",
       "version": "1.1.2",
       "license": "Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT", "LICENSE-THIRD-PARTY"],
       "archiveNotices": [
         {
@@ -302,6 +168,7 @@
       "name": "autocfg",
       "version": "1.5.1",
       "license": "Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -318,6 +185,7 @@
       "name": "base64",
       "version": "0.21.7",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -334,6 +202,7 @@
       "name": "base64",
       "version": "0.22.1",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -350,6 +219,7 @@
       "name": "base64",
       "version": "0.23.1",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -366,6 +236,7 @@
       "name": "bit-set",
       "version": "0.11.1",
       "license": "Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -382,6 +253,7 @@
       "name": "bit-set",
       "version": "0.8.0",
       "license": "Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -398,6 +270,7 @@
       "name": "bit-vec",
       "version": "0.10.2",
       "license": "Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -414,6 +287,7 @@
       "name": "bit-vec",
       "version": "0.8.0",
       "license": "Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -430,6 +304,7 @@
       "name": "bitflags",
       "version": "1.3.2",
       "license": "MIT/Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -446,6 +321,7 @@
       "name": "bitflags",
       "version": "2.13.2",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -462,6 +338,7 @@
       "name": "block-buffer",
       "version": "0.10.4",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -478,31 +355,17 @@
       "name": "block2",
       "version": "0.6.2",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": [
         "https://raw.githubusercontent.com/madsmtm/objc2/b4167b582b2f75f9a1be75495c41b765344fd03c/LICENSE.md"
       ],
       "archiveNotices": []
     },
     {
-      "name": "blocking",
-      "version": "1.7.0",
-      "license": "Apache-2.0 OR MIT",
-      "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
-      "archiveNotices": [
-        {
-          "path": "LICENSE-APACHE",
-          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
-        },
-        {
-          "path": "LICENSE-MIT",
-          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
-        }
-      ]
-    },
-    {
       "name": "brotli",
       "version": "9.1.1",
       "license": "BSD-3-Clause AND MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE.BSD-3-Clause", "LICENSE.MIT"],
       "archiveNotices": [
         {
@@ -519,6 +382,7 @@
       "name": "brotli-decompressor",
       "version": "6.3.1",
       "license": "BSD-3-Clause/MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -531,6 +395,7 @@
       "name": "bs58",
       "version": "0.5.1",
       "license": "MIT/Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -547,6 +412,7 @@
       "name": "bstr",
       "version": "1.13.1",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["COPYING", "LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -567,6 +433,7 @@
       "name": "bumpalo",
       "version": "3.20.3",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -583,6 +450,7 @@
       "name": "bytemuck",
       "version": "1.25.2",
       "license": "Zlib OR Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT", "LICENSE-ZLIB"],
       "archiveNotices": [
         {
@@ -603,6 +471,7 @@
       "name": "byteorder",
       "version": "1.5.0",
       "license": "Unlicense OR MIT",
+      "source": "registry archive",
       "retainedFiles": ["COPYING", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -619,6 +488,7 @@
       "name": "bytes",
       "version": "1.12.1",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -631,6 +501,7 @@
       "name": "cairo-rs",
       "version": "0.18.5",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["COPYRIGHT", "LICENSE"],
       "archiveNotices": [
         {
@@ -647,6 +518,7 @@
       "name": "cairo-sys-rs",
       "version": "0.18.2",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -659,6 +531,7 @@
       "name": "camino",
       "version": "1.2.6",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -675,6 +548,7 @@
       "name": "cargo_metadata",
       "version": "0.19.2",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -687,6 +561,7 @@
       "name": "cargo_toml",
       "version": "1.0.1",
       "license": "Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -699,6 +574,7 @@
       "name": "cargo-platform",
       "version": "0.1.9",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -715,6 +591,7 @@
       "name": "cc",
       "version": "1.11.1",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -731,6 +608,7 @@
       "name": "cesu8",
       "version": "1.1.0",
       "license": "Apache-2.0/MIT",
+      "source": "registry archive",
       "retainedFiles": ["COPYRIGHT-RUST.txt"],
       "archiveNotices": [
         {
@@ -743,6 +621,7 @@
       "name": "cfb",
       "version": "0.14.0",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -755,6 +634,7 @@
       "name": "cfg-expr",
       "version": "0.15.8",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -771,6 +651,7 @@
       "name": "cfg-if",
       "version": "1.0.5",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -787,6 +668,7 @@
       "name": "chrono",
       "version": "0.4.45",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE.txt"],
       "archiveNotices": [
         {
@@ -799,6 +681,7 @@
       "name": "combine",
       "version": "4.6.9",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -808,25 +691,10 @@
       ]
     },
     {
-      "name": "concurrent-queue",
-      "version": "2.5.0",
-      "license": "Apache-2.0 OR MIT",
-      "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
-      "archiveNotices": [
-        {
-          "path": "LICENSE-APACHE",
-          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
-        },
-        {
-          "path": "LICENSE-MIT",
-          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
-        }
-      ]
-    },
-    {
       "name": "cookie",
       "version": "0.18.2",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -843,6 +711,7 @@
       "name": "core-foundation",
       "version": "0.10.1",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -859,6 +728,7 @@
       "name": "core-foundation-sys",
       "version": "0.8.7",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -875,6 +745,7 @@
       "name": "core-graphics",
       "version": "0.25.0",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["COPYRIGHT", "LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -895,6 +766,7 @@
       "name": "core-graphics-types",
       "version": "0.2.0",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -911,6 +783,7 @@
       "name": "cpufeatures",
       "version": "0.2.17",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -927,6 +800,7 @@
       "name": "crc32fast",
       "version": "1.5.5",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -943,6 +817,7 @@
       "name": "crossbeam-channel",
       "version": "0.5.17",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT", "LICENSE-THIRD-PARTY"],
       "archiveNotices": [
         {
@@ -963,6 +838,7 @@
       "name": "crossbeam-deque",
       "version": "0.8.8",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -979,6 +855,7 @@
       "name": "crossbeam-epoch",
       "version": "0.9.21",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -995,6 +872,7 @@
       "name": "crossbeam-utils",
       "version": "0.8.23",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -1011,6 +889,7 @@
       "name": "crypto-common",
       "version": "0.1.7",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -1027,6 +906,7 @@
       "name": "cssparser",
       "version": "0.37.0",
       "license": "MPL-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -1039,6 +919,7 @@
       "name": "cssparser",
       "version": "0.38.0",
       "license": "MPL-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -1051,6 +932,7 @@
       "name": "cssparser-macros",
       "version": "0.7.1",
       "license": "MPL-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -1063,6 +945,7 @@
       "name": "ctor",
       "version": "1.0.13",
       "license": "Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -1079,6 +962,7 @@
       "name": "darling",
       "version": "0.24.1",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -1091,6 +975,7 @@
       "name": "darling_core",
       "version": "0.24.1",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -1103,6 +988,7 @@
       "name": "darling_macro",
       "version": "0.24.1",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -1115,6 +1001,7 @@
       "name": "dbus",
       "version": "0.9.12",
       "license": "Apache-2.0/MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -1131,6 +1018,7 @@
       "name": "deranged",
       "version": "0.5.9",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-Apache", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -1147,6 +1035,7 @@
       "name": "derive_more",
       "version": "2.1.1",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -1159,6 +1048,7 @@
       "name": "derive_more-impl",
       "version": "2.1.1",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -1171,6 +1061,7 @@
       "name": "digest",
       "version": "0.10.7",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -1187,6 +1078,7 @@
       "name": "dirs",
       "version": "7.0.0",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -1203,6 +1095,7 @@
       "name": "dirs-sys",
       "version": "0.5.0",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -1219,6 +1112,7 @@
       "name": "dispatch2",
       "version": "0.3.1",
       "license": "Zlib OR Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": [
         "https://raw.githubusercontent.com/madsmtm/objc2/8852b424193ca41602281b3d7540d7c8ed51e49a/LICENSE.md"
       ],
@@ -1228,6 +1122,7 @@
       "name": "displaydoc",
       "version": "0.2.7",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -1244,6 +1139,7 @@
       "name": "dlopen2",
       "version": "0.8.2",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": [
         "https://raw.githubusercontent.com/OpenByteDev/dlopen2/cc80e4a0a90d499b677fdf7743699b4b3a43a989/LICENSE"
       ],
@@ -1253,6 +1149,7 @@
       "name": "dlopen2_derive",
       "version": "0.4.3",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": [
         "https://raw.githubusercontent.com/OpenByteDev/dlopen2/cc80e4a0a90d499b677fdf7743699b4b3a43a989/LICENSE"
       ],
@@ -1262,6 +1159,7 @@
       "name": "dom_query",
       "version": "0.28.0",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -1274,6 +1172,7 @@
       "name": "dom_query",
       "version": "0.29.0",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -1286,6 +1185,7 @@
       "name": "dpi",
       "version": "0.1.2",
       "license": "Apache-2.0 AND MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE", "LICENSE-LIBM-MIT"],
       "archiveNotices": [
         {
@@ -1302,6 +1202,7 @@
       "name": "dtoa",
       "version": "1.0.11",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -1318,6 +1219,7 @@
       "name": "dtoa-short",
       "version": "0.3.5",
       "license": "MPL-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -1330,6 +1232,7 @@
       "name": "dunce",
       "version": "1.0.5",
       "license": "CC0-1.0 OR MIT-0 OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -1342,6 +1245,7 @@
       "name": "dyn-clone",
       "version": "1.0.20",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -1358,6 +1262,7 @@
       "name": "embed_plist",
       "version": "1.2.2",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -1374,6 +1279,7 @@
       "name": "embed-resource",
       "version": "3.0.12",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -1386,6 +1292,7 @@
       "name": "endi",
       "version": "1.1.1",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -1395,41 +1302,10 @@
       ]
     },
     {
-      "name": "enumflags2",
-      "version": "0.7.12",
-      "license": "MIT OR Apache-2.0",
-      "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
-      "archiveNotices": [
-        {
-          "path": "LICENSE-APACHE",
-          "sha256": "41ba8a366e4129d0b7551f8b98211f59635b2e30c0a3c7845e828e2a7ce42064"
-        },
-        {
-          "path": "LICENSE-MIT",
-          "sha256": "2e3edd2716fb15616e867bd53f724f0906732242e9ae76bb1faad1d88f7eeebd"
-        }
-      ]
-    },
-    {
-      "name": "enumflags2_derive",
-      "version": "0.7.12",
-      "license": "MIT OR Apache-2.0",
-      "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
-      "archiveNotices": [
-        {
-          "path": "LICENSE-APACHE",
-          "sha256": "68d7c3ae5b131ec533fb33a9fd63753eb82fac77d7597bb5058a5af07adf9f06"
-        },
-        {
-          "path": "LICENSE-MIT",
-          "sha256": "d13669f0eaff9b7015bff0d8637297213b53d9f239826636c07a15633acf7052"
-        }
-      ]
-    },
-    {
       "name": "equivalent",
       "version": "1.0.3",
       "license": "Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -1446,6 +1322,7 @@
       "name": "erased-serde",
       "version": "0.4.11",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -1462,6 +1339,7 @@
       "name": "errno",
       "version": "0.3.14",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -1475,41 +1353,10 @@
       ]
     },
     {
-      "name": "event-listener",
-      "version": "5.4.2",
-      "license": "Apache-2.0 OR MIT",
-      "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
-      "archiveNotices": [
-        {
-          "path": "LICENSE-APACHE",
-          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
-        },
-        {
-          "path": "LICENSE-MIT",
-          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
-        }
-      ]
-    },
-    {
-      "name": "event-listener-strategy",
-      "version": "0.5.4",
-      "license": "Apache-2.0 OR MIT",
-      "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
-      "archiveNotices": [
-        {
-          "path": "LICENSE-APACHE",
-          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
-        },
-        {
-          "path": "LICENSE-MIT",
-          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
-        }
-      ]
-    },
-    {
       "name": "fallible-iterator",
       "version": "0.3.0",
       "license": "MIT/Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -1526,6 +1373,7 @@
       "name": "fallible-streaming-iterator",
       "version": "0.1.9",
       "license": "MIT/Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -1542,6 +1390,7 @@
       "name": "fastrand",
       "version": "2.5.0",
       "license": "Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -1558,6 +1407,7 @@
       "name": "fdeflate",
       "version": "0.3.7",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -1574,6 +1424,7 @@
       "name": "field-offset",
       "version": "0.3.6",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -1590,6 +1441,7 @@
       "name": "find-msvc-tools",
       "version": "0.1.15",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -1606,6 +1458,7 @@
       "name": "flate2",
       "version": "1.1.11",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -1622,6 +1475,7 @@
       "name": "fnv",
       "version": "1.0.7",
       "license": "Apache-2.0 / MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -1638,6 +1492,7 @@
       "name": "foldhash",
       "version": "0.2.0",
       "license": "Zlib",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -1650,6 +1505,7 @@
       "name": "foreign-types",
       "version": "0.5.0",
       "license": "MIT/Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -1666,6 +1522,7 @@
       "name": "foreign-types-macros",
       "version": "0.2.4",
       "license": "MIT/Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -1682,6 +1539,7 @@
       "name": "foreign-types-shared",
       "version": "0.3.1",
       "license": "MIT/Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -1698,6 +1556,7 @@
       "name": "form_urlencoded",
       "version": "1.2.2",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -1714,6 +1573,7 @@
       "name": "futures-channel",
       "version": "0.3.34",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -1730,6 +1590,7 @@
       "name": "futures-core",
       "version": "0.3.34",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -1746,6 +1607,7 @@
       "name": "futures-executor",
       "version": "0.3.34",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -1762,6 +1624,7 @@
       "name": "futures-io",
       "version": "0.3.34",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -1775,29 +1638,10 @@
       ]
     },
     {
-      "name": "futures-lite",
-      "version": "2.6.1",
-      "license": "Apache-2.0 OR MIT",
-      "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT", "LICENSE-THIRD-PARTY"],
-      "archiveNotices": [
-        {
-          "path": "LICENSE-APACHE",
-          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
-        },
-        {
-          "path": "LICENSE-MIT",
-          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
-        },
-        {
-          "path": "LICENSE-THIRD-PARTY",
-          "sha256": "6226d0632e2e1a80c23597e964da9812ae193c535fe058154afb034e94167aa5"
-        }
-      ]
-    },
-    {
       "name": "futures-macro",
       "version": "0.3.34",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -1814,6 +1658,7 @@
       "name": "futures-sink",
       "version": "0.3.34",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -1830,6 +1675,7 @@
       "name": "futures-task",
       "version": "0.3.34",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -1846,6 +1692,7 @@
       "name": "futures-util",
       "version": "0.3.34",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -1862,6 +1709,7 @@
       "name": "gdk",
       "version": "0.18.2",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["COPYRIGHT", "LICENSE"],
       "archiveNotices": [
         {
@@ -1878,6 +1726,7 @@
       "name": "gdk-pixbuf",
       "version": "0.18.5",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["COPYRIGHT", "LICENSE"],
       "archiveNotices": [
         {
@@ -1894,6 +1743,7 @@
       "name": "gdk-pixbuf-sys",
       "version": "0.18.0",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -1906,6 +1756,7 @@
       "name": "gdk-sys",
       "version": "0.18.2",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -1918,6 +1769,7 @@
       "name": "gdkwayland-sys",
       "version": "0.18.2",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -1930,6 +1782,7 @@
       "name": "gdkx11",
       "version": "0.18.2",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["COPYRIGHT", "LICENSE"],
       "archiveNotices": [
         {
@@ -1946,6 +1799,7 @@
       "name": "gdkx11-sys",
       "version": "0.18.2",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -1958,6 +1812,7 @@
       "name": "generic-array",
       "version": "0.14.7",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -1970,6 +1825,7 @@
       "name": "getrandom",
       "version": "0.3.4",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -1986,6 +1842,7 @@
       "name": "getrandom",
       "version": "0.4.3",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -2002,6 +1859,7 @@
       "name": "gio",
       "version": "0.18.4",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["COPYRIGHT", "LICENSE"],
       "archiveNotices": [
         {
@@ -2018,6 +1876,7 @@
       "name": "gio-sys",
       "version": "0.18.1",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -2030,6 +1889,7 @@
       "name": "git2",
       "version": "0.21.0",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -2046,6 +1906,7 @@
       "name": "glib",
       "version": "0.18.5",
       "license": "MIT",
+      "source": "reviewed local override",
       "retainedFiles": ["COPYRIGHT", "LICENSE"],
       "archiveNotices": [
         {
@@ -2062,6 +1923,7 @@
       "name": "glib-macros",
       "version": "0.18.5",
       "license": "MIT",
+      "source": "reviewed local override",
       "retainedFiles": ["COPYRIGHT", "LICENSE"],
       "archiveNotices": [
         {
@@ -2078,6 +1940,7 @@
       "name": "glib-sys",
       "version": "0.18.1",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -2090,6 +1953,7 @@
       "name": "glob",
       "version": "0.3.4",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -2106,6 +1970,7 @@
       "name": "globset",
       "version": "0.4.20",
       "license": "Unlicense OR MIT",
+      "source": "registry archive",
       "retainedFiles": ["COPYING", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -2122,6 +1987,7 @@
       "name": "gobject-sys",
       "version": "0.18.0",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -2134,6 +2000,7 @@
       "name": "gtk",
       "version": "0.18.2",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["COPYRIGHT", "LICENSE"],
       "archiveNotices": [
         {
@@ -2150,6 +2017,7 @@
       "name": "gtk-sys",
       "version": "0.18.2",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -2162,6 +2030,7 @@
       "name": "gtk3-macros",
       "version": "0.18.2",
       "license": "MIT",
+      "source": "reviewed local override",
       "retainedFiles": ["COPYRIGHT", "LICENSE"],
       "archiveNotices": [
         {
@@ -2178,6 +2047,7 @@
       "name": "hashbrown",
       "version": "0.12.3",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -2194,6 +2064,7 @@
       "name": "hashbrown",
       "version": "0.16.1",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -2210,6 +2081,7 @@
       "name": "hashbrown",
       "version": "0.17.1",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -2226,6 +2098,7 @@
       "name": "hashlink",
       "version": "0.12.2",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -2242,6 +2115,7 @@
       "name": "heck",
       "version": "0.4.1",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -2258,6 +2132,7 @@
       "name": "heck",
       "version": "0.5.0",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -2271,25 +2146,10 @@
       ]
     },
     {
-      "name": "hermit-abi",
-      "version": "0.5.3",
-      "license": "MIT OR Apache-2.0",
-      "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
-      "archiveNotices": [
-        {
-          "path": "LICENSE-APACHE",
-          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
-        },
-        {
-          "path": "LICENSE-MIT",
-          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
-        }
-      ]
-    },
-    {
       "name": "hex",
       "version": "0.4.3",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -2306,6 +2166,7 @@
       "name": "html5ever",
       "version": "0.39.0",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -2322,6 +2183,7 @@
       "name": "html5ever",
       "version": "0.40.1",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -2338,6 +2200,7 @@
       "name": "http",
       "version": "1.5.0",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -2354,6 +2217,7 @@
       "name": "http-body",
       "version": "1.1.0",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -2366,6 +2230,7 @@
       "name": "http-body-util",
       "version": "0.1.5",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -2378,6 +2243,7 @@
       "name": "httparse",
       "version": "1.10.1",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -2394,6 +2260,7 @@
       "name": "hyper",
       "version": "1.12.0",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -2406,6 +2273,7 @@
       "name": "hyper-util",
       "version": "0.1.21",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -2418,6 +2286,7 @@
       "name": "iana-time-zone",
       "version": "0.1.65",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -2434,6 +2303,7 @@
       "name": "iana-time-zone-haiku",
       "version": "0.1.2",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -2450,6 +2320,7 @@
       "name": "ico",
       "version": "0.6.0",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -2462,6 +2333,7 @@
       "name": "icu_collections",
       "version": "2.4.0",
       "license": "Unicode-3.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -2474,6 +2346,7 @@
       "name": "icu_locale_core",
       "version": "2.4.0",
       "license": "Unicode-3.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -2486,6 +2359,7 @@
       "name": "icu_normalizer",
       "version": "2.4.0",
       "license": "Unicode-3.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -2498,6 +2372,7 @@
       "name": "icu_normalizer_data",
       "version": "2.4.0",
       "license": "Unicode-3.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -2510,6 +2385,7 @@
       "name": "icu_properties",
       "version": "2.4.0",
       "license": "Unicode-3.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -2522,6 +2398,7 @@
       "name": "icu_properties_data",
       "version": "2.4.0",
       "license": "Unicode-3.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -2534,6 +2411,7 @@
       "name": "icu_provider",
       "version": "2.4.0",
       "license": "Unicode-3.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -2546,6 +2424,7 @@
       "name": "ident_case",
       "version": "1.0.1",
       "license": "MIT/Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -2558,6 +2437,7 @@
       "name": "idna",
       "version": "1.1.0",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -2574,6 +2454,7 @@
       "name": "idna_adapter",
       "version": "1.2.2",
       "license": "Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -2590,6 +2471,7 @@
       "name": "ignore",
       "version": "0.4.33",
       "license": "Unlicense OR MIT",
+      "source": "registry archive",
       "retainedFiles": ["COPYING", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -2606,6 +2488,7 @@
       "name": "indexmap",
       "version": "1.9.3",
       "license": "Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -2622,6 +2505,7 @@
       "name": "indexmap",
       "version": "2.14.2",
       "license": "Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -2638,6 +2522,7 @@
       "name": "infer",
       "version": "0.22.0",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -2650,6 +2535,7 @@
       "name": "inotify",
       "version": "0.11.5",
       "license": "ISC",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -2662,6 +2548,7 @@
       "name": "inotify-sys",
       "version": "0.1.8",
       "license": "ISC",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -2674,6 +2561,7 @@
       "name": "ipnet",
       "version": "2.12.2",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -2690,6 +2578,7 @@
       "name": "itoa",
       "version": "1.0.19",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -2706,6 +2595,7 @@
       "name": "javascriptcore-rs",
       "version": "1.1.2",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -2718,6 +2608,7 @@
       "name": "javascriptcore-rs-sys",
       "version": "1.1.1",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -2730,6 +2621,7 @@
       "name": "jiff",
       "version": "0.2.42",
       "license": "Unlicense OR MIT",
+      "source": "registry archive",
       "retainedFiles": ["COPYING", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -2746,6 +2638,7 @@
       "name": "jiff-core",
       "version": "0.1.4",
       "license": "Unlicense OR MIT",
+      "source": "registry archive",
       "retainedFiles": ["COPYING", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -2762,6 +2655,7 @@
       "name": "jiff-static",
       "version": "0.2.42",
       "license": "Unlicense OR MIT",
+      "source": "registry archive",
       "retainedFiles": ["COPYING", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -2778,6 +2672,7 @@
       "name": "jiff-tzdb",
       "version": "0.1.9",
       "license": "Unlicense OR MIT",
+      "source": "registry archive",
       "retainedFiles": ["COPYING", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -2794,6 +2689,7 @@
       "name": "jiff-tzdb-platform",
       "version": "0.1.3",
       "license": "Unlicense OR MIT",
+      "source": "registry archive",
       "retainedFiles": ["COPYING", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -2810,6 +2706,7 @@
       "name": "jni",
       "version": "0.21.1",
       "license": "MIT/Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -2826,6 +2723,7 @@
       "name": "jni-sys",
       "version": "0.3.1",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -2842,6 +2740,7 @@
       "name": "jni-sys",
       "version": "0.4.1",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -2858,6 +2757,7 @@
       "name": "jni-sys-macros",
       "version": "0.4.1",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": [
         "https://raw.githubusercontent.com/jni-rs/jni-sys/64d77b7a5f119d7b55b4e2c169a4668067ff59e6/LICENSE-APACHE",
         "https://raw.githubusercontent.com/jni-rs/jni-sys/64d77b7a5f119d7b55b4e2c169a4668067ff59e6/LICENSE-MIT"
@@ -2868,6 +2768,7 @@
       "name": "jobserver",
       "version": "0.1.35",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -2884,6 +2785,7 @@
       "name": "js-sys",
       "version": "0.3.107",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -2900,6 +2802,7 @@
       "name": "json-patch",
       "version": "4.2.0",
       "license": "MIT/Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -2916,6 +2819,7 @@
       "name": "jsonptr",
       "version": "0.7.1",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -2932,6 +2836,7 @@
       "name": "keyboard-types",
       "version": "0.8.3",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -2948,6 +2853,7 @@
       "name": "kqueue",
       "version": "1.2.1",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -2960,6 +2866,7 @@
       "name": "kqueue-sys",
       "version": "1.1.2",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -2972,6 +2879,7 @@
       "name": "libappindicator",
       "version": "0.9.0",
       "license": "Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -2988,6 +2896,7 @@
       "name": "libappindicator-sys",
       "version": "0.9.0",
       "license": "Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": [
         "https://raw.githubusercontent.com/tauri-apps/libappindicator-rs/eafd1e3682a1247f595410266091e9684021cb6f/LICENSE-MIT"
       ],
@@ -2997,6 +2906,7 @@
       "name": "libc",
       "version": "0.2.191",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -3013,6 +2923,7 @@
       "name": "libdbus-sys",
       "version": "0.2.7",
       "license": "Apache-2.0/MIT",
+      "source": "registry archive",
       "retainedFiles": [
         "LICENSE-APACHE",
         "LICENSE-MIT",
@@ -3047,6 +2958,7 @@
       "name": "libgit2-sys",
       "version": "0.18.8+1.9.7",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": [
         "LICENSE-APACHE",
         "LICENSE-MIT",
@@ -3101,6 +3013,7 @@
       "name": "libloading",
       "version": "0.7.4",
       "license": "ISC",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -3113,6 +3026,7 @@
       "name": "libredox",
       "version": "0.1.25",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -3125,6 +3039,7 @@
       "name": "libsqlite3-sys",
       "version": "0.39.1",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -3137,6 +3052,7 @@
       "name": "libz-sys",
       "version": "1.1.33",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": [
         "LICENSE-APACHE",
         "LICENSE-MIT",
@@ -3176,6 +3092,7 @@
       "name": "linux-raw-sys",
       "version": "0.12.1",
       "license": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": [
         "COPYRIGHT",
         "LICENSE-APACHE",
@@ -3205,6 +3122,7 @@
       "name": "litemap",
       "version": "0.8.3",
       "license": "Unicode-3.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -3217,6 +3135,7 @@
       "name": "lock_api",
       "version": "0.4.14",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -3233,6 +3152,7 @@
       "name": "log",
       "version": "0.4.35",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -3249,6 +3169,7 @@
       "name": "markup5ever",
       "version": "0.39.0",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -3265,6 +3186,7 @@
       "name": "markup5ever",
       "version": "0.40.0",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -3281,6 +3203,7 @@
       "name": "memchr",
       "version": "2.8.3",
       "license": "Unlicense OR MIT",
+      "source": "registry archive",
       "retainedFiles": ["COPYING", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -3297,6 +3220,7 @@
       "name": "memoffset",
       "version": "0.9.1",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -3309,6 +3233,7 @@
       "name": "mime",
       "version": "0.3.18",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -3325,6 +3250,7 @@
       "name": "miniz_oxide",
       "version": "0.8.9",
       "license": "MIT OR Zlib OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": [
         "LICENSE",
         "LICENSE-APACHE.md",
@@ -3354,6 +3280,7 @@
       "name": "miniz_oxide",
       "version": "0.9.1",
       "license": "MIT OR Zlib OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": [
         "LICENSE",
         "LICENSE-APACHE.md",
@@ -3383,6 +3310,7 @@
       "name": "mio",
       "version": "1.2.4",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -3395,6 +3323,7 @@
       "name": "muda",
       "version": "0.20.0",
       "license": "Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT", "LICENSE.spdx"],
       "archiveNotices": [
         {
@@ -3415,6 +3344,7 @@
       "name": "ndk",
       "version": "0.9.0",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": [
         "https://raw.githubusercontent.com/rust-mobile/ndk/49bbbba16c58ff63cb8a0ad0eca5a9fb7ecaec25/LICENSE-APACHE",
         "https://raw.githubusercontent.com/rust-mobile/ndk/49bbbba16c58ff63cb8a0ad0eca5a9fb7ecaec25/LICENSE-MIT"
@@ -3425,6 +3355,7 @@
       "name": "ndk-context",
       "version": "0.1.1",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": [
         "https://raw.githubusercontent.com/rust-windowing/android-ndk-rs/10f2ba388fca20f7349996ebae26ccda7a6fda5c/LICENSE-APACHE",
         "https://raw.githubusercontent.com/rust-windowing/android-ndk-rs/10f2ba388fca20f7349996ebae26ccda7a6fda5c/LICENSE-MIT"
@@ -3435,6 +3366,7 @@
       "name": "ndk-sys",
       "version": "0.6.0+11769913",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": [
         "https://raw.githubusercontent.com/rust-mobile/ndk/49bbbba16c58ff63cb8a0ad0eca5a9fb7ecaec25/LICENSE-APACHE",
         "https://raw.githubusercontent.com/rust-mobile/ndk/49bbbba16c58ff63cb8a0ad0eca5a9fb7ecaec25/LICENSE-MIT"
@@ -3445,6 +3377,7 @@
       "name": "new_debug_unreachable",
       "version": "1.0.6",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -3457,6 +3390,7 @@
       "name": "notify",
       "version": "8.2.2",
       "license": "CC0-1.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-CC0"],
       "archiveNotices": [
         {
@@ -3469,6 +3403,7 @@
       "name": "notify-types",
       "version": "2.3.0",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -3485,6 +3420,7 @@
       "name": "num_enum",
       "version": "0.7.6",
       "license": "BSD-3-Clause OR MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-BSD", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -3505,6 +3441,7 @@
       "name": "num_enum_derive",
       "version": "0.7.6",
       "license": "BSD-3-Clause OR MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-BSD", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -3525,6 +3462,7 @@
       "name": "num-conv",
       "version": "0.2.2",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-Apache", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -3541,6 +3479,7 @@
       "name": "num-traits",
       "version": "0.2.19",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -3557,6 +3496,7 @@
       "name": "objc2",
       "version": "0.6.5",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": [
         "https://raw.githubusercontent.com/madsmtm/objc2/d7d2fa23ceaa5e6096c923b081040e5d81b3b9df/LICENSE.md"
       ],
@@ -3566,6 +3506,7 @@
       "name": "objc2-app-kit",
       "version": "0.3.2",
       "license": "Zlib OR Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": [
         "https://raw.githubusercontent.com/madsmtm/objc2/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md"
       ],
@@ -3575,6 +3516,7 @@
       "name": "objc2-cloud-kit",
       "version": "0.3.2",
       "license": "Zlib OR Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": [
         "https://raw.githubusercontent.com/madsmtm/objc2/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md"
       ],
@@ -3584,6 +3526,7 @@
       "name": "objc2-core-data",
       "version": "0.3.2",
       "license": "Zlib OR Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": [
         "https://raw.githubusercontent.com/madsmtm/objc2/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md"
       ],
@@ -3593,6 +3536,7 @@
       "name": "objc2-core-foundation",
       "version": "0.3.2",
       "license": "Zlib OR Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": [
         "https://raw.githubusercontent.com/madsmtm/objc2/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md"
       ],
@@ -3602,6 +3546,7 @@
       "name": "objc2-core-graphics",
       "version": "0.3.2",
       "license": "Zlib OR Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": [
         "https://raw.githubusercontent.com/madsmtm/objc2/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md"
       ],
@@ -3611,6 +3556,7 @@
       "name": "objc2-core-image",
       "version": "0.3.2",
       "license": "Zlib OR Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": [
         "https://raw.githubusercontent.com/madsmtm/objc2/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md"
       ],
@@ -3620,6 +3566,7 @@
       "name": "objc2-core-location",
       "version": "0.3.2",
       "license": "Zlib OR Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": [
         "https://raw.githubusercontent.com/madsmtm/objc2/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md"
       ],
@@ -3629,6 +3576,7 @@
       "name": "objc2-core-services",
       "version": "0.3.2",
       "license": "Zlib OR Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": [
         "https://raw.githubusercontent.com/madsmtm/objc2/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md"
       ],
@@ -3638,6 +3586,7 @@
       "name": "objc2-core-text",
       "version": "0.3.2",
       "license": "Zlib OR Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": [
         "https://raw.githubusercontent.com/madsmtm/objc2/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md"
       ],
@@ -3647,6 +3596,7 @@
       "name": "objc2-encode",
       "version": "4.1.0",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": [
         "https://raw.githubusercontent.com/madsmtm/objc2/8d214f5477365ffcbcbb7de058c86ed9a518efb7/LICENSE.md"
       ],
@@ -3656,6 +3606,7 @@
       "name": "objc2-exception-helper",
       "version": "0.1.1",
       "license": "Zlib OR Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": [
         "https://raw.githubusercontent.com/madsmtm/objc2/8d214f5477365ffcbcbb7de058c86ed9a518efb7/LICENSE.md"
       ],
@@ -3665,6 +3616,7 @@
       "name": "objc2-foundation",
       "version": "0.3.2",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": [
         "https://raw.githubusercontent.com/madsmtm/objc2/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md"
       ],
@@ -3674,6 +3626,7 @@
       "name": "objc2-io-surface",
       "version": "0.3.2",
       "license": "Zlib OR Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": [
         "https://raw.githubusercontent.com/madsmtm/objc2/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md"
       ],
@@ -3683,6 +3636,7 @@
       "name": "objc2-quartz-core",
       "version": "0.3.2",
       "license": "Zlib OR Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": [
         "https://raw.githubusercontent.com/madsmtm/objc2/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md"
       ],
@@ -3692,6 +3646,7 @@
       "name": "objc2-ui-kit",
       "version": "0.3.2",
       "license": "Zlib OR Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": [
         "https://raw.githubusercontent.com/madsmtm/objc2/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md"
       ],
@@ -3701,6 +3656,7 @@
       "name": "objc2-user-notifications",
       "version": "0.3.2",
       "license": "Zlib OR Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": [
         "https://raw.githubusercontent.com/madsmtm/objc2/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md"
       ],
@@ -3710,6 +3666,7 @@
       "name": "objc2-web-kit",
       "version": "0.3.2",
       "license": "Zlib OR Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": [
         "https://raw.githubusercontent.com/madsmtm/objc2/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md"
       ],
@@ -3719,6 +3676,7 @@
       "name": "once_cell",
       "version": "1.21.4",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -3735,6 +3693,7 @@
       "name": "option-ext",
       "version": "0.2.0",
       "license": "MPL-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE.txt"],
       "archiveNotices": [
         {
@@ -3747,6 +3706,7 @@
       "name": "ordered-stream",
       "version": "0.2.0",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -3763,6 +3723,7 @@
       "name": "pango",
       "version": "0.18.3",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["COPYRIGHT", "LICENSE"],
       "archiveNotices": [
         {
@@ -3779,6 +3740,7 @@
       "name": "pango-sys",
       "version": "0.18.0",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -3788,29 +3750,10 @@
       ]
     },
     {
-      "name": "parking",
-      "version": "2.2.1",
-      "license": "Apache-2.0 OR MIT",
-      "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT", "LICENSE-THIRD-PARTY"],
-      "archiveNotices": [
-        {
-          "path": "LICENSE-APACHE",
-          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
-        },
-        {
-          "path": "LICENSE-MIT",
-          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
-        },
-        {
-          "path": "LICENSE-THIRD-PARTY",
-          "sha256": "9a6d7a3c1b8edcc706c4b6c37f8dae9a77f02c7f9051df603f975db136b55419"
-        }
-      ]
-    },
-    {
       "name": "parking_lot",
       "version": "0.12.5",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -3827,6 +3770,7 @@
       "name": "parking_lot_core",
       "version": "0.9.12",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -3843,6 +3787,7 @@
       "name": "percent-encoding",
       "version": "2.3.2",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -3859,6 +3804,7 @@
       "name": "phf",
       "version": "0.13.1",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -3871,6 +3817,7 @@
       "name": "phf",
       "version": "0.14.0",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -3883,6 +3830,7 @@
       "name": "phf_codegen",
       "version": "0.13.1",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -3895,6 +3843,7 @@
       "name": "phf_codegen",
       "version": "0.14.0",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -3907,6 +3856,7 @@
       "name": "phf_generator",
       "version": "0.13.1",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -3919,6 +3869,7 @@
       "name": "phf_generator",
       "version": "0.14.0",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -3931,6 +3882,7 @@
       "name": "phf_macros",
       "version": "0.13.1",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -3943,6 +3895,7 @@
       "name": "phf_macros",
       "version": "0.14.0",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -3955,6 +3908,7 @@
       "name": "phf_shared",
       "version": "0.13.1",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -3967,6 +3921,7 @@
       "name": "phf_shared",
       "version": "0.14.0",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -3979,6 +3934,7 @@
       "name": "pin-project-lite",
       "version": "0.2.17",
       "license": "Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -3992,25 +3948,10 @@
       ]
     },
     {
-      "name": "piper",
-      "version": "0.2.5",
-      "license": "MIT OR Apache-2.0",
-      "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
-      "archiveNotices": [
-        {
-          "path": "LICENSE-APACHE",
-          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
-        },
-        {
-          "path": "LICENSE-MIT",
-          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
-        }
-      ]
-    },
-    {
       "name": "pkg-config",
       "version": "0.3.34",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -4027,6 +3968,7 @@
       "name": "plist",
       "version": "1.10.3",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENCE"],
       "archiveNotices": [
         {
@@ -4039,6 +3981,7 @@
       "name": "png",
       "version": "0.18.1",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -4052,25 +3995,10 @@
       ]
     },
     {
-      "name": "polling",
-      "version": "3.11.0",
-      "license": "Apache-2.0 OR MIT",
-      "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
-      "archiveNotices": [
-        {
-          "path": "LICENSE-APACHE",
-          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
-        },
-        {
-          "path": "LICENSE-MIT",
-          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
-        }
-      ]
-    },
-    {
       "name": "portable-atomic",
       "version": "1.15.0",
       "license": "Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -4087,6 +4015,7 @@
       "name": "portable-atomic-util",
       "version": "0.2.8",
       "license": "Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -4103,6 +4032,7 @@
       "name": "potential_utf",
       "version": "0.1.6",
       "license": "Unicode-3.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -4115,6 +4045,7 @@
       "name": "powerfmt",
       "version": "0.2.1",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-Apache", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -4131,6 +4062,7 @@
       "name": "precomputed-hash",
       "version": "0.1.1",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -4143,6 +4075,7 @@
       "name": "proc-macro-crate",
       "version": "1.3.1",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -4159,6 +4092,7 @@
       "name": "proc-macro-crate",
       "version": "2.0.2",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -4175,6 +4109,7 @@
       "name": "proc-macro-crate",
       "version": "3.5.0",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -4188,41 +4123,10 @@
       ]
     },
     {
-      "name": "proc-macro-error",
-      "version": "1.0.4",
-      "license": "MIT OR Apache-2.0",
-      "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
-      "archiveNotices": [
-        {
-          "path": "LICENSE-APACHE",
-          "sha256": "4665f973ccb9393807a7fb1264add6b3513d19abc6b357e4cb52c6fe59cc6a3b"
-        },
-        {
-          "path": "LICENSE-MIT",
-          "sha256": "544b3aed1fd723d0cadea567affdcfe0431e43e18d997a718f9d67256b814fde"
-        }
-      ]
-    },
-    {
-      "name": "proc-macro-error-attr",
-      "version": "1.0.4",
-      "license": "MIT OR Apache-2.0",
-      "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
-      "archiveNotices": [
-        {
-          "path": "LICENSE-APACHE",
-          "sha256": "6fd0f3522047150ca7c1939f02bc4a15662a4741a89bc03ae784eefa18caa299"
-        },
-        {
-          "path": "LICENSE-MIT",
-          "sha256": "544b3aed1fd723d0cadea567affdcfe0431e43e18d997a718f9d67256b814fde"
-        }
-      ]
-    },
-    {
       "name": "proc-macro2",
       "version": "1.0.107",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -4239,6 +4143,7 @@
       "name": "quick-xml",
       "version": "0.42.0",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-MIT.md"],
       "archiveNotices": [
         {
@@ -4251,6 +4156,7 @@
       "name": "quote",
       "version": "1.0.47",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -4267,6 +4173,7 @@
       "name": "r-efi",
       "version": "5.3.0",
       "license": "MIT OR Apache-2.0 OR LGPL-2.1-or-later",
+      "source": "registry archive",
       "retainedFiles": ["AUTHORS"],
       "archiveNotices": [
         {
@@ -4279,6 +4186,7 @@
       "name": "r-efi",
       "version": "6.0.0",
       "license": "MIT OR Apache-2.0 OR LGPL-2.1-or-later",
+      "source": "registry archive",
       "retainedFiles": ["AUTHORS"],
       "archiveNotices": [
         {
@@ -4291,6 +4199,7 @@
       "name": "raw-window-handle",
       "version": "0.6.2",
       "license": "MIT OR Apache-2.0 OR Zlib",
+      "source": "registry archive",
       "retainedFiles": [
         "LICENSE-APACHE.md",
         "LICENSE-MIT.md",
@@ -4315,6 +4224,7 @@
       "name": "redox_syscall",
       "version": "0.5.18",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -4327,6 +4237,7 @@
       "name": "redox_users",
       "version": "0.5.3",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -4339,6 +4250,7 @@
       "name": "ref-cast",
       "version": "1.0.27",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -4355,6 +4267,7 @@
       "name": "ref-cast-impl",
       "version": "1.0.27",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -4371,6 +4284,7 @@
       "name": "regex",
       "version": "1.13.1",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -4387,6 +4301,7 @@
       "name": "regex-automata",
       "version": "0.4.18",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -4403,6 +4318,7 @@
       "name": "regex-syntax",
       "version": "0.8.11",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": [
         "LICENSE-APACHE",
         "LICENSE-MIT",
@@ -4427,6 +4343,7 @@
       "name": "reqwest",
       "version": "0.13.5",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -4443,6 +4360,7 @@
       "name": "rfd",
       "version": "0.17.2",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": [
         "LICENSE",
         "src/backend/xdg_desktop_portal/window_identifier/LICENSE"
@@ -4462,6 +4380,7 @@
       "name": "rsqlite-vfs",
       "version": "0.1.1",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": [
         "https://raw.githubusercontent.com/Spxg/sqlite-wasm-rs/1bb309784f25c401ddf95131dcde4c4cdad7aee7/LICENSE"
       ],
@@ -4471,6 +4390,7 @@
       "name": "rusqlite",
       "version": "0.41.1",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -4483,6 +4403,7 @@
       "name": "rustc_version",
       "version": "0.4.1",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -4499,6 +4420,7 @@
       "name": "rustc-hash",
       "version": "2.1.3",
       "license": "Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -4515,6 +4437,7 @@
       "name": "rustix",
       "version": "1.1.6",
       "license": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": [
         "COPYRIGHT",
         "LICENSE-APACHE",
@@ -4544,6 +4467,7 @@
       "name": "rustversion",
       "version": "1.0.23",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -4560,6 +4484,7 @@
       "name": "same-file",
       "version": "1.0.6",
       "license": "Unlicense/MIT",
+      "source": "registry archive",
       "retainedFiles": ["COPYING", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -4576,6 +4501,7 @@
       "name": "schemars",
       "version": "0.8.22",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -4588,6 +4514,7 @@
       "name": "schemars",
       "version": "0.9.0",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -4600,6 +4527,7 @@
       "name": "schemars",
       "version": "1.2.3",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -4612,6 +4540,7 @@
       "name": "schemars_derive",
       "version": "0.8.22",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -4624,6 +4553,7 @@
       "name": "scopeguard",
       "version": "1.2.0",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -4640,6 +4570,7 @@
       "name": "selectors",
       "version": "0.38.0",
       "license": "MPL-2.0",
+      "source": "registry archive",
       "retainedFiles": ["https://www.mozilla.org/MPL/2.0/index.txt"],
       "archiveNotices": []
     },
@@ -4647,6 +4578,7 @@
       "name": "selectors",
       "version": "0.41.0",
       "license": "MPL-2.0",
+      "source": "registry archive",
       "retainedFiles": ["https://www.mozilla.org/MPL/2.0/index.txt"],
       "archiveNotices": []
     },
@@ -4654,6 +4586,7 @@
       "name": "semver",
       "version": "1.0.28",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -4670,6 +4603,7 @@
       "name": "serde",
       "version": "1.0.229",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -4686,6 +4620,7 @@
       "name": "serde_core",
       "version": "1.0.229",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -4702,6 +4637,7 @@
       "name": "serde_derive",
       "version": "1.0.229",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -4718,6 +4654,7 @@
       "name": "serde_derive_internals",
       "version": "0.29.1",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -4734,6 +4671,7 @@
       "name": "serde_json",
       "version": "1.0.154",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -4750,6 +4688,7 @@
       "name": "serde_repr",
       "version": "0.1.21",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -4766,6 +4705,7 @@
       "name": "serde_spanned",
       "version": "0.6.9",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -4782,6 +4722,7 @@
       "name": "serde_spanned",
       "version": "1.1.3",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -4798,6 +4739,7 @@
       "name": "serde_with",
       "version": "3.24.0",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -4814,6 +4756,7 @@
       "name": "serde_with_macros",
       "version": "3.24.0",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -4830,6 +4773,7 @@
       "name": "serde-untagged",
       "version": "0.1.9",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -4846,6 +4790,7 @@
       "name": "serialize-to-javascript",
       "version": "0.1.2",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -4862,6 +4807,7 @@
       "name": "serialize-to-javascript-impl",
       "version": "0.1.2",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -4878,6 +4824,7 @@
       "name": "servo_arc",
       "version": "0.4.3",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -4894,6 +4841,7 @@
       "name": "servo_arc",
       "version": "0.5.0",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -4910,6 +4858,7 @@
       "name": "sha1",
       "version": "0.10.6",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -4926,6 +4875,7 @@
       "name": "sha2",
       "version": "0.10.9",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -4942,6 +4892,7 @@
       "name": "shlex",
       "version": "2.0.1",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -4958,6 +4909,7 @@
       "name": "signal-hook-registry",
       "version": "1.4.8",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -4974,6 +4926,7 @@
       "name": "simd-adler32",
       "version": "0.3.10",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE.md"],
       "archiveNotices": [
         {
@@ -4986,6 +4939,7 @@
       "name": "siphasher",
       "version": "1.0.4",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["COPYING", "LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -5006,6 +4960,7 @@
       "name": "slab",
       "version": "0.4.12",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -5018,6 +4973,7 @@
       "name": "smallvec",
       "version": "1.16.5",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -5034,6 +4990,7 @@
       "name": "socket2",
       "version": "0.6.5",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -5050,6 +5007,7 @@
       "name": "softbuffer",
       "version": "0.4.8",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -5066,6 +5024,7 @@
       "name": "soup3",
       "version": "0.5.0",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -5078,6 +5037,7 @@
       "name": "soup3-sys",
       "version": "0.5.0",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -5090,6 +5050,7 @@
       "name": "sqlite-wasm-rs",
       "version": "0.5.5",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -5102,6 +5063,7 @@
       "name": "stable_deref_trait",
       "version": "1.2.1",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -5118,6 +5080,7 @@
       "name": "static_vcruntime",
       "version": "3.0.0",
       "license": "MIT OR Apache-2.0 OR Zlib",
+      "source": "registry archive",
       "retainedFiles": [
         "LICENSE",
         "LICENSE-APACHE",
@@ -5147,6 +5110,7 @@
       "name": "string_cache",
       "version": "0.11.0",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -5163,6 +5127,7 @@
       "name": "string_cache",
       "version": "0.9.0",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -5179,6 +5144,7 @@
       "name": "string_cache_codegen",
       "version": "0.11.2",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -5195,6 +5161,7 @@
       "name": "string_cache_codegen",
       "version": "0.6.1",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -5211,6 +5178,7 @@
       "name": "strsim",
       "version": "0.11.1",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -5223,6 +5191,7 @@
       "name": "swift-rs",
       "version": "1.0.9",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -5237,24 +5206,9 @@
     },
     {
       "name": "syn",
-      "version": "1.0.109",
-      "license": "MIT OR Apache-2.0",
-      "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
-      "archiveNotices": [
-        {
-          "path": "LICENSE-APACHE",
-          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
-        },
-        {
-          "path": "LICENSE-MIT",
-          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
-        }
-      ]
-    },
-    {
-      "name": "syn",
       "version": "2.0.119",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -5271,6 +5225,7 @@
       "name": "syn",
       "version": "3.0.10",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -5287,6 +5242,7 @@
       "name": "sync_wrapper",
       "version": "1.0.2",
       "license": "Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -5299,6 +5255,7 @@
       "name": "synstructure",
       "version": "0.14.0",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -5311,6 +5268,7 @@
       "name": "system-deps",
       "version": "6.2.2",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -5327,6 +5285,7 @@
       "name": "tao",
       "version": "0.37.2",
       "license": "Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE", "LICENSE.spdx"],
       "archiveNotices": [
         {
@@ -5343,6 +5302,7 @@
       "name": "tao-macros",
       "version": "0.1.4",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT", "LICENSE.spdx"],
       "archiveNotices": [
         {
@@ -5363,6 +5323,7 @@
       "name": "target-lexicon",
       "version": "0.12.16",
       "license": "Apache-2.0 WITH LLVM-exception",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -5375,6 +5336,7 @@
       "name": "tauri",
       "version": "2.12.5",
       "license": "Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE-2.0", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -5391,6 +5353,7 @@
       "name": "tauri-build",
       "version": "2.7.4",
       "license": "Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE-2.0", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -5407,6 +5370,7 @@
       "name": "tauri-codegen",
       "version": "2.7.4",
       "license": "Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE-2.0", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -5423,6 +5387,7 @@
       "name": "tauri-macros",
       "version": "2.7.4",
       "license": "Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE-2.0", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -5439,6 +5404,7 @@
       "name": "tauri-plugin",
       "version": "2.7.2",
       "license": "Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": [
         "https://raw.githubusercontent.com/tauri-apps/tauri/59b63ab500da9859f12d8888c3298bc29bba0b92/LICENSE-APACHE-2.0",
         "https://raw.githubusercontent.com/tauri-apps/tauri/59b63ab500da9859f12d8888c3298bc29bba0b92/LICENSE-MIT"
@@ -5449,6 +5415,7 @@
       "name": "tauri-plugin-dialog",
       "version": "2.8.4",
       "license": "Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE.spdx", "LICENSE_APACHE-2.0", "LICENSE_MIT"],
       "archiveNotices": [
         {
@@ -5469,6 +5436,7 @@
       "name": "tauri-plugin-fs",
       "version": "2.7.1",
       "license": "Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE.spdx", "LICENSE_APACHE-2.0", "LICENSE_MIT"],
       "archiveNotices": [
         {
@@ -5489,6 +5457,7 @@
       "name": "tauri-plugin-single-instance",
       "version": "2.5.5",
       "license": "Apache-2.0 OR MIT",
+      "source": "reviewed local override",
       "retainedFiles": ["LICENSE.spdx", "LICENSE_APACHE-2.0", "LICENSE_MIT"],
       "archiveNotices": [
         {
@@ -5509,6 +5478,7 @@
       "name": "tauri-runtime",
       "version": "2.12.2",
       "license": "Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE-2.0", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -5525,6 +5495,7 @@
       "name": "tauri-runtime-wry",
       "version": "2.12.3",
       "license": "Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE-2.0", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -5541,6 +5512,7 @@
       "name": "tauri-utils",
       "version": "2.10.2",
       "license": "Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE-2.0", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -5557,6 +5529,7 @@
       "name": "tauri-winres",
       "version": "0.3.7",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -5569,6 +5542,7 @@
       "name": "tempfile",
       "version": "3.27.0",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -5585,6 +5559,7 @@
       "name": "tendril",
       "version": "0.5.1",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -5601,6 +5576,7 @@
       "name": "thiserror",
       "version": "1.0.69",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -5617,6 +5593,7 @@
       "name": "thiserror",
       "version": "2.0.21",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -5633,6 +5610,7 @@
       "name": "thiserror-impl",
       "version": "1.0.69",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -5649,6 +5627,7 @@
       "name": "thiserror-impl",
       "version": "2.0.21",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -5665,6 +5644,7 @@
       "name": "time",
       "version": "0.3.55",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-Apache", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -5681,6 +5661,7 @@
       "name": "time-core",
       "version": "0.1.9",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-Apache", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -5697,6 +5678,7 @@
       "name": "time-macros",
       "version": "0.2.32",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-Apache", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -5713,6 +5695,7 @@
       "name": "tinystr",
       "version": "0.8.5",
       "license": "Unicode-3.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -5725,6 +5708,7 @@
       "name": "tinyvec",
       "version": "1.13.3",
       "license": "Zlib OR Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": [
         "LICENSE-APACHE.md",
         "LICENSE-MIT.md",
@@ -5749,6 +5733,7 @@
       "name": "tokio",
       "version": "1.54.1",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -5761,6 +5746,7 @@
       "name": "tokio-util",
       "version": "0.7.20",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -5773,6 +5759,7 @@
       "name": "toml",
       "version": "0.8.2",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -5789,6 +5776,7 @@
       "name": "toml",
       "version": "1.2.1+spec-1.1.0",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -5805,6 +5793,7 @@
       "name": "toml_datetime",
       "version": "0.6.3",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -5821,6 +5810,7 @@
       "name": "toml_datetime",
       "version": "1.1.3+spec-1.1.0",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -5837,6 +5827,7 @@
       "name": "toml_edit",
       "version": "0.19.15",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -5853,6 +5844,7 @@
       "name": "toml_edit",
       "version": "0.20.2",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -5869,6 +5861,7 @@
       "name": "toml_edit",
       "version": "0.25.19+spec-1.1.0",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -5885,6 +5878,7 @@
       "name": "toml_parser",
       "version": "1.1.5+spec-1.1.0",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -5901,6 +5895,7 @@
       "name": "toml_writer",
       "version": "1.2.0+spec-1.1.0",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -5917,6 +5912,7 @@
       "name": "tower",
       "version": "0.5.3",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -5929,6 +5925,7 @@
       "name": "tower-http",
       "version": "0.6.11",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -5941,6 +5938,7 @@
       "name": "tower-layer",
       "version": "0.3.3",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -5953,6 +5951,7 @@
       "name": "tower-service",
       "version": "0.3.3",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -5965,6 +5964,7 @@
       "name": "tracing",
       "version": "0.1.44",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -5977,6 +5977,7 @@
       "name": "tracing-attributes",
       "version": "0.1.31",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -5989,6 +5990,7 @@
       "name": "tracing-core",
       "version": "0.1.36",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE", "src/spin/LICENSE"],
       "archiveNotices": [
         {
@@ -6005,6 +6007,7 @@
       "name": "tray-icon",
       "version": "0.25.1",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT", "LICENSE.spdx"],
       "archiveNotices": [
         {
@@ -6025,6 +6028,7 @@
       "name": "try-lock",
       "version": "0.2.5",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -6037,6 +6041,7 @@
       "name": "typeid",
       "version": "1.0.3",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -6053,6 +6058,7 @@
       "name": "typenum",
       "version": "1.20.1",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE", "LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -6073,6 +6079,7 @@
       "name": "uds_windows",
       "version": "1.2.1",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -6085,6 +6092,7 @@
       "name": "unicode-ident",
       "version": "1.0.27",
       "license": "(MIT OR Apache-2.0) AND Unicode-3.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT", "LICENSE-UNICODE"],
       "archiveNotices": [
         {
@@ -6105,6 +6113,7 @@
       "name": "unicode-segmentation",
       "version": "1.13.3",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["COPYRIGHT", "LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -6125,6 +6134,7 @@
       "name": "url",
       "version": "2.5.8",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -6141,6 +6151,7 @@
       "name": "urlpattern",
       "version": "0.6.0",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -6153,6 +6164,7 @@
       "name": "utf_types",
       "version": "1.0.0",
       "license": "Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": ["COPYRIGHT", "LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -6173,6 +6185,7 @@
       "name": "utf8_iter",
       "version": "1.1.0",
       "license": "Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": ["COPYRIGHT", "LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -6193,6 +6206,7 @@
       "name": "uuid",
       "version": "1.29.2",
       "license": "Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -6209,6 +6223,7 @@
       "name": "vcpkg",
       "version": "0.2.15",
       "license": "MIT/Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -6225,6 +6240,7 @@
       "name": "version_check",
       "version": "0.9.5",
       "license": "MIT/Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -6241,6 +6257,7 @@
       "name": "version-compare",
       "version": "0.2.1",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -6253,6 +6270,7 @@
       "name": "vswhom",
       "version": "0.1.0",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -6265,6 +6283,7 @@
       "name": "vswhom-sys",
       "version": "0.1.3",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -6277,6 +6296,7 @@
       "name": "walkdir",
       "version": "2.5.0",
       "license": "Unlicense/MIT",
+      "source": "registry archive",
       "retainedFiles": ["COPYING", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -6293,6 +6313,7 @@
       "name": "want",
       "version": "0.3.2",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -6305,6 +6326,7 @@
       "name": "wasi",
       "version": "0.11.1+wasi-snapshot-preview1",
       "license": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": [
         "LICENSE-APACHE",
         "LICENSE-Apache-2.0_WITH_LLVM-exception",
@@ -6329,6 +6351,7 @@
       "name": "wasip2",
       "version": "1.0.4+wasi-0.2.12",
       "license": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": [
         "LICENSE-APACHE",
         "LICENSE-Apache-2.0_WITH_LLVM-exception",
@@ -6353,6 +6376,7 @@
       "name": "wasm-bindgen",
       "version": "0.2.130",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -6369,6 +6393,7 @@
       "name": "wasm-bindgen-futures",
       "version": "0.4.80",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -6385,6 +6410,7 @@
       "name": "wasm-bindgen-macro",
       "version": "0.2.130",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -6401,6 +6427,7 @@
       "name": "wasm-bindgen-macro-support",
       "version": "0.2.130",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -6417,6 +6444,7 @@
       "name": "wasm-bindgen-shared",
       "version": "0.2.130",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -6433,6 +6461,7 @@
       "name": "wasm-streams",
       "version": "0.5.0",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -6449,6 +6478,7 @@
       "name": "web_atoms",
       "version": "0.2.6",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -6465,6 +6495,7 @@
       "name": "web_atoms",
       "version": "0.3.0",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -6481,6 +6512,7 @@
       "name": "web-sys",
       "version": "0.3.107",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -6497,6 +6529,7 @@
       "name": "web-time",
       "version": "1.1.0",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -6513,6 +6546,7 @@
       "name": "webkit2gtk",
       "version": "2.0.2",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -6525,6 +6559,7 @@
       "name": "webkit2gtk-sys",
       "version": "2.0.2",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -6537,6 +6572,7 @@
       "name": "webview2-com",
       "version": "0.39.1",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": [
         "https://raw.githubusercontent.com/wravery/webview2-rs/edc2caf886175ccaebe86078c9cfe1ae2a187328/LICENSE"
       ],
@@ -6546,6 +6582,7 @@
       "name": "webview2-com-macros",
       "version": "0.8.1",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": [
         "https://raw.githubusercontent.com/wravery/webview2-rs/dffa41a8a46d3f5565eefbff2de57d38d399f158/LICENSE"
       ],
@@ -6555,6 +6592,7 @@
       "name": "webview2-com-sys",
       "version": "0.39.1",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": [
         "https://raw.githubusercontent.com/wravery/webview2-rs/edc2caf886175ccaebe86078c9cfe1ae2a187328/LICENSE"
       ],
@@ -6564,6 +6602,7 @@
       "name": "winapi",
       "version": "0.3.9",
       "license": "MIT/Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -6580,13 +6619,17 @@
       "name": "winapi-i686-pc-windows-gnu",
       "version": "0.4.0",
       "license": "MIT/Apache-2.0",
-      "retainedFiles": [],
+      "source": "registry archive",
+      "retainedFiles": [
+        "https://raw.githubusercontent.com/retep998/winapi-rs/796a8e6c2971dc2ff1bcff166e6671284f9b5b6b/LICENSE-MIT"
+      ],
       "archiveNotices": []
     },
     {
       "name": "winapi-util",
       "version": "0.1.11",
       "license": "Unlicense OR MIT",
+      "source": "registry archive",
       "retainedFiles": ["COPYING", "LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -6603,13 +6646,17 @@
       "name": "winapi-x86_64-pc-windows-gnu",
       "version": "0.4.0",
       "license": "MIT/Apache-2.0",
-      "retainedFiles": [],
+      "source": "registry archive",
+      "retainedFiles": [
+        "https://raw.githubusercontent.com/retep998/winapi-rs/796a8e6c2971dc2ff1bcff166e6671284f9b5b6b/LICENSE-MIT"
+      ],
       "archiveNotices": []
     },
     {
       "name": "window-vibrancy",
       "version": "0.8.1",
       "license": "Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT", "LICENSE.spdx"],
       "archiveNotices": [
         {
@@ -6630,6 +6677,7 @@
       "name": "windows",
       "version": "0.62.2",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["license-apache-2.0", "license-mit"],
       "archiveNotices": [
         {
@@ -6646,6 +6694,7 @@
       "name": "windows_aarch64_gnullvm",
       "version": "0.42.2",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["license-apache-2.0", "license-mit"],
       "archiveNotices": [
         {
@@ -6662,6 +6711,7 @@
       "name": "windows_aarch64_msvc",
       "version": "0.42.2",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["license-apache-2.0", "license-mit"],
       "archiveNotices": [
         {
@@ -6678,6 +6728,7 @@
       "name": "windows_i686_gnu",
       "version": "0.42.2",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["license-apache-2.0", "license-mit"],
       "archiveNotices": [
         {
@@ -6694,6 +6745,7 @@
       "name": "windows_i686_msvc",
       "version": "0.42.2",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["license-apache-2.0", "license-mit"],
       "archiveNotices": [
         {
@@ -6710,6 +6762,7 @@
       "name": "windows_x86_64_gnu",
       "version": "0.42.2",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["license-apache-2.0", "license-mit"],
       "archiveNotices": [
         {
@@ -6726,6 +6779,7 @@
       "name": "windows_x86_64_gnullvm",
       "version": "0.42.2",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["license-apache-2.0", "license-mit"],
       "archiveNotices": [
         {
@@ -6742,6 +6796,7 @@
       "name": "windows_x86_64_msvc",
       "version": "0.42.2",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["license-apache-2.0", "license-mit"],
       "archiveNotices": [
         {
@@ -6758,6 +6813,7 @@
       "name": "windows-collections",
       "version": "0.3.2",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["license-apache-2.0", "license-mit"],
       "archiveNotices": [
         {
@@ -6774,6 +6830,7 @@
       "name": "windows-core",
       "version": "0.62.2",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["license-apache-2.0", "license-mit"],
       "archiveNotices": [
         {
@@ -6790,6 +6847,7 @@
       "name": "windows-future",
       "version": "0.3.2",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["license-apache-2.0", "license-mit"],
       "archiveNotices": [
         {
@@ -6806,6 +6864,7 @@
       "name": "windows-implement",
       "version": "0.60.2",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["license-apache-2.0", "license-mit"],
       "archiveNotices": [
         {
@@ -6822,6 +6881,7 @@
       "name": "windows-interface",
       "version": "0.59.3",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["license-apache-2.0", "license-mit"],
       "archiveNotices": [
         {
@@ -6838,6 +6898,7 @@
       "name": "windows-link",
       "version": "0.2.1",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["license-apache-2.0", "license-mit"],
       "archiveNotices": [
         {
@@ -6854,6 +6915,7 @@
       "name": "windows-numerics",
       "version": "0.3.1",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["license-apache-2.0", "license-mit"],
       "archiveNotices": [
         {
@@ -6870,6 +6932,7 @@
       "name": "windows-result",
       "version": "0.4.1",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["license-apache-2.0", "license-mit"],
       "archiveNotices": [
         {
@@ -6886,6 +6949,7 @@
       "name": "windows-strings",
       "version": "0.5.1",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["license-apache-2.0", "license-mit"],
       "archiveNotices": [
         {
@@ -6902,6 +6966,7 @@
       "name": "windows-sys",
       "version": "0.45.0",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["license-apache-2.0", "license-mit"],
       "archiveNotices": [
         {
@@ -6918,6 +6983,7 @@
       "name": "windows-sys",
       "version": "0.61.2",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["license-apache-2.0", "license-mit"],
       "archiveNotices": [
         {
@@ -6934,6 +7000,7 @@
       "name": "windows-targets",
       "version": "0.42.2",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["license-apache-2.0", "license-mit"],
       "archiveNotices": [
         {
@@ -6950,6 +7017,7 @@
       "name": "windows-threading",
       "version": "0.2.1",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["license-apache-2.0", "license-mit"],
       "archiveNotices": [
         {
@@ -6966,6 +7034,7 @@
       "name": "windows-version",
       "version": "0.1.7",
       "license": "MIT OR Apache-2.0",
+      "source": "registry archive",
       "retainedFiles": ["license-apache-2.0", "license-mit"],
       "archiveNotices": [
         {
@@ -6982,6 +7051,7 @@
       "name": "winnow",
       "version": "0.5.40",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -6994,6 +7064,7 @@
       "name": "winnow",
       "version": "1.0.5",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -7006,6 +7077,7 @@
       "name": "winreg",
       "version": "0.56.0",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -7018,6 +7090,7 @@
       "name": "wit-bindgen",
       "version": "0.57.1",
       "license": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": [
         "LICENSE-APACHE",
         "LICENSE-Apache-2.0_WITH_LLVM-exception",
@@ -7042,6 +7115,7 @@
       "name": "writeable",
       "version": "0.6.4",
       "license": "Unicode-3.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -7054,6 +7128,7 @@
       "name": "wry",
       "version": "0.57.2",
       "license": "Apache-2.0 OR MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-APACHE", "LICENSE-MIT", "LICENSE.spdx"],
       "archiveNotices": [
         {
@@ -7074,6 +7149,7 @@
       "name": "x11",
       "version": "2.21.0",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -7086,6 +7162,7 @@
       "name": "x11-dl",
       "version": "2.21.0",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -7098,6 +7175,7 @@
       "name": "yoke",
       "version": "0.8.4",
       "license": "Unicode-3.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -7110,6 +7188,7 @@
       "name": "yoke-derive",
       "version": "0.8.4",
       "license": "Unicode-3.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -7120,8 +7199,9 @@
     },
     {
       "name": "zbus",
-      "version": "5.19.0",
+      "version": "6.3.0",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -7132,8 +7212,9 @@
     },
     {
       "name": "zbus_macros",
-      "version": "5.19.0",
+      "version": "6.3.0",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -7143,9 +7224,10 @@
       ]
     },
     {
-      "name": "zbus_names",
-      "version": "4.3.5",
+      "name": "zbus_utils",
+      "version": "6.1.0",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -7158,6 +7240,7 @@
       "name": "zcheapstr",
       "version": "1.2.0",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -7170,6 +7253,7 @@
       "name": "zerofrom",
       "version": "0.1.8",
       "license": "Unicode-3.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -7182,6 +7266,7 @@
       "name": "zerofrom-derive",
       "version": "0.1.8",
       "license": "Unicode-3.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -7194,6 +7279,7 @@
       "name": "zerotrie",
       "version": "0.2.5",
       "license": "Unicode-3.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -7206,6 +7292,7 @@
       "name": "zerovec",
       "version": "0.11.9",
       "license": "Unicode-3.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -7218,6 +7305,7 @@
       "name": "zerovec-derive",
       "version": "0.11.7",
       "license": "Unicode-3.0",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -7230,6 +7318,7 @@
       "name": "zlib-rs",
       "version": "0.6.8",
       "license": "Zlib",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
@@ -7242,6 +7331,7 @@
       "name": "zmij",
       "version": "1.0.23",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE-MIT"],
       "archiveNotices": [
         {
@@ -7251,44 +7341,18 @@
       ]
     },
     {
-      "name": "zvariant",
-      "version": "5.15.1",
+      "name": "zruntime",
+      "version": "0.2.3",
       "license": "MIT",
+      "source": "registry archive",
       "retainedFiles": ["LICENSE"],
       "archiveNotices": [
         {
           "path": "LICENSE",
-          "sha256": "260e4ff3fc493695880c90774283eb1e3d018f898fabe655bbd52dd2cbd2fcad"
-        }
-      ]
-    },
-    {
-      "name": "zvariant_derive",
-      "version": "5.15.1",
-      "license": "MIT",
-      "retainedFiles": ["LICENSE"],
-      "archiveNotices": [
-        {
-          "path": "LICENSE",
-          "sha256": "260e4ff3fc493695880c90774283eb1e3d018f898fabe655bbd52dd2cbd2fcad"
-        }
-      ]
-    },
-    {
-      "name": "zvariant_utils",
-      "version": "4.2.0",
-      "license": "MIT",
-      "retainedFiles": ["LICENSE"],
-      "archiveNotices": [
-        {
-          "path": "LICENSE",
-          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+          "sha256": "ec2e030f7cd75edbe3e981d10b458a100a90a6c6056334538ab933f8db71654e"
         }
       ]
     }
   ],
-  "missing": [
-    "winapi-i686-pc-windows-gnu@0.4.0",
-    "winapi-x86_64-pc-windows-gnu@0.4.0"
-  ]
+  "missing": []
 }
