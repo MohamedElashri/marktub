@@ -77,10 +77,7 @@ Marktub does not change trust or quarantine settings.
 
 ## Contributing
 
-See [AGENTS.md](AGENTS.md) for setup, checks and packaging, and
-[plan.md](plan.md) for the architecture and remaining release qualifications.
-Current verification results are in the
-[release summary](docs/evidence/release-status.json).
+See [development.md](development.md) for setup, checks and contribution guidance.
 
 For bugs, include the OS, app revision, reproduction steps and a small redacted
 fixture. Original code is [MIT licensed](LICENSE). Builds collect dependency

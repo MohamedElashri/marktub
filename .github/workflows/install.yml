@@ -5,14 +5,14 @@ on:
     branches: [main]
     paths:
       - README.md
-      - plan.md
+      - development.md
       - scripts/install.sh
       - tests/tooling/test_installer.py
       - .github/workflows/install.yml
   pull_request:
     paths:
       - README.md
-      - plan.md
+      - development.md
       - scripts/install.sh
       - tests/tooling/test_installer.py
       - .github/workflows/install.yml
