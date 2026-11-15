@@ -61,24 +61,22 @@ for (const pkg of rust) {
       text,
     });
   }
-  if (!retained.length) {
-    const supplement = supplements.packages.find(
-      (s) => s.package === `${pkg.name}@${pkg.version}`,
-    );
-    for (const notice of supplement?.notices ?? []) {
-      const text = supplements.texts[notice.sha256];
-      if (typeof text !== "string")
-        throw Error(`Missing retained notice: ${pkg.name}`);
-      if (createHash("sha256").update(text).digest("hex") !== notice.sha256)
-        throw Error(
-          `Retained notice checksum mismatch: ${pkg.name} ${pkg.version}`,
-        );
-      retained.push(notice.url);
-      rustNotices.push({
-        component: `${pkg.name} ${pkg.version} — ${pkg.license || "SEE LICENSE"}\n${origin}\n${notice.url}`,
-        text,
-      });
-    }
+  const supplement = supplements.packages.find(
+    (s) => s.package === `${pkg.name}@${pkg.version}`,
+  );
+  for (const notice of supplement?.notices ?? []) {
+    const text = supplements.texts[notice.sha256];
+    if (typeof text !== "string")
+      throw Error(`Missing retained notice: ${pkg.name}`);
+    if (createHash("sha256").update(text).digest("hex") !== notice.sha256)
+      throw Error(
+        `Retained notice checksum mismatch: ${pkg.name} ${pkg.version}`,
+      );
+    retained.push(notice.url);
+    rustNotices.push({
+      component: `${pkg.name} ${pkg.version} — ${pkg.license || "SEE LICENSE"}\n${origin}\n${notice.url}`,
+      text,
+    });
   }
   rustCoverage.push({
     name: pkg.name,
