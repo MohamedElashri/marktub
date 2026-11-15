@@ -107,3 +107,10 @@ never convert an unrun check into a pass or hide dependency findings with ignore
 - Hosted Linux and universal macOS CI passed native tests, WebView smoke, normal
   package isolation and package/process checks. Registry advisory checks are clean;
   local overrides retain their separate integrity/regression gate.
+
+- Get started follows the latest published release, with manual package steps and
+  a curl/wget installer that selects the host asset and checks its SHA-256 before
+  installation. Development setup stays in AGENTS.md. The macOS path opens the
+  universal DMG and leaves trust/quarantine settings alone. Installer changes run
+  shell/failure tests and live download checks on macOS and Ubuntu; documentation
+  and installer changes alone do not rebuild application packages.

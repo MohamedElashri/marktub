@@ -28,16 +28,29 @@ no telemetry.
 
 ## Get started
 
-Use a package from [Releases](https://github.com/MohamedElashri/marktub/releases),
-or build from source. Install the tools selected by `.node-version`,
-`package.json` and `rust-toolchain.toml`, plus the
-[Tauri platform prerequisites](https://v2.tauri.app/start/prerequisites/):
+Download the [latest release](https://github.com/MohamedElashri/marktub/releases/latest):
+
+- **macOS:** open the universal `.dmg` for Apple Silicon and Intel, then drag
+  Marktub to Applications.
+- **Ubuntu amd64:** download the `.deb` and install it from your Downloads folder:
+
+  ```sh
+  sudo apt install ./Marktub_*_amd64.deb
+  ```
+
+Or use the [installer script](scripts/install.sh) with curl or wget:
 
 ```sh
-pnpm install --frozen-lockfile
-cargo fetch --manifest-path src-tauri/Cargo.toml --locked
-pnpm tauri dev
+curl -fsSL https://raw.githubusercontent.com/MohamedElashri/marktub/main/scripts/install.sh | bash
 ```
+
+```sh
+wget -qO- https://raw.githubusercontent.com/MohamedElashri/marktub/main/scripts/install.sh | bash
+```
+
+The script downloads the latest package and verifies its SHA-256. It installs the
+Ubuntu package or opens the macOS disk image. To download without installing,
+append `-s -- --download-only` after `bash`.
 
 Open a file or folder to begin. Files open in Read; the mode buttons switch to
 editing. More contains settings, recovery, export and local tools. Quick open

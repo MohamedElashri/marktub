@@ -2,7 +2,19 @@ name: Desktop checks
 
 on:
   push:
+    paths-ignore:
+      - README.md
+      - plan.md
+      - scripts/install.sh
+      - tests/tooling/test_installer.py
+      - .github/workflows/install.yml
   pull_request:
+    paths-ignore:
+      - README.md
+      - plan.md
+      - scripts/install.sh
+      - tests/tooling/test_installer.py
+      - .github/workflows/install.yml
   workflow_dispatch:
 
 permissions:
