@@ -52,16 +52,16 @@ records retain exact revisions, hashes and tested tool versions.
 - [x] Run repository, frontend/tooling, strict Rust and native WebView checks.
 - [x] Build normal packages after testing; verify test-hook isolation, resources,
       metadata, executable identity and an offline installed-app workflow.
-- [ ] Refresh source/package checksums after the attribution and universal-build changes;
+- [x] Refresh source/package checksums after the attribution and universal-build changes;
       reproduce the source archive.
 - [ ] Confirm the physical input/accessibility/printing and unavailable-platform
       checks below before describing them as verified.
 
 ## Qualifications requiring an operator or another host
 
-- Current shared changes need native macOS verification, including the declared
-  architectures and minimum supported system. Historical Mac packages do not
-  certify the current source.
+- Universal macOS packaging and native ARM64 CI pass. Intel runtime and the
+  minimum supported macOS still need verification; compiling both slices does not
+  establish runtime coverage.
 - Physical IME, keyboard/image integration, screen-reader speech/navigation,
   native font dialogs, HiDPI and printing need real desktop/input coverage.
 - Broader sustained large-Source, multi-tab, Git and Review resource tests, plus
@@ -69,8 +69,8 @@ records retain exact revisions, hashes and tested tool versions.
   process-memory and page-load observations.
 - Filesystem and tool tests cover their named fixtures, not every removable,
   network/FUSE, crash, hostile-process or font/tool-version configuration.
-- Actual hosted CI and downloaded-package opening are distinct from a local
-  build or a container install. macOS uses the owner-selected ad-hoc channel;
+- Downloaded-package opening remains separate from hosted CI and local/container
+  installs. macOS uses the owner-selected ad-hoc channel;
   paid signing/notarization is outside the selected release scope.
 
 Exact results and remaining gates belong in
@@ -103,3 +103,7 @@ never convert an unrun check into a pass or hide dependency findings with ignore
   Cancel superseded branch runs automatically.
 - Git test fixtures disable detached automatic maintenance so native metadata
   snapshots see a quiescent fixture; production validation continues to fail closed.
+
+- Hosted Linux and universal macOS CI passed native tests, WebView smoke, normal
+  package isolation and package/process checks. Registry advisory checks are clean;
+  local overrides retain their separate integrity/regression gate.

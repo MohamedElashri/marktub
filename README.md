@@ -57,8 +57,9 @@ PDF glyph coverage depends on the selected engine and installed fonts; inspect
 export warnings. Shell and TeX run with ordinary user privileges, not in an OS
 sandbox. SQLite is read-only unless a confirmed write transaction is requested.
 
-macOS packages are ad-hoc signed and unnotarized. If you trust a blocked download,
-use Apple’s [per-app opening flow](https://support.apple.com/en-us/102445).
+macOS uses one universal package for Apple Silicon and Intel, ad-hoc signed and
+unnotarized. If you trust a blocked download, use Apple’s
+[per-app opening flow](https://support.apple.com/en-us/102445).
 Marktub does not change trust or quarantine settings.
 
 ## Contributing
