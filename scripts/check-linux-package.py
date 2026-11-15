@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
+import struct
 import subprocess
 import tempfile
 
@@ -29,6 +30,25 @@ def verify_executable(packaged, unbundled):
     assert unbundled.count(unknown) == 1, "Missing or ambiguous original bundle marker"
     assert packaged == unbundled.replace(unknown, deb, 1), "Unexpected executable changes beyond the fixed Tauri bundle marker"
     return "only the fixed Tauri UNK-to-DEB marker; every other byte identical"
+
+
+def verify_icons(root, desktop, source_icons):
+    fields = dict(line.split("=", 1) for line in desktop.splitlines() if "=" in line)
+    assert fields.get("Icon") == "marktub", "Launcher icon must match the installed icon name"
+    assert fields.get("StartupWMClass") == "marktub", "Launcher window class differs from the executable"
+    assert source_icons, "No PNG icons declared for the application bundle"
+    icons = {}
+    for source in source_icons:
+        data = source.read_bytes()
+        assert data[:16] == b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR", "Invalid source PNG icon"
+        width, height = struct.unpack_from(">II", data, 16)
+        assert width == height and width > 0, "Launcher icon must be square"
+        relative = Path(f"usr/share/icons/hicolor/{width}x{height}/apps/marktub.png")
+        packaged = root / relative
+        assert packaged.is_file() and not packaged.is_symlink(), f"Missing packaged launcher icon: {relative}"
+        assert packaged.read_bytes() == data, f"Packaged icon differs from the app logo: {relative}"
+        icons[str(relative)] = digest(packaged)
+    return icons
 
 
 def inspect(package, binary):
@@ -67,6 +87,8 @@ def inspect(package, binary):
         assert "Exec=marktub %F" in text, text
         assert "MimeType=text/markdown;" in text, text
         assert "Terminal=false" in text, text
+        config = json.loads(Path("src-tauri/tauri.conf.json").read_text())
+        icons = verify_icons(root, text, [Path("src-tauri") / name for name in config["bundle"].get("icon", []) if name.endswith(".png")])
         resources = {}
         for name, source in [("specimen.md", Path("tests/fixtures/specimen.md")), ("licenses.txt", Path("artifacts/licenses/licenses.txt"))]:
             candidates = list((root / "usr/lib").rglob(name))
@@ -78,7 +100,7 @@ def inspect(package, binary):
                 "package": fields, "debSha256": digest(package), "debBytes": package.stat().st_size,
                 "binarySha256": digest(executable), "binaryBytes": executable.stat().st_size,
                 "unbundledBinarySha256": digest(binary), "bundleMarkerPatch": marker_patch,
-                "desktopFile": desktop.name, "resourcesSha256": resources,
+                "desktopFile": desktop.name, "iconsSha256": icons, "resourcesSha256": resources,
                 "nativeLibraries": [line.strip() for line in linked.splitlines()],
                 "portableLoaderAndLibraries": True}
 

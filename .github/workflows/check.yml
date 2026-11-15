@@ -115,7 +115,7 @@ jobs:
           python3 scripts/check-linux-package.py --deb "$package"
           sudo dpkg -i "$package"
           desktop-file-validate /usr/share/applications/Marktub.desktop
-          GDK_BACKEND=x11 xvfb-run -a dbus-run-session -- sh -c 'openbox > /tmp/marktub-installed-window-manager.log 2>&1 & exec /usr/bin/python3 scripts/check-linux-installed.py --binary /usr/bin/marktub --example --output artifacts/installed-linux-ui.json'
+          GDK_BACKEND=x11 xvfb-run -a dbus-run-session -- sh -c 'openbox > /tmp/marktub-installed-window-manager.log 2>&1 & exec /usr/bin/python3 scripts/check-linux-installed.py --binary /usr/bin/marktub --example --desktop-integration --output artifacts/installed-linux-ui.json'
           xvfb-run -a dbus-run-session -- python3 benchmarks/release_profile.py --binary /usr/bin/marktub --document tests/fixtures/specimen.md --label installed-ubuntu-read --rusage --samples 2 --interval 5 --output artifacts/installed-linux.json
           python3 - <<'PY'
           import json

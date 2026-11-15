@@ -36,6 +36,7 @@ def main():
     parser.add_argument("--tabs", type=int, default=1, help="open 1–4 documents; extra copies live only in the isolated test profile")
     parser.add_argument("--settle-seconds", type=float, default=0, help="wait 0–60 seconds in each mode before sampling")
     parser.add_argument("--example", action="store_true", help="also open/close the bundled example through the normal UI")
+    parser.add_argument("--desktop-integration", action="store_true", help="also verify the installed launcher icon through GTK")
     parser.add_argument("--idle-samples", type=int, default=0)
     parser.add_argument("--idle-interval", type=float, default=60)
     parser.add_argument("--output", type=Path, default=Path("artifacts/linux-installed-ui.json"))
@@ -74,6 +75,15 @@ def main():
               "cycles": args.cycles, "tabs": args.tabs, "sourceOnly": args.source_only,
               "settleSeconds": args.settle_seconds, "documentHashes": document_hashes,
               "bundledExampleRequested": args.example, "observations": [], "samples": []}
+    if args.desktop_integration:
+        gi.require_version("Gtk", "3.0")
+        from gi.repository import Gio, Gtk
+        Gtk.init([])
+        launcher = Gio.DesktopAppInfo.new("Marktub.desktop")
+        assert launcher and launcher.get_string("Icon") == "marktub", "Installed launcher icon is not registered"
+        icon = Gtk.IconTheme.get_default().lookup_icon("marktub", 128, 0)
+        assert icon and icon.get_filename(), "GTK cannot resolve the installed Marktub icon"
+        result["desktopIntegration"] = {"desktopId": launcher.get_id(), "iconFile": icon.get_filename(), "iconSha256": digest(Path(icon.get_filename()))}
     started = time.monotonic()
     helpers = {}
     previous = None
