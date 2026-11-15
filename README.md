@@ -95,8 +95,8 @@ revisions. Quick open is Cmd/Ctrl+P; open and save are Cmd/Ctrl+O and Cmd/Ctrl+S
 
 See [development.md](development.md) for setup, checks and contribution guidance.
 
-For bugs, [open an issue](https://github.com/MohamedElashri/marktub/issues) with the
-OS, app revision, reproduction steps and a small redacted fixture.
+For bugs, [open an issue](https://github.com/MohamedElashri/marktub/issues) with the OS, app revision, reproduction steps and and I welcome PR fix.
 
-Original code is [MIT licensed](LICENSE). Dependency attribution is included in
-app packages and HTML exports.
+## LICENCE
+
+The repository and project is [MIT licensed](LICENSE). 
