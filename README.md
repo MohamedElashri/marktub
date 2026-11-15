@@ -40,9 +40,19 @@
 Download the [latest release](https://github.com/MohamedElashri/marktub/releases/latest):
 
 - **macOS:** open the universal `.dmg` for Apple Silicon and Intel, then drag
-  Marktub to Applications. Packages are ad-hoc signed and unnotarized; if macOS
-  blocks a download you trust, follow Apple’s
+  Marktub to Applications. Packages are ad-hoc signed and unnotarized. If macOS
+  blocks the app, verify the official download against the release’s
+  `SHA256SUMS`, then remove the installed app’s quarantine flag:
+
+  ```sh
+  xattr -dr com.apple.quarantine "/Applications/Marktub.app"
+  ```
+
+  For a verified official download you trust, this is safe to run: it removes only
+  Marktub’s quarantine metadata, without changing its code or disabling Gatekeeper
+  system-wide. You can also use Apple’s
   [per-app opening instructions](https://support.apple.com/en-us/102445).
+
 - **Ubuntu amd64:** download the `.deb` and install it from your Downloads folder:
 
   ```sh
@@ -99,4 +109,4 @@ For bugs, [open an issue](https://github.com/MohamedElashri/marktub/issues) with
 
 ## LICENCE
 
-The repository and project is [MIT licensed](LICENSE). 
+The repository and project is [MIT licensed](LICENSE).
