@@ -2,8 +2,6 @@
 
 An offline Markdown reader and source-preserving editor for macOS and Linux.
 
-![Marktub’s Git workbench](docs/assets/git-workbench.png)
-
 ## Features
 
 - **Read, Source, Split and Visual.** Read comfortably, edit Markdown directly,
@@ -21,6 +19,12 @@ An offline Markdown reader and source-preserving editor for macOS and Linux.
 
 Marktub uses one system WebView. Installed builds need no Node server and contain
 no telemetry.
+
+## Screenshots
+
+|                               Read                                |                                 Split                                 |
+| :---------------------------------------------------------------: | :-------------------------------------------------------------------: |
+| ![Read mode with a local Markdown notebook](docs/assets/read.png) | ![Markdown source beside its rendered preview](docs/assets/split.png) |
 
 ## Get started
 

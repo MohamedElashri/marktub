@@ -90,3 +90,6 @@ never convert an unrun check into a pass or hide dependency findings with ignore
   normal package isolation, an offline Ubuntu runtime install, observed-helper
   cleanup, repeated mode switches and finite three-tab Source workloads. These
   results do not certify physical input or other platforms.
+
+- The README presents matching Read and Split captures from the normal Linux app
+  in a centered table gallery. Screenshot provenance remains in the release summary.

@@ -2,7 +2,7 @@
   "schemaVersion": 3,
   "date": "2026-11-15",
   "version": "0.1.0",
-  "status": "Local Linux release candidate verified; hosted CI and operator/platform qualifications remain open. Not published.",
+  "status": "Linux release candidate verified locally; hosted desktop CI is in progress. Release not published.",
   "source": {
     "baseCommit": "34af363589d369abf5649571cd61e0900f1106b7",
     "scope": "Candidate snapshot; the deterministic source-archive manifest binds exact maintained files. Prepared Git revision is recorded with the release artifacts."
@@ -140,6 +140,24 @@
         "scope": "Older parser diagnostic for a boolean false; current upstream parses false without this diagnostic. Retained unchanged output, not PDF/UA/printing certification.",
         "parserSource": "https://skia.googlesource.com/third_party/poppler/+/104cc3864bc75dedef3860a44164967afbbcd48b/poppler/Catalog.cc"
       }
+    },
+    "readmeScreenshots": {
+      "scope": "Read and Split in the normal Linux release app; native accessibility actions, isolated X11 desktop/profile and synthetic notebook; captures show the app client area",
+      "binarySha256": "33ae3ec938a79b7e4033fa7065a5105d7496c5947ce22839d6b13da3f7563f04",
+      "images": [
+        {
+          "path": "docs/assets/read.png",
+          "sha256": "e30da222e09f6fea3d0fa0bd81928af308793499935f6e5e10eb2a4d78319dcc",
+          "width": 1080,
+          "height": 760
+        },
+        {
+          "path": "docs/assets/split.png",
+          "sha256": "55ee2cd1b47a884295126cb4e6d33306baf6adbb258ff2907e37b0ccd9369e51",
+          "width": 1080,
+          "height": 760
+        }
+      ]
     }
   },
   "security": {
