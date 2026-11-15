@@ -576,23 +576,12 @@ macro_rules! commands {($($extra:ident),*)=>{tauri::generate_handler![take_os_op
     begin_edit,apply_edits,flush_edits,save_document,save_as_document,editing_status,compare_document,reopen_document,release_editor,
     list_recoveries,restore_recovery,discard_recovery,get_settings,update_settings,import_settings,export_settings,document_position,remember_position,storage_warning,close_application,reset_settings,$($extra),*]};}
 
-// Explicit local diagnostics, never a frontend command/evaluator or telemetry.
-fn startup_stage(start: Option<std::time::Instant>, name: &str) {
-    if let Some(start) = start {
-        eprintln!(
-            "MARKTUB_STARTUP_STAGE={name}:{}",
-            start.elapsed().as_micros()
-        );
-    }
-}
-
 pub fn run() {
-    let trace = (std::env::var_os("MARKTUB_PROFILE_STARTUP").as_deref()
-        == Some(std::ffi::OsStr::new("1")))
-    .then(std::time::Instant::now);
-    startup_stage(trace, "entry");
+    let profile_startup =
+        std::env::var_os("MARKTUB_PROFILE_STARTUP").as_deref() == Some(std::ffi::OsStr::new("1"));
+
     crate::git_workbench::initialize().expect("Local Git configuration isolation failed");
-    startup_stage(trace, "git-isolation");
+
     let builder = tauri::Builder::default()
         .manage(Mutex::new(crate::open_requests::OpenRequests::default()))
         .plugin(tauri_plugin_single_instance::init(|app, args, cwd| {
@@ -606,16 +595,14 @@ pub fn run() {
     let started = std::time::Instant::now();
     let builder = builder
         .on_page_load(move |_, payload| {
-            if trace.is_some() && matches!(payload.event(), tauri::webview::PageLoadEvent::Finished)
+            if profile_startup && matches!(payload.event(), tauri::webview::PageLoadEvent::Finished)
             {
-                startup_stage(trace, "page-loaded");
                 eprintln!("MARKTUB_PAGE_LOADED_US={}", started.elapsed().as_micros());
             }
         })
         .manage(Documents::default())
         .plugin(tauri_plugin_dialog::init())
         .setup(move |app| {
-            startup_stage(trace, "setup-begin");
             let path = app
                 .path()
                 .app_data_dir()
@@ -632,7 +619,7 @@ pub fn run() {
                 }
                 service
             });
-            startup_stage(trace, "storage-open");
+
             let (store, protected) = service
                 .as_ref()
                 .map(|e| e.library_config())
@@ -665,7 +652,7 @@ pub fn run() {
                     .unwrap_or_default()
                     .to_string_lossy(),
             );
-            startup_stage(trace, "setup-complete");
+
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -2006,7 +1993,7 @@ async fn power_choose_tool(
     tauri::async_runtime::spawn_blocking(move||{
     let Some(path)=power_pick(&app,&format!("tool-{role:?}").to_ascii_lowercase(),false)? else{return Ok(None)};
     let canonical=std::fs::canonicalize(&path)?;let host=powers(&app);let scratch={let p=host.lock().map_err(|_|power::err("Local jobs unavailable."))?;p.protect(&canonical)?;if p.tools.len()>=8{return Err(power::err("Eight tools selected; restart or reuse the current selection."));}p.scratch()?};
-    if !power_confirm(&app,&format!("Use {} as {role:?}?\nOnly choose software you trust. Its version command will run now with normal user privileges. Tool selection does not enable document execution.",path.display())){return Ok(None)}
+    if !power_confirm(&app,&format!("Use {} as {role:?}?\nOnly choose software you trust. An identification probe will run now with normal user privileges. Tool selection does not enable document execution.",path.display())){return Ok(None)}
     let tool=std::sync::Arc::new(power::Tool::select(&path,role,&scratch.path)?);let view=tool.view.clone();{let mut p=host.lock().map_err(|_|power::err("Local jobs unavailable."))?;p.tools.retain(|_,t|t.view.role!=role);p.tools.insert(view.id.clone(),tool);}Ok(Some(view))
 }).await.map_err(|_|power::err("Tool selection interrupted."))?
 }
@@ -2522,21 +2509,23 @@ async fn power_open_pdf(app: tauri::AppHandle, export: String) -> Result<(), Fil
         }
         let path = scoped.canonical_path().to_owned();
         drop(p);
-        #[cfg(target_os = "macos")]
-        let result = std::process::Command::new("/usr/bin/open")
-            .args(["-a", "Preview"])
-            .arg(path)
-            .status();
         #[cfg(target_os = "linux")]
-        let result = std::process::Command::new("/usr/bin/xdg-open")
-            .arg(path)
-            .status();
-        if !result.map(|s| s.success()).unwrap_or(false) {
-            return Err(power::err(
-                "System PDF viewer could not open. Open the exported file manually to print.",
-            ));
+        {
+            power::open_pdf_viewer(&path)
         }
-        Ok(())
+        #[cfg(target_os = "macos")]
+        {
+            let result = std::process::Command::new("/usr/bin/open")
+                .args(["-a", "Preview"])
+                .arg(path)
+                .status();
+            if !result.map(|s| s.success()).unwrap_or(false) {
+                return Err(power::err(
+                    "System PDF viewer could not open. Open the exported file manually to print.",
+                ));
+            }
+            Ok(())
+        }
     })
     .await
     .map_err(|_| power::err("Open PDF interrupted."))?

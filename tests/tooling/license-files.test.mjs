@@ -10,7 +10,19 @@ import {
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { createHash } from "node:crypto";
-import { licenseFiles } from "../../scripts/license-files.mjs";
+import { licenseFiles, renderNotices } from "../../scripts/license-files.mjs";
+
+test("groups identical notices while preserving all component attributions and exact text", () => {
+  const text = "\ufeffCopyright 文\r\nPermission retained.\r\n";
+  const rendered = renderNotices([
+    { component: "Second component", text },
+    { component: "First component", text },
+    { component: "Different terms", text: "Other license\n" },
+  ]);
+  assert.equal(rendered.split(text).length - 1, 1);
+  assert(rendered.includes("First component\n\nSecond component"));
+  assert(rendered.includes("Different terms\n\nOther license\n"));
+});
 
 function fixture(run) {
   const root = mkdtempSync(join(tmpdir(), "marktub-notices-"));

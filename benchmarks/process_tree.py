@@ -20,6 +20,17 @@ def processes():
         if len(parts) == 4:
             pid, parent, rss, name = parts
             result[int(pid)] = {"pid": int(pid), "parent": int(parent), "rssBytes": int(rss) * 1024, "name": name}
+    if sys.platform == "linux":
+        from linux_rusage import stat
+        for pid in list(result):
+            try:
+                identity = stat(Path(f"/proc/{pid}/stat").read_text())
+                if identity["parent"] != result[pid]["parent"]:
+                    del result[pid]
+                else:
+                    result[pid]["startTicks"] = identity["startTicks"]
+            except (OSError, ValueError):
+                del result[pid]
     return result
 
 

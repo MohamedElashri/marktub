@@ -1,9 +1,27 @@
+import { spawnSync } from "node:child_process";
 import { defineConfig } from "vitest/config";
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 
 export default defineConfig({
   plugins: [
+    {
+      name: "generated-attribution",
+      resolveId(id) {
+        if (id === "virtual:marktub-notices") return "\0" + id;
+      },
+      load(id) {
+        if (id !== "\0virtual:marktub-notices") return;
+        if (!existsSync("artifacts/licenses/frontend.txt")) {
+          const result = spawnSync(process.execPath, ["scripts/licenses.mjs"], {
+            stdio: "inherit",
+          });
+          if (result.status !== 0)
+            throw Error("Dependency attribution generation failed");
+        }
+        return `export default ${JSON.stringify(readFileSync("artifacts/licenses/frontend.txt", "utf8"))}`;
+      },
+    },
     {
       name: "offline-export-fonts",
       resolveId(id) {

@@ -139,6 +139,7 @@ pub struct Session<S: LogStore = File> {
     operations: HashMap<String, Receipt>,
     base_hash: String,
     log: S,
+    lease: Option<LogLease>,
     log_length: usize,
     checksum: String,
     poisoned: bool,
@@ -177,13 +178,23 @@ fn create_file(path: &Path) -> std::io::Result<File> {
         .custom_flags(libc::O_NOFOLLOW | libc::O_CLOEXEC)
         .open(path)
 }
-fn lock_log(file: &File) -> std::io::Result<()> {
+struct LogLease(File);
+impl Drop for LogLease {
+    fn drop(&mut self) {
+        // dup/fork may retain the open description after the logical owner ends.
+        // Unlock explicitly; closing an unrelated duplicate must not unlock a
+        // subsequent session that acquired its own open description.
+        unsafe { libc::flock(self.0.as_raw_fd(), libc::LOCK_UN) };
+    }
+}
+fn lock_log(file: &File) -> std::io::Result<LogLease> {
+    let lease = LogLease(file.try_clone()?);
     // SAFETY: file owns a valid FD for the entire call. Keep the advisory lock
     // until this Session drops, including poisoned/failed-flush sessions.
     if unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) } != 0 {
         return Err(std::io::Error::last_os_error());
     }
-    Ok(())
+    Ok(lease)
 }
 
 impl Session<File> {
@@ -208,7 +219,7 @@ impl Session<File> {
             .write(true)
             .custom_flags(libc::O_NOFOLLOW | libc::O_CLOEXEC | libc::O_NONBLOCK)
             .open(folder.join("journal.jsonl"))?;
-        lock_log(&log)?;
+        let _lease = lock_log(&log)?;
         let log_before = crate::atomic_save::Identity::of(&log.metadata()?);
         if !log.metadata()?.is_file() {
             return Err(JournalError::Format);
@@ -291,8 +302,9 @@ impl Session<File> {
         file.write_all(base)?;
         crate::private_store::sync(&file)?;
         let log = create_file(&folder.join("journal.jsonl"))?;
-        lock_log(&log)?;
-        let session = Self::start_source(base, &id, log, source)?;
+        let lease = lock_log(&log)?;
+        let mut session = Self::start_source(base, &id, log, source)?;
+        session.lease = Some(lease);
         File::open(&folder)?.sync_all()?;
         File::open(root)?.sync_all()?;
         Ok((id, session))
@@ -323,9 +335,10 @@ impl Session<File> {
         if bytes.len() > MAX_LOG {
             return Err(JournalError::Capacity);
         }
-        let (repaired, complete) = Self::replay(&base, id, log, &bytes, Some(&folder))?;
+        let (mut repaired, complete) = Self::replay(&base, id, log, &bytes, Some(&folder))?;
         repaired.log.set_len(complete as u64)?;
         crate::private_store::sync(&repaired.log)?;
+        repaired.lease = self.lease.take();
         *self = repaired;
         Ok(())
     }
@@ -363,12 +376,13 @@ impl Session<File> {
         })?;
         let temp = folder.join(format!("{}.log", Uuid::new_v4()));
         let mut new_log = create_file(&temp)?;
-        lock_log(&new_log)?;
+        let lease = lock_log(&new_log)?;
         new_log.write_all(&header)?;
         crate::private_store::sync(&new_log)?;
         fs::rename(&temp, folder.join("journal.jsonl"))?;
         // Keep both old and new log FDs locked until the new header is published.
         self.log = new_log;
+        self.lease = Some(lease);
         self.log_length = header.len();
         self.checksum = checksum;
         File::open(&folder)?.sync_all()?;
@@ -410,7 +424,7 @@ impl Session<File> {
             return Err(JournalError::Capacity);
         }
         let mut log = open("journal.jsonl", true)?;
-        lock_log(&log)?;
+        let lease = lock_log(&log)?;
         if !log.metadata()?.is_file() || log.metadata()?.len() > MAX_LOG as u64 {
             return Err(JournalError::Capacity);
         }
@@ -421,7 +435,8 @@ impl Session<File> {
         if bytes.len() > MAX_LOG {
             return Err(JournalError::Capacity);
         }
-        let (session, complete) = Self::replay(&base, id, log, &bytes, Some(&folder))?;
+        let (mut session, complete) = Self::replay(&base, id, log, &bytes, Some(&folder))?;
+        session.lease = Some(lease);
         // Only a torn final frame may be discarded. Complete corrupt frames fail closed.
         // A no-op set_len still changes inode timestamps on macOS, invalidating
         // read-only catalogue fingerprints. Preserve metadata for a complete log.
@@ -470,6 +485,7 @@ impl<S: LogStore> Session<S> {
             durable: 0,
             operations: HashMap::new(),
             log,
+            lease: None,
             log_length: bytes.len(),
             checksum: base_hash.clone(),
             base_hash,
@@ -507,6 +523,7 @@ impl<S: LogStore> Session<S> {
             durable: 0,
             operations: HashMap::new(),
             log,
+            lease: None,
             log_length: complete,
             checksum: header.base_hash.clone(),
             base_hash: header.base_hash,
@@ -981,6 +998,61 @@ mod tests {
         live.flush().unwrap();
         drop(live);
         let recovered = Session::recover(root.path(), &id).unwrap();
+        assert_eq!(output(recovered.source()), b"Abc");
+    }
+    #[test]
+    fn duplicate_log_description_does_not_extend_the_closed_sessions_lease() {
+        let root = tempfile::tempdir().unwrap();
+        fs::set_permissions(root.path(), fs::Permissions::from_mode(0o700)).unwrap();
+        let (id, live) = Session::create(root.path(), b"abc").unwrap();
+        let duplicate = live.log.try_clone().unwrap();
+        drop(live);
+        let recovered = Session::recover(root.path(), &id)
+            .expect("Only the logical session owns the journal lease");
+        drop(duplicate);
+        assert!(
+            matches!(Session::recover(root.path(), &id), Err(JournalError::Io(e)) if e.kind() == std::io::ErrorKind::WouldBlock)
+        );
+        drop(recovered);
+        assert!(Session::recover(root.path(), &id).is_ok());
+    }
+    #[test]
+    fn journal_lease_survives_repair_failure_success_and_checkpoint_publication() {
+        let root = tempfile::tempdir().unwrap();
+        fs::set_permissions(root.path(), fs::Permissions::from_mode(0o700)).unwrap();
+        let (id, mut live) = Session::create(root.path(), b"abc").unwrap();
+        live.append(batch(&id, 1, 0, 1, "A")).unwrap();
+        live.flush().unwrap();
+        let path = root.path().join(&id).join("journal.jsonl");
+        let valid = fs::read(&path).unwrap();
+        OpenOptions::new()
+            .append(true)
+            .open(&path)
+            .unwrap()
+            .write_all(b"invalid complete frame\n")
+            .unwrap();
+        assert!(live.repair(root.path(), &id).is_err());
+        assert!(
+            matches!(Session::recover(root.path(), &id), Err(JournalError::Io(e)) if e.kind() == std::io::ErrorKind::WouldBlock)
+        );
+        fs::write(&path, valid).unwrap();
+        live.repair(root.path(), &id).unwrap();
+        assert!(
+            matches!(Session::recover(root.path(), &id), Err(JournalError::Io(e)) if e.kind() == std::io::ErrorKind::WouldBlock)
+        );
+        let old_description = live.log.try_clone().unwrap();
+        live.checkpoint(root.path(), &id).unwrap();
+        drop(old_description);
+        assert!(
+            matches!(Session::recover(root.path(), &id), Err(JournalError::Io(e)) if e.kind() == std::io::ErrorKind::WouldBlock)
+        );
+        let current_description = live.log.try_clone().unwrap();
+        drop(live);
+        let recovered = Session::recover(root.path(), &id).unwrap();
+        drop(current_description);
+        assert!(
+            matches!(Session::recover(root.path(), &id), Err(JournalError::Io(e)) if e.kind() == std::io::ErrorKind::WouldBlock)
+        );
         assert_eq!(output(recovered.source()), b"Abc");
     }
 }

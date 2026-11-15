@@ -1,6 +1,6 @@
 {
   "name": "marktub",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -10,7 +10,7 @@
     "pnpm": "12.18.0"
   },
   "scripts": {
-    "dev": "vite --host 127.0.0.1 --port 1420 --strictPort",
+    "dev": "node scripts/licenses.mjs && vite --host 127.0.0.1 --port 1420 --strictPort",
     "build": "node scripts/licenses.mjs && vite build",
     "preview": "vite preview --host 127.0.0.1",
     "tauri": "tauri",
@@ -21,7 +21,7 @@
     "test:e2e": "node scripts/e2e.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm test:tooling && pnpm format:check",
+    "check": "pnpm licenses:generate && pnpm typecheck && pnpm lint && pnpm test && pnpm test:tooling && pnpm format:check",
     "fixtures": "node scripts/fixtures.mjs",
     "bench:open": "node scripts/range-bench.mjs",
     "bench:dom": "vitest run --config benchmarks/vitest.config.ts",
@@ -30,7 +30,9 @@
     "bench:startup": "python3 benchmarks/startup.py",
     "check:release": "node scripts/check-release.mjs",
     "check:repository": "node scripts/check-repository.mjs",
-    "source:archive": "python3 scripts/source-archive.py"
+    "source:archive": "python3 scripts/source-archive.py",
+    "check:dependencies": "python3 scripts/check-dependencies.py",
+    "licenses:generate": "node scripts/licenses.mjs"
   },
   "dependencies": {
     "@codemirror/commands": "6.11.1",

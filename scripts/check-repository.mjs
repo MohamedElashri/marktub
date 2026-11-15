@@ -5,6 +5,14 @@ import { resolve, relative, isAbsolute } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export function publicationFiles(root) {
+  const deleted = new Set(
+    execFileSync("git", ["ls-files", "--deleted", "-z"], {
+      cwd: root,
+      encoding: "utf8",
+    })
+      .split("\0")
+      .filter(Boolean),
+  );
   return [
     ...new Set(
       execFileSync(
@@ -17,7 +25,7 @@ export function publicationFiles(root) {
         },
       )
         .split("\0")
-        .filter(Boolean),
+        .filter((file) => file && !deleted.has(file)),
     ),
   ].sort();
 }
@@ -95,6 +103,10 @@ if (
   resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 ) {
   const root = process.cwd();
+  execFileSync("python3", ["scripts/check-dependencies.py"], {
+    cwd: root,
+    stdio: "pipe",
+  });
   const files = publicationFiles(root);
   const issues = inspectPublication(root, files);
   if (issues.length) {

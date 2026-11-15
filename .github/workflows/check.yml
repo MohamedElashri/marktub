@@ -8,12 +8,16 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   desktop:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-15, macos-15-intel, ubuntu-24.04]
+        os: [macos-15, ubuntu-24.04]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 55
     steps:
@@ -26,15 +30,30 @@ jobs:
           package-manager-cache: false
       - name: Install pinned tools
         run: |
-          npm install --global pnpm@12.18.0
-          rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy
+          npm install --global "$(node -p 'require("./package.json").packageManager')"
+          rustup show
           rustc --version
           uname -a
       - name: Linux desktop dependencies
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential libxdo-dev libssl-dev librsvg2-dev libayatana-appindicator3-dev patchelf xvfb dbus-x11 desktop-file-utils
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential libxdo-dev libssl-dev librsvg2-dev libayatana-appindicator3-dev patchelf xvfb openbox dbus-x11 desktop-file-utils texlive-xetex fonts-noto-core poppler-utils python3-gi gir1.2-atspi-2.0 at-spi2-core evince
+      - name: Universal desktop macOS targets and SDK
+        if: runner.os == 'macOS'
+        run: |
+          rustup target add aarch64-apple-darwin x86_64-apple-darwin
+          echo "SDKROOT=$(xcrun --sdk macosx --show-sdk-path)" >> "$GITHUB_ENV"
+      - name: macOS converter prerequisites (never app bootstrap)
+        if: runner.os == 'macOS'
+        run: |
+          brew install poppler
+          if ! test -x /Library/TeX/texbin/xelatex; then brew install --cask basictex; fi
+          echo /Library/TeX/texbin >> "$GITHUB_PATH"
+          sudo /Library/TeX/texbin/tlmgr update --self
+          sudo /Library/TeX/texbin/tlmgr install adjustbox fvextra booktabs float geometry amsmath amsfonts fontspec lm
+      - name: Pinned desktop test converters (never app bootstrap)
+        run: python3 scripts/fetch-test-tools.py --github-env "$GITHUB_ENV"
       - run: pnpm install --frozen-lockfile
       - run: cargo fetch --manifest-path src-tauri/Cargo.toml --locked
       - run: pnpm check:repository
@@ -42,12 +61,15 @@ jobs:
       - run: cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
       - run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --locked -- -D warnings
       - run: cargo test --manifest-path src-tauri/Cargo.toml --locked
+      - name: Native dependency backport regressions
+        if: runner.os == 'Linux'
+        run: python3 scripts/check-dependencies.py --native
       - name: Native macOS app smoke
         if: runner.os == 'macOS'
         run: pnpm test:e2e
       - name: Native Linux app smoke under X11
         if: runner.os == 'Linux'
-        run: xvfb-run -a dbus-run-session -- pnpm test:e2e
+        run: xvfb-run -a dbus-run-session -- sh -c 'openbox > /tmp/marktub-window-manager.log 2>&1 & exec pnpm test:e2e'
       - name: Production macOS bundle
         if: runner.os == 'macOS'
         run: python3 scripts/build-macos.py
@@ -58,13 +80,13 @@ jobs:
       - name: Verify and copy the local macOS DMG
         if: runner.os == 'macOS'
         run: |
-          image=$(find src-tauri/target/release/bundle/dmg -maxdepth 1 -name '*.dmg' -print -quit)
+          image=$(find src-tauri/target/universal-apple-darwin/release/bundle/dmg -maxdepth 1 -name '*.dmg' -print -quit)
           python3 scripts/check-macos-package.py --dmg "$image"
       - name: Validate and sample macOS process counters
         if: runner.os == 'macOS'
         run: |
           python3 benchmarks/macos_rusage.py > artifacts/rusage-self-check.json
-          python3 benchmarks/release_profile.py --binary src-tauri/target/release/bundle/macos/Marktub.app/Contents/MacOS/marktub --label installed-macos-empty --rusage --samples 3 --interval 10 --output artifacts/installed-macos-profile.json
+          python3 benchmarks/release_profile.py --binary src-tauri/target/universal-apple-darwin/release/bundle/macos/Marktub.app/Contents/MacOS/marktub --label installed-macos-empty --rusage --samples 3 --interval 10 --output artifacts/installed-macos-profile.json
           python3 - <<'PY'
           import json
           from pathlib import Path
@@ -78,23 +100,37 @@ jobs:
         run: |
           package=$(find src-tauri/target/release/bundle/deb -maxdepth 1 -name '*.deb' -print -quit)
           dpkg-deb --info "$package"
+          python3 scripts/check-linux-package.py --deb "$package"
           sudo dpkg -i "$package"
           desktop-file-validate /usr/share/applications/Marktub.desktop
-          xvfb-run -a dbus-run-session -- python3 benchmarks/release_profile.py --binary /usr/bin/marktub --document tests/fixtures/specimen.md --label installed-ubuntu-read --samples 2 --interval 5 --output artifacts/installed-linux.json
+          GDK_BACKEND=x11 xvfb-run -a dbus-run-session -- sh -c 'openbox > /tmp/marktub-installed-window-manager.log 2>&1 & exec /usr/bin/python3 scripts/check-linux-installed.py --binary /usr/bin/marktub --example --output artifacts/installed-linux-ui.json'
+          xvfb-run -a dbus-run-session -- python3 benchmarks/release_profile.py --binary /usr/bin/marktub --document tests/fixtures/specimen.md --label installed-ubuntu-read --rusage --samples 2 --interval 5 --output artifacts/installed-linux.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          data = json.loads(Path("artifacts/installed-linux.json").read_text())
+          assert data["lifecycleAttributionConfirmed"] and data["documentUnchanged"]
+          assert all(not sample["counterErrors"] and not sample.get("pssIncomplete") for sample in data["samples"])
+          assert all(sample["counterInterval"]["complete"] for sample in data["samples"][1:])
+          PY
       - name: Preserve macOS executable permissions in the artifact
         if: runner.os == 'macOS'
         run: |
           mkdir -p artifacts
-          tar -czf artifacts/Marktub.app.tar.gz -C src-tauri/target/release/bundle/macos Marktub.app
+          tar -czf artifacts/Marktub.app.tar.gz -C src-tauri/target/universal-apple-darwin/release/bundle/macos Marktub.app
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
         with:
           name: desktop-${{ matrix.os }}
           path: |
             artifacts/*.json
+            artifacts/native-*.png
+            artifacts/*installed*.app.log
+            artifacts/wdio/*.log
+            artifacts/*.pdf
             artifacts/*.tar.gz
             src-tauri/target/release/bundle/deb/*.deb
-            src-tauri/target/release/bundle/dmg/*.dmg
+            src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
           if-no-files-found: warn
           retention-days: 7
   advisories:
@@ -108,7 +144,7 @@ jobs:
         with:
           node-version-file: .node-version
           package-manager-cache: false
-      - run: npm install --global pnpm@12.18.0
+      - run: npm install --global "$(node -p 'require("./package.json").packageManager')"
       - run: pnpm install --frozen-lockfile
       - run: mkdir -p artifacts
       - name: Production JavaScript advisories

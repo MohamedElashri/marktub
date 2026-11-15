@@ -55,6 +55,9 @@ pub fn run() {
 #[cfg(feature = "e2e")]
 mod test_support;
 
+#[cfg(all(test, target_os = "linux"))]
+mod dependency_tests;
+
 /// Private native child entry; it never initializes a WebView or an app command.
 #[cfg(not(feature = "blank-baseline"))]
 pub fn job_supervisor_entry() -> Option<i32> {

@@ -14,7 +14,7 @@ import urllib.request
 metadata = json.loads(subprocess.check_output([
     "cargo", "metadata", "--manifest-path", "src-tauri/Cargo.toml", "--locked",
     "--offline", "--format-version", "1"], text=True))
-missing = set(json.loads(Path("docs/evidence/rust-license-coverage.json").read_text())["missing"])
+missing = set(json.loads(Path("artifacts/licenses/rust-license-coverage.json").read_text())["missing"])
 packages = [p for p in metadata["packages"] if f'{p["name"]}@{p["version"]}' in missing]
 
 def collect(p):
@@ -46,10 +46,13 @@ def collect(p):
     return {"package": f'{p["name"]}@{p["version"]}', "repository": repository, "commit": commit, "notices": texts}
 
 output = Path("src/rust-notice-supplements.json")
-records = json.loads(output.read_text()) if output.exists() else []
+retained = json.loads(output.read_text()) if output.exists() else {"texts": {}, "packages": []}
+records = retained["packages"]
 for package in packages:
     try: result = collect(package)
     except Exception as e: result = {"package": f'{package["name"]}@{package["version"]}', "error": type(e).__name__}
+    for notice in result.get("notices", []):
+        retained["texts"][notice["sha256"]] = notice.pop("text")
     records = [r for r in records if r["package"] != result["package"]] + [result]
-    output.write_text(json.dumps(sorted(records, key=lambda r:r["package"]), ensure_ascii=False, indent=2) + "\n")
+    output.write_text(json.dumps({"texts": retained["texts"], "packages": sorted(records, key=lambda r:r["package"])}, ensure_ascii=False, indent=2) + "\n")
     print(result["package"], len(result.get("notices", [])), flush=True)

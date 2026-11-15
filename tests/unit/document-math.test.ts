@@ -23,6 +23,27 @@ const expression = (source: string, display = true): MathExpression => ({
   display,
 });
 
+it("emits self-contained complete SVGs for inline and numbered document math", () => {
+  const output = mathjaxDocument([
+    expression("E=mc^2", false),
+    expression(String.raw`\begin{equation}q=x\label{complete}\end{equation}`),
+  ]);
+  const inline = document.createElement("div");
+  inline.innerHTML = sanitizeRich(output[0], "complete-inline");
+  expect(inline.querySelectorAll("svg")).toHaveLength(1);
+  expect(inline.querySelectorAll("path").length).toBeGreaterThanOrEqual(5);
+  const numbered = document.createElement("div");
+  numbered.innerHTML = sanitizeRich(output[1], "complete-numbered");
+  const root = numbered.querySelector("svg")!;
+  expect(root.hasAttribute("viewBox")).toBe(true);
+  expect(root.getAttribute("width")).not.toBe("100%");
+  for (const nested of root.querySelectorAll("svg"))
+    expect(nested.getAttribute("overflow")).toBe("visible");
+  expect(numbered.querySelector(".math-alternative")?.textContent).toContain(
+    "q",
+  );
+});
+
 it("compiles forward references, ordered equation tags and global definitions without viewport state", () => {
   const formulas = [
     expression(String.raw`\eqref{later}`),

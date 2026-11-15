@@ -1,6 +1,8 @@
 use super::*;
 use std::process::Command;
 fn git(root: &Path, args: &[&str]) -> String {
+    // New Git versions detach maintenance after commits; fixture commands must
+    // leave metadata quiescent before the native snapshot validator runs.
     let result = Command::new("git")
         .arg("-C")
         .arg(root)
@@ -11,6 +13,10 @@ fn git(root: &Path, args: &[&str]) -> String {
             "protocol.allow=never",
             "-c",
             "commit.gpgsign=false",
+            "-c",
+            "maintenance.auto=false",
+            "-c",
+            "gc.auto=0",
         ])
         .args(args)
         .env("GIT_CONFIG_NOSYSTEM", "1")
@@ -425,6 +431,10 @@ fn v4_and_conflicts_remain_read_only_with_head_disk_inspection() {
         .args([
             "-c",
             "core.hooksPath=/dev/null",
+            "-c",
+            "maintenance.auto=false",
+            "-c",
+            "gc.auto=0",
             "merge",
             "--no-edit",
             "side",

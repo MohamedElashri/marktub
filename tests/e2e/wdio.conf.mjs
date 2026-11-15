@@ -1,12 +1,10 @@
+import { desktopBinary } from "../../scripts/desktop-paths.mjs";
 import { resolve } from "node:path";
 
-const binary = resolve(
-  process.platform === "darwin"
-    ? "src-tauri/target/debug/bundle/macos/Marktub.app/Contents/MacOS/marktub"
-    : "src-tauri/target/debug/marktub",
-);
+const binary = desktopBinary("debug");
 export const config = {
   runner: "local",
+  outputDir: resolve("artifacts/wdio"),
   specs: [resolve("tests/e2e/smoke.e2e.mjs")],
   maxInstances: 1,
   services: [

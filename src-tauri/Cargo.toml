@@ -1,6 +1,6 @@
 [package]
 name = "marktub"
-version = "0.0.0"
+version = "0.1.0"
 description = "Offline Markdown reader and source-preserving editor"
 authors = ["Marktub contributors"]
 license = "MIT"
@@ -37,6 +37,9 @@ tauri-plugin-single-instance = "=2.5.5"
 [dev-dependencies]
 tempfile = "3"
 
+[target.'cfg(target_os = "linux")'.dev-dependencies]
+glib = "0.18"
+
 [features]
 default = []
 blank-baseline = []
@@ -46,3 +49,9 @@ e2e = ["dep:tauri-plugin-wdio", "dep:tauri-plugin-wdio-webdriver"]
 strip = true
 lto = "thin"
 codegen-units = 1
+
+[patch.crates-io]
+glib = { path = "vendor/glib" }
+glib-macros = { path = "vendor/glib-macros" }
+gtk3-macros = { path = "vendor/gtk3-macros" }
+tauri-plugin-single-instance = { path = "vendor/tauri-plugin-single-instance" }

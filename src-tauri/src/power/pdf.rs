@@ -26,7 +26,7 @@ const LATEX: &str = r#"\documentclass[11pt]{article}
 \newcounter{none}
 \newcommand{\pandocbounded}[1]{\begin{adjustbox}{max width=\linewidth,max totalheight=.8\textheight}#1\end{adjustbox}}
 \DefineVerbatimEnvironment{verbatim}{Verbatim}{breaklines=true,breakanywhere=true}
-\IfFontExistsTF{Arial Unicode MS}{\setmainfont{Arial Unicode MS}[AutoFakeBold=2,AutoFakeSlant=.2]}{\setmainfont{Latin Modern Roman}}
+\IfFontExistsTF{Arial Unicode MS}{\setmainfont{Arial Unicode MS}[AutoFakeBold=2,AutoFakeSlant=.2]}{\setmainfont{lmroman10-regular.otf}[BoldFont=lmroman10-bold.otf,ItalicFont=lmroman10-italic.otf,BoldItalicFont=lmroman10-bolditalic.otf]}
 \providecommand{\tightlist}{\setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
 \begin{document}
 $if(toc)$\tableofcontents\newpage$endif$
