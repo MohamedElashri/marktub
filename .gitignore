@@ -8,7 +8,6 @@ artifacts/
 tests/generated/
 .DS_Store
 *.log
-!AGENTS.md
 __pycache__/
 *.pyc
 .agents/
