@@ -28,11 +28,12 @@ class PackageIcons(unittest.TestCase):
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
         source = Path(__file__).resolve().parents[2] / "src-tauri/icons"
-        self.icons = [source / "32x32.png", source / "64x64.png"]
+        self.sizes = [32, 64, 128, 256, 512]
+        self.icons = [source / f"{size}x{size}.png" for size in self.sizes[:-1]] + [source / "icon.png"]
         self.desktop = "[Desktop Entry]\nIcon=marktub\nStartupWMClass=marktub\n"
 
     def install(self):
-        for icon, size in zip(self.icons, [32, 64]):
+        for icon, size in zip(self.icons, self.sizes):
             path = self.root / f"usr/share/icons/hicolor/{size}x{size}/apps/marktub.png"
             path.parent.mkdir(parents=True)
             shutil.copyfile(icon, path)
@@ -43,7 +44,7 @@ class PackageIcons(unittest.TestCase):
 
     def test_all_declared_sizes_must_match_the_original_artwork(self):
         self.install()
-        self.assertEqual(len(module.verify_icons(self.root, self.desktop, self.icons)), 2)
+        self.assertEqual(len(module.verify_icons(self.root, self.desktop, self.icons)), 5)
         (self.root / "usr/share/icons/hicolor/64x64/apps/marktub.png").write_bytes(b"wrong icon")
         with self.assertRaisesRegex(AssertionError, "differs from the app logo"):
             module.verify_icons(self.root, self.desktop, self.icons)
