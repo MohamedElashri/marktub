@@ -104,3 +104,23 @@ export function licenseFiles(directory, declared, limits = {}) {
     })
     .filter((notice) => notice.text.trim());
 }
+
+export function renderNotices(records) {
+  const groups = new Map();
+  for (const { component, text } of records) {
+    const hash = createHash("sha256").update(text).digest("hex");
+    if (!groups.has(hash)) groups.set(hash, { text, components: new Set() });
+    groups.get(hash).components.add(component);
+  }
+  return (
+    "Dependency attribution. Identical notice texts are retained once for the listed components.\n\n" +
+    [...groups.values()]
+      .map(
+        ({ text, components }) =>
+          [...components].sort().join("\n\n") + "\n\n" + text,
+      )
+      .join(
+        "\n\n------------------------------------------------------------\n\n",
+      )
+  );
+}

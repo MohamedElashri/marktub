@@ -101,7 +101,7 @@ export async function exportStandalone(
   const summary = doc.createElement("summary");
   summary.textContent = "Renderer and embedded-font licenses";
   const licenses = doc.createElement("pre");
-  licenses.textContent = (await import("../frontend-notices.txt?raw")).default;
+  licenses.textContent = (await import("virtual:marktub-notices")).default;
   credits.append(summary, licenses);
   doc.body.append(credits);
   const content = "<!doctype html>\n" + doc.documentElement.outerHTML;

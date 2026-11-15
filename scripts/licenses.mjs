@@ -1,9 +1,11 @@
 import { format } from "prettier";
 import { spawnSync } from "node:child_process";
-import { readFileSync, readdirSync, writeFileSync, existsSync } from "node:fs";
+import { readFileSync, readdirSync, writeFileSync, mkdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { createHash } from "node:crypto";
-import { licenseFiles } from "./license-files.mjs";
+import { licenseFiles, renderNotices } from "./license-files.mjs";
+const output = "artifacts/licenses";
+mkdirSync(output, { recursive: true });
 const result = spawnSync("pnpm", ["licenses", "list", "--prod", "--json"], {
   encoding: "utf8",
 });
@@ -41,9 +43,9 @@ const rust = JSON.parse(metadata.stdout).packages.filter(
 );
 const rustCoverage = [],
   rustNotices = [];
-const supplements = existsSync("src/rust-notice-supplements.json")
-  ? JSON.parse(readFileSync("src/rust-notice-supplements.json", "utf8"))
-  : [];
+const supplements = JSON.parse(
+  readFileSync("src/rust-notice-supplements.json", "utf8"),
+);
 for (const pkg of rust) {
   const override = localOverride(pkg);
   const origin = override
@@ -54,25 +56,28 @@ for (const pkg of rust) {
   const retained = [];
   for (const { path, text } of candidates) {
     retained.push(path);
-    rustNotices.push(
-      `${pkg.name} ${pkg.version} — ${pkg.license || "SEE LICENSE"}\n${origin}\n${path}\n${text}`,
-    );
+    rustNotices.push({
+      component: `${pkg.name} ${pkg.version} — ${pkg.license || "SEE LICENSE"}\n${origin}\n${path}`,
+      text,
+    });
   }
   if (!retained.length) {
-    const supplement = supplements.find(
+    const supplement = supplements.packages.find(
       (s) => s.package === `${pkg.name}@${pkg.version}`,
     );
     for (const notice of supplement?.notices ?? []) {
-      if (
-        createHash("sha256").update(notice.text).digest("hex") !== notice.sha256
-      )
+      const text = supplements.texts[notice.sha256];
+      if (typeof text !== "string")
+        throw Error(`Missing retained notice: ${pkg.name}`);
+      if (createHash("sha256").update(text).digest("hex") !== notice.sha256)
         throw Error(
           `Retained notice checksum mismatch: ${pkg.name} ${pkg.version}`,
         );
       retained.push(notice.url);
-      rustNotices.push(
-        `${pkg.name} ${pkg.version} — ${pkg.license || "SEE LICENSE"}\n${origin}\n${notice.url}\n${notice.text}`,
-      );
+      rustNotices.push({
+        component: `${pkg.name} ${pkg.version} — ${pkg.license || "SEE LICENSE"}\n${origin}\n${notice.url}`,
+        text,
+      });
     }
   }
   rustCoverage.push({
@@ -88,7 +93,7 @@ rustCoverage.sort(
   (a, b) => a.name.localeCompare(b.name) || a.version.localeCompare(b.version),
 );
 writeFileSync(
-  "docs/evidence/rust-licenses.json",
+  `${output}/rust-licenses.json`,
   await format(
     JSON.stringify(
       rustCoverage.map(({ name, version, license }) => ({
@@ -101,7 +106,7 @@ writeFileSync(
   ),
 );
 writeFileSync(
-  "docs/evidence/rust-license-coverage.json",
+  `${output}/rust-license-coverage.json`,
   await format(
     JSON.stringify({
       scope:
@@ -125,46 +130,47 @@ for (const packages of Object.values(groups))
     const files = readdirSync(directory).filter((name) =>
       /^(?:licen[sc]e|copying|notice)(?:[.\-_].*)?$/i.test(name),
     );
-    const texts = files
-      .map((file) => {
-        try {
-          return readFileSync(join(directory, file), "utf8");
-        } catch {
-          return "";
-        }
-      })
-      .filter(Boolean);
-    notices.push(
-      `${pkg.name} ${pkg.versions.join(", ")} — ${pkg.license}\nSource: https://www.npmjs.com/package/${pkg.name} (versions listed above; unmodified installed sources)\n${texts.join("\n") || `License declaration: ${pkg.license}. Upstream: ${pkg.homepage || pkg.repository || pkg.name}`}`,
-    );
+    for (const file of files.sort()) {
+      const text = readFileSync(join(directory, file), "utf8");
+      notices.push({
+        component: `${pkg.name} ${pkg.versions.join(", ")} — ${pkg.license}\nSource: https://www.npmjs.com/package/${pkg.name}\n${file}`,
+        text,
+      });
+    }
+    if (!files.length)
+      notices.push({
+        component: `${pkg.name} ${pkg.versions.join(", ")}`,
+        text: `License declaration: ${pkg.license}. Upstream: ${pkg.homepage || pkg.repository || pkg.name}`,
+      });
   }
 inventory.sort((a, b) => a.name.localeCompare(b.name));
 writeFileSync(
-  "docs/evidence/javascript-licenses.json",
+  `${output}/javascript-licenses.json`,
   await format(JSON.stringify(inventory), { parser: "json" }),
 );
-const frontendNotices =
-  "Installed production JavaScript dependency notices (superset of shipped modules).\n\n" +
-  notices.join(
-    "\n\n------------------------------------------------------------\n\n",
-  ) +
-  "\n\n" +
-  readFileSync("src/renderers/font-notices.txt", "utf8");
-writeFileSync("src/frontend-notices.txt", frontendNotices);
+const frontendNotices = renderNotices([
+  { component: "Marktub", text: readFileSync("LICENSE", "utf8") },
+  ...notices,
+  {
+    component: "Bundled math fonts",
+    text: readFileSync("src/renderers/font-notices.txt", "utf8"),
+  },
+]);
+writeFileSync(`${output}/frontend.txt`, frontendNotices);
 writeFileSync(
-  "THIRD_PARTY_LICENSES.txt",
-  frontendNotices +
-    "\n\n" +
-    readFileSync("src/library-notices.txt", "utf8") +
-    "\n\n" +
-    readFileSync("src/git-notices.txt", "utf8") +
-    "\n\n" +
-    readFileSync("src/power-notices.txt", "utf8") +
-    "\n\nRust dependency notices (resolved graph superset).\n\n" +
-    rustNotices.join(
-      "\n\n------------------------------------------------------------\n\n",
-    ),
+  `${output}/licenses.txt`,
+  renderNotices([
+    { component: "Marktub", text: readFileSync("LICENSE", "utf8") },
+    ...notices,
+    ...rustNotices,
+    {
+      component: "Bundled math fonts",
+      text: readFileSync("src/renderers/font-notices.txt", "utf8"),
+    },
+  ]),
 );
+if (rustCoverage.some((pkg) => !pkg.retainedFiles.length))
+  throw Error("Dependency notice coverage is incomplete");
 console.log(
-  `Collected ${inventory.length} production dependency license records plus embedded font notices.`,
+  `Generated build attribution for ${inventory.length} JavaScript and ${rustCoverage.length} Rust packages.`,
 );

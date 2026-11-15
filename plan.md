@@ -52,7 +52,8 @@ records retain exact revisions, hashes and tested tool versions.
 - [x] Run repository, frontend/tooling, strict Rust and native WebView checks.
 - [x] Build normal packages after testing; verify test-hook isolation, resources,
       metadata, executable identity and an offline installed-app workflow.
-- [x] Refresh source/package checksums and reproduce the source archive.
+- [ ] Refresh source/package checksums after the attribution and universal-build changes;
+      reproduce the source archive.
 - [ ] Confirm the physical input/accessibility/printing and unavailable-platform
       checks below before describing them as verified.
 
@@ -93,3 +94,12 @@ never convert an unrun check into a pass or hide dependency findings with ignore
 
 - The README presents matching Read and Split captures from the normal Linux app
   in a centered table gallery. Screenshot provenance remains in the release summary.
+
+- Generate dependency attribution and inventories under ignored build artifacts;
+  deduplicate identical notice texts. Remove tracked generated notice bundles and
+  the stale root notice while retaining upstream source licenses and font notices.
+- Use one native macOS CI job and universal desktop app/DMG builds. Validate both
+  architecture slices as macOS; runtime checks cover the runner's native slice.
+  Cancel superseded branch runs automatically.
+- Git test fixtures disable detached automatic maintenance so native metadata
+  snapshots see a quiescent fixture; production validation continues to fail closed.

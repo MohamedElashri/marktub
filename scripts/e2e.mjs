@@ -1,3 +1,4 @@
+import { desktopTargetArgs, desktopBinary } from "./desktop-paths.mjs";
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -9,6 +10,7 @@ const build = spawnSync(
     "tauri",
     "build",
     "--debug",
+    ...desktopTargetArgs,
     "--features",
     "e2e",
     "--config",
@@ -22,6 +24,18 @@ const build = spawnSync(
   },
 );
 if (build.status !== 0) process.exit(build.status ?? 1);
+if (process.platform === "darwin") {
+  const verify = spawnSync(
+    "python3",
+    [
+      "-c",
+      "import sys; sys.path.insert(0, 'scripts'); from macos_binary import verify; verify(sys.argv[1])",
+      desktopBinary("debug"),
+    ],
+    { stdio: "inherit" },
+  );
+  if (verify.status !== 0) process.exit(verify.status ?? 1);
+}
 const baseline = spawnSync(
   "python3",
   ["benchmarks/source_memory.py", "--baseline"],

@@ -1,3 +1,4 @@
+import { desktopBinary } from "../../scripts/desktop-paths.mjs";
 import { browser, expect } from "@wdio/globals";
 import { spawnSync } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
@@ -154,11 +155,7 @@ describe("OS file open and accessibility", () => {
     const second = join(dirname(seed.path), "second 文.md");
     await fs.writeFile(first, "# Native source\r\n");
     await fs.writeFile(second, "# Second handoff\n");
-    const binary = resolve(
-      process.platform === "darwin"
-        ? "src-tauri/target/debug/bundle/macos/Marktub.app/Contents/MacOS/marktub"
-        : "src-tauri/target/debug/marktub",
-    );
+    const binary = desktopBinary("debug");
     function handoff(path) {
       const run = spawnSync(binary, [path], {
         encoding: "utf8",
@@ -2426,6 +2423,10 @@ describe("Git workbench", () => {
         "protocol.allow=never",
         "-c",
         "commit.gpgsign=false",
+        "-c",
+        "maintenance.auto=false",
+        "-c",
+        "gc.auto=0",
         ...args,
       ],
       {
@@ -3809,11 +3810,7 @@ describe("Everyday workflows", () => {
       await browser.$(".tabbar").$("button=Library").click();
   }
   function handoff(path) {
-    const binary = resolve(
-      process.platform === "darwin"
-        ? "src-tauri/target/debug/bundle/macos/Marktub.app/Contents/MacOS/marktub"
-        : "src-tauri/target/debug/marktub",
-    );
+    const binary = desktopBinary("debug");
     const result = spawnSync(binary, [path], {
       encoding: "utf8",
       timeout: 15000,

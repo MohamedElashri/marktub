@@ -68,7 +68,7 @@ def inspect(package, binary):
         assert "MimeType=text/markdown;" in text, text
         assert "Terminal=false" in text, text
         resources = {}
-        for name, source in [("specimen.md", Path("tests/fixtures/specimen.md")), ("THIRD_PARTY_LICENSES.txt", Path("THIRD_PARTY_LICENSES.txt"))]:
+        for name, source in [("specimen.md", Path("tests/fixtures/specimen.md")), ("licenses.txt", Path("artifacts/licenses/licenses.txt"))]:
             candidates = list((root / "usr/lib").rglob(name))
             assert len(candidates) == 1, (name, candidates)
             assert candidates[0].is_file() and not candidates[0].is_symlink()

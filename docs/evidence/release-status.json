@@ -2,7 +2,7 @@
   "schemaVersion": 3,
   "date": "2026-11-15",
   "version": "0.1.0",
-  "status": "Linux release candidate verified locally; hosted desktop CI is in progress. Release not published.",
+  "status": "Attribution cleanup and universal macOS packaging prepared; rebuilt package and hosted CI qualification pending. Release not published.",
   "source": {
     "baseCommit": "34af363589d369abf5649571cd61e0900f1106b7",
     "scope": "Candidate snapshot; the deterministic source-archive manifest binds exact maintained files. Prepared Git revision is recorded with the release artifacts."
@@ -27,8 +27,8 @@
     },
     "tooling": {
       "status": "pass",
-      "nodeTests": 15,
-      "pythonTests": 19
+      "nodeTests": 17,
+      "pythonTests": 21
     },
     "dependencies": {
       "status": "pass",
@@ -93,7 +93,8 @@
         "THIRD_PARTY_LICENSES.txt": "6e1039b3cf7f3c37615de226ab99208577e03a6e6d57dc97f4c0de1f5960d486"
       },
       "portableLoaderAndLibraries": true,
-      "releaseIsolation": "pass: normal frontend, ACL, executable and dependency graph exclude test hooks"
+      "releaseIsolation": "pass: normal frontend, ACL, executable and dependency graph exclude test hooks",
+      "revisionScope": "Prior candidate, before generated-attribution changes; rebuild pending."
     },
     "offlineInstalledUbuntu": {
       "status": "pass",
@@ -110,7 +111,7 @@
       "networkMode": "none"
     },
     "sourceArchive": {
-      "status": "pass: reproduced byte-for-byte and every member/hash/mode verified against the maintained inventory",
+      "status": "Refresh pending after attribution and universal-build changes; prior candidate reproduced byte-for-byte.",
       "scope": "maintained source, tests and legal notices; excludes Git history, caches, private profiles and local reports",
       "checksums": "Exact final archive/package hashes are in the adjacent release manifest and SHA256SUMS, outside the source archive to avoid self-reference"
     },
@@ -158,6 +159,12 @@
           "height": 760
         }
       ]
+    },
+    "hostedCI": {
+      "supersededRuns": [43697786613, 43698765383],
+      "supersededStatus": "cancelled for requested universal-only macOS workflow",
+      "priorFailure": "macOS Git fixture native snapshot encountered NotFound; inferred detached Git maintenance race from upstream Git source. Fixture commands now disable automatic maintenance; hosted recheck pending.",
+      "macosScope": "One native macOS runner builds universal-apple-darwin debug smoke and normal app/DMG; both slices require desktop MACOS platform. Runtime checks cover only runner-native slice, not minimum OS or both physical architectures."
     }
   },
   "security": {
@@ -218,11 +225,15 @@
     },
     "licenses": {
       "retainedRustPackages": 463,
-      "missing": []
+      "missing": [],
+      "generatedDirectory": "artifacts/licenses",
+      "trackedGeneratedInventories": false,
+      "identicalTexts": "retained once with all component attributions",
+      "sourceNotices": "Required upstream source licenses, patched dependency notices and bundled font notices retained"
     }
   },
   "remainingQualifications": [
-    "Current macOS ARM64, Intel and minimum-system verification; historical packages do not certify shared changes",
+    "Current universal desktop macOS package verification and native runner smoke; additional Intel runtime and minimum-system verification remain unrun",
     "Physical IME, screen-reader speech/navigation, keyboard/image integration, font dialogs, HiDPI and printing",
     "Full installed Ubuntu desktop and downloaded-package channel; offline runtime-container install is narrower",
     "Sustained large Source, multitab, Git/Review resource distributions and compositor/input-to-paint/DOM/IPC measurements",

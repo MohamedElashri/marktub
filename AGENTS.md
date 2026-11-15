@@ -55,7 +55,11 @@ pnpm check:release
 ```
 
 Choose the host command. Rebuild normally after e2e or blank-baseline builds.
-Outputs are under `src-tauri/target/release/bundle/`. Validate the actual package
+Linux outputs are under `src-tauri/target/release/bundle/`; macOS uses
+`src-tauri/target/universal-apple-darwin/release/bundle/`. Install both desktop
+Rust targets with `rustup target add aarch64-apple-darwin x86_64-apple-darwin`.
+macOS packaging always builds one universal app with the macOS SDK. Validate the
+actual package
 with `scripts/check-macos-package.py --dmg` or `scripts/check-linux-package.py --deb`.
 The macOS channel is ad-hoc and unnotarized; never change trust/quarantine settings.
 
@@ -66,7 +70,9 @@ It needs system Python GI/AT-SPI and a desktop session; CI supplies Xvfb/Openbox
 Before preparing source, run `pnpm check:repository`, then `pnpm source:archive`.
 The inventory guard supplements human review. Publication preparation is
 allowed; keep unresolved qualifications explicit. Never delete app-private
-histories as repository cleanup.
+histories as repository cleanup. Builds generate dependency attribution and
+inventories under `artifacts/licenses/`; packages and HTML exports include the
+relevant notices. Keep required upstream source licenses and bundled font notices.
 
 ## Measurement
 

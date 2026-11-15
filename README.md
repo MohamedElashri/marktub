@@ -69,5 +69,5 @@ Current verification results are in the
 [release summary](docs/evidence/release-status.json).
 
 For bugs, include the OS, app revision, reproduction steps and a small redacted
-fixture. Original code is [MIT licensed](LICENSE); [NOTICE](NOTICE) and
-[third-party notices](THIRD_PARTY_LICENSES.txt) retain upstream terms.
+fixture. Original code is [MIT licensed](LICENSE). Builds collect dependency
+attribution from pinned sources and include it in app packages and HTML exports.

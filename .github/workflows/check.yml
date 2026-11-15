@@ -8,12 +8,16 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   desktop:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-15, macos-15-intel, ubuntu-24.04]
+        os: [macos-15, ubuntu-24.04]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 55
     steps:
@@ -35,6 +39,11 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential libxdo-dev libssl-dev librsvg2-dev libayatana-appindicator3-dev patchelf xvfb openbox dbus-x11 desktop-file-utils texlive-xetex fonts-noto-core poppler-utils python3-gi gir1.2-atspi-2.0 at-spi2-core evince
+      - name: Universal desktop macOS targets and SDK
+        if: runner.os == 'macOS'
+        run: |
+          rustup target add aarch64-apple-darwin x86_64-apple-darwin
+          echo "SDKROOT=$(xcrun --sdk macosx --show-sdk-path)" >> "$GITHUB_ENV"
       - name: macOS converter prerequisites (never app bootstrap)
         if: runner.os == 'macOS'
         run: |
@@ -71,13 +80,13 @@ jobs:
       - name: Verify and copy the local macOS DMG
         if: runner.os == 'macOS'
         run: |
-          image=$(find src-tauri/target/release/bundle/dmg -maxdepth 1 -name '*.dmg' -print -quit)
+          image=$(find src-tauri/target/universal-apple-darwin/release/bundle/dmg -maxdepth 1 -name '*.dmg' -print -quit)
           python3 scripts/check-macos-package.py --dmg "$image"
       - name: Validate and sample macOS process counters
         if: runner.os == 'macOS'
         run: |
           python3 benchmarks/macos_rusage.py > artifacts/rusage-self-check.json
-          python3 benchmarks/release_profile.py --binary src-tauri/target/release/bundle/macos/Marktub.app/Contents/MacOS/marktub --label installed-macos-empty --rusage --samples 3 --interval 10 --output artifacts/installed-macos-profile.json
+          python3 benchmarks/release_profile.py --binary src-tauri/target/universal-apple-darwin/release/bundle/macos/Marktub.app/Contents/MacOS/marktub --label installed-macos-empty --rusage --samples 3 --interval 10 --output artifacts/installed-macos-profile.json
           python3 - <<'PY'
           import json
           from pathlib import Path
@@ -108,7 +117,7 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           mkdir -p artifacts
-          tar -czf artifacts/Marktub.app.tar.gz -C src-tauri/target/release/bundle/macos Marktub.app
+          tar -czf artifacts/Marktub.app.tar.gz -C src-tauri/target/universal-apple-darwin/release/bundle/macos Marktub.app
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
         with:
@@ -121,7 +130,7 @@ jobs:
             artifacts/*.pdf
             artifacts/*.tar.gz
             src-tauri/target/release/bundle/deb/*.deb
-            src-tauri/target/release/bundle/dmg/*.dmg
+            src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
           if-no-files-found: warn
           retention-days: 7
   advisories:

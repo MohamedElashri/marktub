@@ -1,3 +1,5 @@
+import { desktopTargetArgs, desktopBinary } from "./desktop-paths.mjs";
+import { resolve } from "node:path";
 import { cpSync, mkdirSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 
@@ -6,6 +8,7 @@ const build = spawnSync(
   [
     "tauri",
     "build",
+    ...desktopTargetArgs,
     "--features",
     "blank-baseline",
     "--bundles",
@@ -17,7 +20,7 @@ if (build.status !== 0) process.exit(build.status ?? 1);
 mkdirSync("artifacts/baseline", { recursive: true });
 if (process.platform === "darwin")
   cpSync(
-    "src-tauri/target/release/bundle/macos/Marktub.app",
+    resolve(desktopBinary("release"), "../../.."),
     "artifacts/baseline/Marktub.app",
     { recursive: true },
   );
