@@ -17,10 +17,16 @@ const KEY: &str = include_str!("../update-public-key.txt");
 const MANIFEST_LIMIT: usize = 32 * 1024;
 const PACKAGE_LIMIT: usize = 128 * 1024 * 1024;
 
+pub fn configure(context: &mut tauri::Context<tauri::Wry>) {
+    context.config_mut().plugins.0.insert(
+        "updater".into(),
+        serde_json::json!({
+            "pubkey": KEY.trim(), "requireSignedVersion": true,
+        }),
+    );
+}
 pub fn plugin() -> tauri::plugin::TauriPlugin<tauri::Wry, tauri_plugin_updater::Config> {
-    tauri_plugin_updater::Builder::new()
-        .pubkey(KEY.trim())
-        .build()
+    tauri_plugin_updater::Builder::new().build()
 }
 fn err(message: &str) -> FileError {
     FileError::new("update", message)

@@ -726,8 +726,10 @@ pub fn run() {
     let builder = builder.invoke_handler(commands![e2e_fixture]);
     #[cfg(not(feature = "e2e"))]
     let builder = builder.invoke_handler(commands![]);
+    let mut context = tauri::generate_context!();
+    crate::updates::configure(&mut context);
     builder
-        .build(tauri::generate_context!())
+        .build(context)
         .expect("Marktub could not start")
         .run(|app, event| {
             #[cfg(target_os = "macos")]
