@@ -162,8 +162,9 @@
         case "palette":
           return showPalette();
         case "quick_open":
-        case "search_workspaces":
           return showLibrary(true);
+        case "search_workspaces":
+          return showLibrary(true, true);
         case "browser":
           if (sidebar) {
             sidebar = false;
@@ -318,12 +319,12 @@
       }, 400);
     return () => clearTimeout(sessionTimer);
   });
-  async function showLibrary(quick = false) {
+  async function showLibrary(quick = false, content = false) {
     LibraryComponent ??= (await import("./Library.svelte")).default;
     sidebar = true;
     tabs[active]?.pane?.revealNavigation();
     await tick();
-    if (quick) panel?.quickOpen();
+    if (quick) await panel?.quickOpen(content);
     await library
       .configure(true, (await library.state()).view)
       .catch((e) => (message = bridge.errorMessage(e)));

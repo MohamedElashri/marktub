@@ -230,3 +230,11 @@ files. Open the containing folder in Library, then use **Links** for outgoing
 links and backlinks in saved files. Bare names prefer the same folder; otherwise
 only unique matches open automatically. Ambiguous or partial scans ask you to
 choose. Backlinks exclude hidden, ignored and symlinked files and report limits.
+
+## Browse and search folders
+
+Expand folders in Library’s **Files** view. **File details** contains sorting,
+filters, preview and file operations. Cmd/Ctrl+P filters filenames as you type;
+Cmd/Ctrl+Shift+F opens content search. Search results stay in the dialog. Use
+arrows and Enter to open one, or Preview to inspect it first. Closing search
+cancels its own job; it never cancels an unrelated file operation.

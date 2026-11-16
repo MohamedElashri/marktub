@@ -1258,6 +1258,8 @@ describe("Library", () => {
     await browser.$("button=Library").click();
     const start = performance.now();
     await browser.$("button=Add folder").click();
+    await browser.$("button=File details").waitForEnabled({ timeout: 60000 });
+    await browser.$("button=File details").click();
     await browser.waitUntil(
       async () =>
         (await browser.$(".listing-status").getText()).includes(
@@ -1357,15 +1359,25 @@ describe("Library", () => {
       .$("button=Search")
       .click();
     await browser
-      .$(".search-result")
-      .$("button=source.txt")
+      .$(".workspace-search-results")
+      .$('button[aria-label="Open source.txt"]')
       .waitForExist({ timeout: 20000 });
-    await browser.$(".search-result").$("button=Preview").click();
+    await browser.$(".workspace-search-results").$("button=Preview").click();
     await expect(browser.$(".quick-preview article h1")).toHaveText(
       "Library source",
     );
     await browser.$("button=Close preview").click();
-    await browser.$(".search-result").$("button=source.txt").click();
+    await browser
+      .$(".workspace-search-results")
+      .$('button[aria-label="Open source.txt"]')
+      .click();
+    await browser.waitUntil(
+      async () =>
+        !(await browser
+          .$('dialog[aria-label="Quick open and search"]')
+          .getProperty("open")),
+      { timeout: 60000 },
+    );
     await expect(
       browser.$(".document-tab:not([hidden]) article h1"),
     ).toHaveText("Library source");
@@ -1452,10 +1464,20 @@ describe("Library", () => {
       .$("button=Search")
       .click();
     await browser
-      .$(".search-result")
-      .$("button=source.txt")
+      .$(".workspace-search-results")
+      .$('button[aria-label="Open source.txt"]')
       .waitForExist({ timeout: 20000 });
-    await browser.$(".search-result").$("button=source.txt").click();
+    await browser
+      .$(".workspace-search-results")
+      .$('button[aria-label="Open source.txt"]')
+      .click();
+    await browser.waitUntil(
+      async () =>
+        !(await browser
+          .$('dialog[aria-label="Quick open and search"]')
+          .getProperty("open")),
+      { timeout: 60000 },
+    );
     await expect(
       browser.$(".document-tab:not([hidden]) article h1"),
     ).toHaveText("Library source");
@@ -3827,7 +3849,15 @@ describe("Everyday workflows", () => {
     readWaits.push({ title, milliseconds: Date.now() - started });
   }
   async function closeDocuments() {
+    for (const [label, close] of [
+      ["Quick preview", "Close preview"],
+      ["Quick open and search", "Close search"],
+    ]) {
+      const modal = browser.$(`dialog[aria-label="${label}"][open]`);
+      if (await modal.isExisting()) await modal.$(`button=${close}`).click();
+    }
     for (let i = 0; i < 8; i++) {
+      await ready();
       const tabs = await browser.$$(".tabs .tab");
       if (
         tabs.length === 1 &&
@@ -4082,6 +4112,108 @@ describe("Everyday workflows", () => {
       expect.stringContaining("unsaved"),
     );
     expect(await fs.readFile(fixture.path, "utf8")).toBe("# First\n");
+  });
+
+  it("browses expandable folders and opens live filename and content search results with the keyboard", async () => {
+    const fs = await import("node:fs/promises");
+    const fixture = await invoke("e2e_fixture", {
+      action: "seed",
+      text: "# Original tree fixture\n",
+    });
+    const root = dirname(fixture.path);
+    await fs.mkdir(join(root, "nested"));
+    await fs.writeFile(
+      join(root, "nested", "Scratch.md"),
+      "# Scratch\n\nA needle for content search.\n",
+    );
+    await fs.writeFile(join(root, "Other.md"), "# Other\n");
+    await Promise.all(
+      Array.from({ length: 20 }, (_, i) =>
+        fs.writeFile(
+          join(root, `Selection ${String(i).padStart(2, "0")}.md`),
+          "# Selection\n",
+        ),
+      ),
+    );
+    await pane().$("button=Open folder").click();
+    await browser
+      .$(".library-views")
+      .$("button=Files")
+      .waitForEnabled({ timeout: 60000 });
+    await browser.$(".library-views").$("button=Files").click();
+    const folder = browser.$('button[aria-label="Folder nested"]');
+    await folder.waitForDisplayed({ timeout: 60000 });
+    await folder.click();
+    await expect(folder).toHaveAttribute("aria-expanded", "true");
+    await browser.keys("ArrowLeft");
+    await expect(folder).toHaveAttribute("aria-expanded", "false");
+    await browser.keys("ArrowRight");
+    const file = browser.$('.root-list button[aria-label="Open Scratch.md"]');
+    await file.waitForEnabled({ timeout: 60000 });
+    await file.click();
+    await readDocument("Scratch");
+    await browser.$(".library-views").$("button=File details").click();
+    await expect(browser.$(".library-controls")).toBeDisplayed();
+    await browser.$(".library-views").$("button=Files").click();
+    await expect(
+      browser.$('button[aria-label="Folder nested"]'),
+    ).toHaveAttribute("aria-expanded", "true");
+    await browser.$(".workspace-actions .quick-open-button").click();
+    const search = browser.$('dialog[aria-label="Quick open and search"]');
+    const input = search.$('[aria-label="Workspace query"]');
+    try {
+      await input.setValue("Selection");
+      await browser.waitUntil(
+        async () => (await search.$$(".search-result-open")).length === 20,
+        { timeout: 60000 },
+      );
+      await input.click();
+      await browser.keys(Array(15).fill("ArrowDown"));
+      await browser.waitUntil(() =>
+        browser.tauri.execute(() => {
+          const list = document.querySelector(".workspace-search-results"),
+            selected = list.querySelector("li.selected");
+          const outer = list.getBoundingClientRect(),
+            item = selected.getBoundingClientRect();
+          return item.top >= outer.top - 1 && item.bottom <= outer.bottom + 1;
+        }),
+      );
+      await input.setValue("Other");
+      await input.setValue("Scratch");
+      await search
+        .$('button[aria-label="Open Scratch.md"]')
+        .waitForDisplayed({ timeout: 60000 });
+      await expect(search.$(".workspace-search-results")).not.toHaveText(
+        expect.stringContaining("Other.md"),
+      );
+      await search.$("button=File contents").click();
+      await input.setValue("needle for content");
+      await search.$("button=Search").click();
+      await search
+        .$('button[aria-label="Open Scratch.md"]')
+        .waitForDisplayed({ timeout: 60000 });
+      await search.$('button[aria-label="Preview result Scratch.md"]').click();
+      await expect(browser.$(".quick-preview article h1")).toHaveText(
+        "Scratch",
+      );
+      await browser.$("button=Close preview").click();
+      await browser.saveScreenshot("artifacts/native-folder-search.png");
+      await input.click();
+      await browser.keys("Enter");
+      await expect(search).not.toBeDisplayed();
+      await readDocument("Scratch");
+      expect((await invoke("e2e_fixture", { action: "read" })).text).toBe(
+        "# Original tree fixture\n",
+      );
+    } finally {
+      if (await search.getProperty("open"))
+        await search.$("button=Close search").click();
+      const authorized = (await invoke("library_state")).roots.find(
+        (folder) => folder.name === root.split("/").at(-1),
+      );
+      if (authorized)
+        await invoke("library_remove_root", { id: authorized.id });
+    }
   });
 
   it("follows wiki links and shows saved backlinks without replacing unsaved Source", async () => {
