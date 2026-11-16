@@ -4,7 +4,7 @@ const engine = vi.hoisted(() => ({ render: vi.fn() }));
 vi.mock("mermaid", () => ({
   default: { initialize() {}, render: engine.render },
 }));
-import { clearRichCache, renderRich } from "../../src/renderers/rich";
+import { clearRichCache, hydrate, renderRich } from "../../src/renderers/rich";
 beforeEach(() => {
   clearRichCache();
   engine.render.mockReset();
@@ -61,4 +61,48 @@ it("keeps KaTeX decorative SVG under its hidden HTML alternative", async () => {
   expect(host.querySelector("math")).not.toBeNull();
   expect(host.querySelector('.katex-html[aria-hidden="true"]')).not.toBeNull();
   expect(host.querySelector('svg[role="img"]')).toBeNull();
+});
+
+it("hydrates every small formula after the fourth rich block in a section", async () => {
+  const host = document.createElement("div");
+  document.body.append(host);
+  const items = Array.from({ length: 9 }, (_, i) => ({
+    kind: "math" as const,
+    source: i === 8 ? "a^2+b^2=c^2" : `x_${i}`,
+    display: false,
+  }));
+  host.innerHTML = items
+    .map((_, i) => `<span data-rich="${i}"></span>`)
+    .join(" ");
+  try {
+    await hydrate(host, items, () => true);
+    expect(host.querySelectorAll(".katex")).toHaveLength(9);
+    expect(host.querySelector(".render-error")).toBeNull();
+    expect(host.lastElementChild?.textContent).toContain("a");
+  } finally {
+    host.remove();
+  }
+});
+
+it("bounds aggregate rich output and preserves the remaining source", async () => {
+  const host = document.createElement("div");
+  document.body.append(host);
+  const items = Array.from({ length: 12 }, (_, i) => ({
+    kind: "math" as const,
+    source: `x_${i}`,
+    display: false,
+    mathIndex: i,
+  }));
+  host.innerHTML = items
+    .map((_, i) => `<span data-rich="${i}"></span>`)
+    .join("");
+  const render = vi.fn(async () => `<span>${"x".repeat(700_000)}</span>`);
+  try {
+    await hydrate(host, items, () => true, { render } as never);
+    expect(render.mock.calls.length).toBeLessThan(12);
+    expect(host.querySelector(".render-error")?.textContent).toContain("8 MiB");
+    expect(host.lastElementChild?.textContent).toContain("x_11");
+  } finally {
+    host.remove();
+  }
 });

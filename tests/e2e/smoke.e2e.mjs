@@ -5037,3 +5037,47 @@ describe("Math context policy", () => {
     await writeFile("artifacts/math-context-export.html", html);
   });
 });
+
+describe("TeX guide rendering", () => {
+  it("renders an extra formula after the guide's existing rich examples", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const guide = await readFile("tests/fixtures/specimen.md", "utf8");
+    const extra =
+      "\\documentclass{article}\n\\begin{document}\nA small local document: $a^2+b^2=c^2$.\n\\end{document}\n";
+    const source = guide.replace(
+      "\nTrusted TeX uses",
+      `\n${extra}\nTrusted TeX uses`,
+    );
+    await browser.tauri.execute(
+      ({ core }, text) => core.invoke("e2e_fixture", { action: "seed", text }),
+      source,
+    );
+    await browser.$("button.open-button").waitForEnabled();
+    await browser.$("button.open-button").click();
+    const discard = browser.$('dialog[open] [id$="-discard-title"]');
+    if (await discard.isDisplayed())
+      await browser.$("button=Discard edits").click();
+    await browser.waitUntil(
+      () =>
+        browser.tauri.execute(
+          () =>
+            !!document.querySelector(
+              '.reader-scroll svg[aria-label="TeX math: a^2+b^2=c^2"]',
+            ),
+        ),
+      { timeout: 60000 },
+    );
+    const state = await browser.tauri.execute(() => ({
+      rendered: document.querySelectorAll(
+        '.reader-scroll [data-rich-kind="math"]',
+      ).length,
+      errors: [
+        ...document.querySelectorAll(".reader-scroll .render-error"),
+      ].map((node) => node.textContent),
+    }));
+    expect(state.rendered).toBeGreaterThan(4);
+    expect(
+      state.errors.some((text) => /budget reached|section limit/.test(text)),
+    ).toBe(false);
+  });
+});
