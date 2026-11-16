@@ -2667,7 +2667,7 @@ mod tests {
     #[test]
     fn note_catalogue_reads_only_selected_visible_markdown_and_bounds_captures() {
         let dir = tempfile::tempdir().unwrap();
-        let root = dir.path().join("notes");
+        let root = dir.path().canonicalize().unwrap().join("notes");
         fs::create_dir(&root).unwrap();
         fs::write(root.join("First.md"), "# First\n[[Second]]").unwrap();
         fs::write(root.join("Second.md"), "# Second").unwrap();
