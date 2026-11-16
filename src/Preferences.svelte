@@ -21,6 +21,7 @@
   }: { onpreview: (v: Values | null) => void; oncommit: () => Promise<void> } =
     $props();
   let dialog: HTMLDialogElement;
+  let body: HTMLDivElement;
   let specs = $state<Spec[]>([]),
     families = $state<string[]>([]),
     documentId = $state<string | null>(null),
@@ -28,16 +29,21 @@
     category = $state("Appearance"),
     query = $state(""),
     text = $state(""),
+    loadedText = $state(""),
+    previewDocument = $state(true),
+    validating = $state(false),
     effective = $state<Values>({}),
     diagnostics = $state<{ line: number; message: string }[]>([]),
     error = $state(""),
     busy = $state(false),
+    committing = $state(false),
     resetAll = $state(false);
   let version = 0;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let capturedFocus: HTMLElement | null = null;
   const categories = [
     "Appearance",
+    "Workspace",
     "Reading",
     "Source",
     "Custom colors",
@@ -45,10 +51,85 @@
     "Advanced",
   ];
   const assigned = $derived(literals(text));
+  const dirty = $derived(text !== loadedText);
+  const scopeLabels: Record<string, string> = {
+    global: "This app",
+    workspace: "This workspace",
+    file: "This file",
+    session: "Only this session",
+  };
+  const scopeHints: Record<string, string> = {
+    global:
+      "Defaults for every document. Workspace, file and session settings can override these choices.",
+    workspace:
+      "Applies to this selected folder and its documents. Your Markdown files stay unchanged.",
+    file: "Applies only to this document. Your Markdown file stays unchanged.",
+    session:
+      "Temporary overrides until you quit Marktub. Your saved defaults stay unchanged.",
+  };
+  const help: Record<string, string> = {
+    "ui.font": "Used for tabs, menus and controls.",
+    "ui.scale": "Make the interface more compact or easier to read.",
+    "library.width":
+      "Drag the library divider to resize it, or enter a width here. Global or session-only.",
+    "reader.font": "Choose an installed font for document text.",
+    "reader.font_size": "Text size in Read and the Split preview.",
+    "reader.width":
+      "Maximum text width; narrower columns keep long lines comfortable.",
+    "reader.line_height": "Space between lines of document text.",
+    "editor.font": "Choose an installed font for Markdown source.",
+    "editor.font_size": "Text size in Source, Split and Visual.",
+    "editor.line_height": "Space between lines in the editor.",
+    "editor.tab_width":
+      "The visual width of a tab character. Existing file bytes are preserved.",
+    "editor.wrap":
+      "Fit long lines within the editor instead of scrolling sideways.",
+    "editor.line_numbers":
+      "Start with line numbers visible. You can toggle them in the editor.",
+    "editor.spellcheck":
+      "Start with the system spellchecker enabled. Available languages depend on your system.",
+    "code.style":
+      "Choose colored syntax, a quiet code panel, or plain text colors.",
+    "recovery.flush_ms":
+      "How long edits can batch before recovery is flushed. This is not automatic file saving.",
+  };
+  const optionLabel = (spec: Spec, option: string) =>
+    spec.key === "theme"
+      ? ({
+          system: "Follow system",
+          light: "Light",
+          dark: "Dark",
+          paper: "Parchment",
+          midnight: "Ink",
+          custom: "Custom",
+        }[option] ?? option)
+      : option;
+  function browse(name: string) {
+    category = name;
+    query = "";
+    void tick().then(() => {
+      if (body) body.scrollTop = 0;
+    });
+  }
+  function revert() {
+    text = loadedText;
+    changed();
+  }
+  function resetCategory() {
+    for (const spec of specs.filter((s) => s.category === category))
+      text = put(text, spec.key, null);
+    changed();
+  }
+
   let shown = $derived(
     specs.filter(
       (s) =>
         s.key !== "schema.version" &&
+        (query ||
+          category !== "Appearance" ||
+          (s.key !== "theme" &&
+            (s.key !== "theme.custom_mode" ||
+              effective.theme?.value === "custom"))) &&
         (query
           ? `${s.label} ${s.key} ${s.category}`
               .toLowerCase()
@@ -61,10 +142,12 @@
     const request = ++version;
     clearTimeout(timer);
     onpreview(null);
+    validating = false;
     try {
       const result = await bridge.getSettings(documentId, scope);
       if (request !== version) return;
       text = result.text;
+      loadedText = result.text;
       effective = result.resolved;
       diagnostics = result.diagnostics;
       error = "";
@@ -86,6 +169,7 @@
     category = "Appearance";
     query = "";
     resetAll = false;
+    previewDocument = true;
     error = "";
     capturedFocus = document.activeElement as HTMLElement | null;
     dialog.showModal();
@@ -95,10 +179,12 @@
       if (opening !== version || !dialog.open) return;
       const loaded = await loadScope();
       await tick();
-      if (loaded === version && dialog.open)
+      if (loaded === version && dialog.open) {
+        body.scrollTop = 0;
         dialog
           .querySelector<HTMLInputElement>('[aria-label="Search preferences"]')
           ?.focus();
+      }
     } catch (e) {
       if (opening === version) {
         error = bridge.errorMessage(e);
@@ -107,6 +193,7 @@
     }
   }
   function cancel() {
+    if (committing) return;
     ++version;
     busy = false;
     clearTimeout(timer);
@@ -117,11 +204,13 @@
   function changed() {
     const request = ++version;
     clearTimeout(timer);
+    validating = true;
     timer = setTimeout(() => {
       void validate(request);
     }, 160);
   }
   async function validate(request = ++version) {
+    validating = true;
     try {
       const result = await preview(documentId, scope, text);
       if (request !== version) return false;
@@ -129,13 +218,15 @@
       error = "";
       if (!diagnostics.length) {
         effective = result.resolved;
-        onpreview(effective);
+        if (previewDocument) onpreview(effective);
         return true;
       }
       return false;
     } catch (e) {
       if (request === version) error = bridge.errorMessage(e);
       return false;
+    } finally {
+      if (request === version) validating = false;
     }
   }
   function set(spec: Spec, value: string | boolean) {
@@ -173,31 +264,40 @@
     text = put(text, "theme.custom_mode", p.mode);
     for (const [key, color] of Object.entries(p.colors))
       text = put(text, `color.${key}`, JSON.stringify(color));
-    category = "Custom colors";
+    browse("Custom colors");
     changed();
   }
   export async function apply() {
+    if (busy) return;
     clearTimeout(timer);
     if (!(await validate())) return;
     busy = true;
+    committing = true;
+    let applied = false;
     try {
       const result = await bridge.updateSettings(documentId, scope, text);
       diagnostics = result.diagnostics;
       if (!diagnostics.length) {
+        applied = true;
+        loadedText = text;
         onpreview(null);
         await oncommit();
         dialog.close();
         capturedFocus?.focus();
       }
     } catch (e) {
-      error = bridge.errorMessage(e);
+      error = applied
+        ? `Settings were saved, but could not be refreshed: ${bridge.errorMessage(e)}`
+        : bridge.errorMessage(e);
     } finally {
       busy = false;
+      committing = false;
     }
   }
   async function repairReset() {
     if (!resetAll) return;
     busy = true;
+    committing = true;
     try {
       await bridge.resetSettings();
       onpreview(null);
@@ -208,6 +308,7 @@
       error = bridge.errorMessage(e);
     } finally {
       busy = false;
+      committing = false;
     }
   }
   async function imported() {
@@ -257,6 +358,7 @@
   bind:this={dialog}
   class="preferences-dialog"
   aria-label="Preferences"
+  aria-busy={busy || validating}
   oncancel={(event) => {
     event.preventDefault();
     cancel();
@@ -265,9 +367,13 @@
   <header class="preferences-heading">
     <div>
       <h2 id="settings-title">Preferences</h2>
-      <p>Make room for the way you read.</p>
+      <p>Reading, writing and a workspace that fits you.</p>
     </div>
-    <button onclick={cancel} aria-label="Close preferences">×</button>
+    <button
+      onclick={cancel}
+      disabled={committing}
+      aria-label="Close preferences">×</button
+    >
   </header>
   <div class="preferences-top">
     <input
@@ -275,34 +381,54 @@
       placeholder="Search preferences…"
       bind:value={query}
     /><label
-      >Scope<select
+      >Save settings for<select
         aria-label="Settings scope"
         value={scope}
         onchange={(event) => {
           scope = event.currentTarget.value;
           void loadScope();
         }}
-        disabled={busy}
-        ><option value="global">Global</option><option
+        disabled={busy || dirty}
+        ><option value="global">This app</option><option
           value="workspace"
-          disabled={!documentId}>Workspace (app-managed)</option
-        ><option value="file" disabled={!documentId}>File (app-managed)</option
-        ><option value="session">Session only</option></select
+          disabled={!documentId}>This workspace</option
+        ><option value="file" disabled={!documentId}>This file</option><option
+          value="session">Only this session</option
+        ></select
       ></label
     >
   </div>
   <p class="preference-hint">
-    Global → granted workspace root (or file parent) → file → session. Only
-    explicit overrides are saved; document Markdown is untouched.
+    {scopeHints[scope]}
   </p>
-  <div class="preferences-body">
+  {#if dirty}<p class="preference-hint" role="status">
+      Apply or revert your changes before switching where settings are saved.
+    </p>{/if}
+  <div class="settings-preview-controls">
+    <label
+      ><input
+        type="checkbox"
+        bind:checked={previewDocument}
+        disabled={busy}
+        onchange={() =>
+          onpreview(previewDocument && !diagnostics.length ? effective : null)}
+      />Preview changes in document</label
+    >
+    <span role="status"
+      >{validating
+        ? "Checking changes…"
+        : diagnostics.length || error
+          ? "Fix errors before applying"
+          : dirty
+            ? "Preview only · not saved yet"
+            : "No unapplied changes"}</span
+    >
+  </div>
+  <div class="preferences-body" bind:this={body}>
     <nav aria-label="Preference categories">
       {#each categories as name (name)}<button
           aria-current={!query && category === name ? "page" : undefined}
-          onclick={() => {
-            category = name;
-            query = "";
-          }}>{name}</button
+          onclick={() => browse(name)}>{name}</button
         >{/each}
     </nav>
     <fieldset
@@ -311,16 +437,49 @@
       disabled={busy}
     >
       {#if busy}<p role="status">Loading preferences…</p>{/if}
-      {#if category === "Appearance" && !query}<div class="theme-choices">
+      {#if category === "Appearance" && !query}
+        <h3 class="settings-section-title">Color scheme</h3>
+        <div class="theme-choices" role="group" aria-label="Color scheme">
+          <button
+            aria-pressed={effective.theme?.value === "system"}
+            onclick={() => chooseTheme("system")}
+            ><span>Aa</span>Follow system<small
+              >Light or dark automatically</small
+            ></button
+          >
           {#each Object.entries(themes) as [key, theme] (key)}<button
               style={`background:${theme.colors.paper};color:${theme.colors.ink};border-color:${theme.colors.line}`}
+              aria-label={`Use ${theme.label} theme`}
               aria-pressed={effective.theme?.value === key}
               onclick={() => chooseTheme(key)}
               ><span style={`color:${theme.colors.accent}`}>Aa</span
               >{theme.label}<small>{theme.mode}</small></button
             >{/each}
+          <button
+            aria-pressed={effective.theme?.value === "custom"}
+            onclick={customize}
+            ><span>Aa</span>Custom<small>Choose your own colors</small></button
+          >
         </div>
-        <button onclick={customize}>Customize current theme</button>{/if}
+        <div class="accent-control">
+          <label for="quick-accent">Accent color</label>
+          <input
+            id="quick-accent"
+            aria-label="Accent color"
+            type="color"
+            value={currentPalette(effective, $osDark).colors.accent}
+            oninput={(event) => {
+              const spec = specs.find((s) => s.key === "color.accent");
+              if (spec) set(spec, event.currentTarget.value);
+            }}
+          />
+          <button onclick={customize}>All theme colors</button>
+        </div>
+      {/if}
+      {#if category === "Workspace" && !query}<p class="preference-hint">
+          Resize the library by dragging its divider. Tab actions also let you
+          move tabs with the keyboard.
+        </p>{/if}
       {#if category === "Advanced" && !query}<label class="settings-editor"
           >Settings text<textarea
             aria-label="Settings text"
@@ -336,6 +495,18 @@
           executable paths or trust keys. Applying invalid input keeps the
           previous settings.
         </p>
+        <div class="settings-transfer">
+          <button onclick={imported} disabled={busy}>Import settings</button
+          ><button onclick={exported} disabled={busy || validating}
+            >Export settings</button
+          ><button
+            onclick={() => {
+              text = "";
+              changed();
+            }}
+            disabled={busy}>Reset this scope</button
+          >
+        </div>
         <label
           ><input type="checkbox" bind:checked={resetAll} />Reset all saved
           scopes and session preferences; keep document positions and backup the
@@ -350,17 +521,29 @@
             Advanced. Set “none” to disable. OS/menu and editor clipboard/undo
             bindings are reserved. Shortcuts are global or session-only.
           </p>{/if}
-        {#if !shown.length}<p>No matching preference.</p>{/if}
+        {#if !shown.length}<p>
+            No matching preference. Try “font”, “width” or “shortcut”.
+          </p>{/if}
+        {#if !query}<div class="settings-section-heading">
+            <h3>{category === "Appearance" ? "Interface" : category}</h3>
+            <button
+              onclick={resetCategory}
+              disabled={!specs.some(
+                (s) => s.category === category && assigned[s.key] !== undefined,
+              )}>Reset {category.toLowerCase()}</button
+            >
+          </div>{/if}
         {#each shown as spec (spec.key)}<div class="preference-row">
             <label for={`pref-${spec.key}`}
               ><strong>{spec.label}</strong><small
                 >{assigned[spec.key] !== undefined
-                  ? "Override"
-                  : `Inherited · ${spec.key}`}</small
-              ><small
-                >Effective: {String(
-                  effective[spec.key]?.value ?? spec.default,
-                )}</small
+                  ? `Set for ${scopeLabels[scope].toLowerCase()}`
+                  : "Using inherited value"}</small
+              ><small id={`help-${spec.key}`}
+                >{help[spec.key] ??
+                  (spec.kind === "color"
+                    ? "Custom theme color, checked for readable contrast."
+                    : "")}</small
               ></label
             >
             <div>
@@ -375,12 +558,25 @@
                   value={String(controlValue(spec))}
                   onchange={(event) => set(spec, event.currentTarget.value)}
                   >{#each spec.options as option (option)}<option value={option}
-                      >{option}</option
+                      >{optionLabel(spec, option)}</option
                     >{/each}</select
                 >
               {:else if spec.kind === "number"}<input
+                  type="range"
+                  aria-label={`${spec.label} slider`}
+                  min={spec.min ?? undefined}
+                  max={spec.max ?? undefined}
+                  step="1"
+                  value={String(controlValue(spec))}
+                  disabled={spec.key === "library.width" &&
+                    ["workspace", "file"].includes(scope)}
+                  oninput={(event) => set(spec, event.currentTarget.value)}
+                /><input
                   id={`pref-${spec.key}`}
                   type="number"
+                  aria-describedby={`help-${spec.key}`}
+                  disabled={spec.key === "library.width" &&
+                    ["workspace", "file"].includes(scope)}
                   min={spec.min ?? undefined}
                   max={spec.max ?? undefined}
                   value={String(controlValue(spec))}
@@ -416,7 +612,7 @@
                 onclick={() => {
                   text = put(text, spec.key, null);
                   changed();
-                }}>Inherit</button
+                }}>Reset</button
               >
             </div>
           </div>{/each}
@@ -458,19 +654,13 @@
         </li>{/each}
     </ul>{/if}
   <footer class="dialog-actions">
-    <button onclick={imported} disabled={busy}>Import</button><button
-      onclick={exported}
-      disabled={busy}>Export sidecar</button
-    ><button
-      onclick={() => {
-        text = "";
-        changed();
-      }}
-      disabled={busy}>Reset scope to defaults</button
-    ><button onclick={cancel}>Cancel</button><button
+    <button onclick={revert} disabled={busy || !dirty}>Revert changes</button>
+    <span class="settings-save-hint">{scopeLabels[scope]}</span>
+    <button onclick={cancel} disabled={committing}>Cancel</button><button
       class="primary"
       onclick={apply}
-      disabled={busy}>Apply settings</button
+      disabled={busy || validating || !!diagnostics.length || !dirty}
+      >Apply settings</button
     >
   </footer>
 </dialog>

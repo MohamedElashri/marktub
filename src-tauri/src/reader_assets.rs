@@ -50,6 +50,21 @@ pub fn image(path: &Path) -> Result<Image, FileError> {
     let scoped = ScopedFile::selected(&canonical)?.authorize_selection(path);
     image_scoped(scoped)
 }
+pub(crate) fn example_image(
+    document: &Path,
+    resources: &Path,
+    link: &str,
+) -> Result<Option<Image>, FileError> {
+    if link != "marktub-example.png"
+        || std::fs::canonicalize(resources.join("guide/Marktub Guide.md"))
+            .ok()
+            .as_deref()
+            != Some(document)
+    {
+        return Ok(None);
+    }
+    image(&resources.join("guide/marktub-example.png")).map(Some)
+}
 pub(crate) fn image_scoped(scoped: ScopedFile) -> Result<Image, FileError> {
     let (mut file, _, _) = scoped.snapshot_bounded(8 * 1024 * 1024)?;
     let mut bytes = vec![];
@@ -110,6 +125,46 @@ pub fn export(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn example_image_requires_the_exact_bundled_document_and_reference() {
+        let dir = tempfile::tempdir().unwrap();
+        let resources = dir.path().join("resources");
+        let fixtures = resources.join("guide");
+        std::fs::create_dir_all(&fixtures).unwrap();
+        let guide = fixtures.join("Marktub Guide.md");
+        std::fs::write(&guide, b"# Guide").unwrap();
+        std::fs::write(
+            fixtures.join("marktub-example.png"),
+            include_bytes!("../icons/256x256.png"),
+        )
+        .unwrap();
+        let guide = std::fs::canonicalize(guide).unwrap();
+        assert_eq!(
+            example_image(&guide, &resources, "marktub-example.png")
+                .unwrap()
+                .unwrap()
+                .width,
+            256
+        );
+        for link in [
+            "../marktub-example.png",
+            "file:///marktub-example.png",
+            "https://example.com/image.png",
+        ] {
+            assert!(example_image(&guide, &resources, link).unwrap().is_none());
+        }
+        let lookalike = dir.path().join("Marktub Guide.md");
+        std::fs::write(&lookalike, b"# Guide").unwrap();
+        assert!(
+            example_image(
+                &std::fs::canonicalize(lookalike).unwrap(),
+                &resources,
+                "marktub-example.png"
+            )
+            .unwrap()
+            .is_none()
+        );
+    }
     #[test]
     fn raster_headers_and_exclusive_export() {
         let dir = tempfile::tempdir().unwrap();

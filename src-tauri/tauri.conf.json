@@ -42,7 +42,8 @@
       "icons/icon.icns"
     ],
     "resources": {
-      "../tests/fixtures/specimen.md": "fixtures/specimen.md",
+      "../tests/fixtures/specimen.md": "guide/Marktub Guide.md",
+      "icons/256x256.png": "guide/marktub-example.png",
       "../artifacts/licenses/licenses.txt": "licenses.txt"
     },
     "macOS": {

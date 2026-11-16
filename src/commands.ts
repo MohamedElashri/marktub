@@ -21,6 +21,9 @@ export type CommandId =
   | "find"
   | "reload"
   | "compare"
+  | "example"
+  | "move_tab_left"
+  | "move_tab_right"
   | "new_tab"
   | "close_tab"
   | "next_tab"
@@ -58,6 +61,9 @@ export const definitions: [CommandId, string, string, string][] = [
   ["find", "Find in document", "Reading", "Mod+F"],
   ["reload", "Reload document", "Document", "Mod+Alt+R"],
   ["compare", "Compare disk changes", "Document", "Mod+Shift+D"],
+  ["example", "Open feature guide", "Help", "none"],
+  ["move_tab_left", "Move tab left", "Tabs", "Alt+Shift+ArrowLeft"],
+  ["move_tab_right", "Move tab right", "Tabs", "Alt+Shift+ArrowRight"],
   ["new_tab", "New tab", "Tabs", "Mod+T"],
   ["close_tab", "Close tab", "Tabs", "Mod+Shift+X"],
   ["next_tab", "Next tab", "Tabs", "Ctrl+Tab"],

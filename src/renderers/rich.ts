@@ -126,29 +126,29 @@ export async function renderRich(
       for (const shape of template.content.querySelectorAll(
         "rect,polygon,circle,ellipse",
       )) {
-        shape.setAttribute("fill", "#f0f4f1");
-        shape.setAttribute("stroke", "#316c57");
+        shape.setAttribute("fill", "#f3f4f7");
+        shape.setAttribute("stroke", "#3d55b4");
       }
       for (const svg of template.content.querySelectorAll("svg")) {
         svg.setAttribute("font-family", "Arial, sans-serif");
         svg.setAttribute("font-size", "16");
         svg.setAttribute(
           "style",
-          (svg.getAttribute("style") ?? "") + ";background-color:#fafbf9;",
+          (svg.getAttribute("style") ?? "") + ";background-color:#ffffff;",
         );
       }
       for (const text of template.content.querySelectorAll("text,tspan")) {
-        text.setAttribute("fill", "#24352f");
+        text.setAttribute("fill", "#24262d");
         text.setAttribute("font-family", "Arial, sans-serif");
         text.setAttribute("font-size", "16");
       }
       for (const path of template.content.querySelectorAll("path")) {
         if (!path.hasAttribute("stroke"))
-          path.setAttribute("stroke", "#316c57");
+          path.setAttribute("stroke", "#3d55b4");
         if (!path.hasAttribute("fill"))
           path.setAttribute(
             "fill",
-            path.closest("marker") ? "#316c57" : "none",
+            path.closest("marker") ? "#3d55b4" : "none",
           );
       }
       return template.innerHTML;

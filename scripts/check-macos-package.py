@@ -38,7 +38,7 @@ binary = installed / "Contents/MacOS/marktub"
 architectures = verify(binary)
 original = a.app / "Contents/MacOS/marktub"
 assert digest(binary) == digest(original), "DMG executable differs from normal app"
-for source, bundled in [(Path("artifacts/licenses/licenses.txt"),"licenses.txt"),(Path("tests/fixtures/specimen.md"),"fixtures/specimen.md")]:
+for source, bundled in [(Path("artifacts/licenses/licenses.txt"),"licenses.txt"),(Path("tests/fixtures/specimen.md"),"guide/Marktub Guide.md"),(Path("src-tauri/icons/256x256.png"),"guide/marktub-example.png")]:
     assert digest(source) == digest(installed/"Contents/Resources"/bundled), f"Bundled resource differs: {bundled}"
 info = plistlib.loads((installed/"Contents/Info.plist").read_bytes())
 icon = info.get("CFBundleIconFile", "")

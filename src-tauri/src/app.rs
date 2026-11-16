@@ -120,7 +120,7 @@ async fn open_example(app: tauri::AppHandle) -> Result<Descriptor, FileError> {
             .path()
             .resource_dir()
             .map_err(|_| FileError::new("resource", "Example unavailable."))?
-            .join("fixtures/specimen.md");
+            .join("guide/Marktub Guide.md");
         grant(&app, &app.state::<Documents>(), &path)
     })
     .await
@@ -961,6 +961,15 @@ async fn choose_image(
             return Err(FileError::new("image", "Image hint is too long."));
         }
         let scoped = app.state::<Documents>().scoped(&id)?;
+        let resources = app
+            .path()
+            .resource_dir()
+            .map_err(|_| FileError::new("resource", "Example resources unavailable."))?;
+        if let Some(image) =
+            crate::reader_assets::example_image(scoped.canonical_path(), &resources, &link)?
+        {
+            return Ok(Some(image));
+        }
         if let Some(scoped) = library(&app)
             .lock()
             .map_err(|_| FileError::new("state", "Library unavailable."))?

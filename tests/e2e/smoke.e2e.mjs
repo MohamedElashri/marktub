@@ -102,10 +102,13 @@ async function documentAction(label) {
   await button.waitForEnabled({ timeout: 60000 });
   await button.click();
   if (label === "Settings")
-    await browser
-      .$('dialog[aria-label="Preferences"]')
-      .$("button=Apply settings")
-      .waitForEnabled({ timeout: 60000 });
+    await browser.waitUntil(
+      async () =>
+        !(await browser
+          .$('dialog[aria-label="Preferences"] fieldset')
+          .getProperty("disabled")),
+      { timeout: 60000 },
+    );
 }
 
 describe("OS file open and accessibility", () => {
@@ -197,7 +200,7 @@ describe("OS file open and accessibility", () => {
     ).toBe(true);
     expect(await fs.readFile(first, "utf8")).toBe("# Native source\r\n");
     if (process.platform === "darwin") {
-      handoff(resolve(dirname(binary), "../Resources/fixtures/specimen.md"));
+      handoff(resolve(dirname(binary), "../Resources/guide/Marktub Guide.md"));
       await browser.waitUntil(async () =>
         (await browser.$(".workbench > .notice").getText()).includes(
           "App-owned",
@@ -1635,6 +1638,9 @@ describe("Preferences and commands", () => {
   const advanced = async (text) => {
     await prefs().$("button=Advanced").click();
     await prefs().$('textarea[aria-label="Settings text"]').setValue(text);
+    await browser.waitUntil(
+      async () => (await prefs().getAttribute("aria-busy")) === "false",
+    );
   };
   it("uses bounded installed font names and refuses invalid literals, contrast and shortcut conflicts without persistence", async () => {
     const catalogue = await invoke("preference_catalogue");
@@ -1696,12 +1702,12 @@ describe("Preferences and commands", () => {
     await documentAction("Settings");
     await prefs().waitForDisplayed();
     for (const [label, hex] of [
-      ["Meadow", "#fafbf9"],
+      ["Light", "#ffffff"],
       ["Parchment", "#fbf5e9"],
-      ["Forest", "#17211d"],
+      ["Dark", "#202127"],
       ["Ink", "#17202c"],
     ]) {
-      await prefs().$(`button*=${label}`).click();
+      await prefs().$(`button[aria-label="Use ${label} theme"]`).click();
       await browser.waitUntil(
         async () =>
           (await browser.tauri.execute(() =>
@@ -1749,8 +1755,7 @@ describe("Preferences and commands", () => {
       .$('select[aria-label="Settings scope"]')
       .selectByAttribute("value", "session");
     await browser.waitUntil(
-      async () =>
-        !(await prefs().$("button=Apply settings").getAttribute("disabled")),
+      async () => !(await prefs().$("fieldset").getProperty("disabled")),
     );
     await advanced(
       "$theme=dark\n$editor.font_size=17\n$editor.wrap=false\n$ui.scale=110\n$reader.line_height=190",
@@ -2515,7 +2520,7 @@ describe("Git workbench", () => {
           .replace("Line 01", "First changed")
           .replace("Line 45", "Second changed");
     fs.writeFileSync(fixture.path, changed);
-    await browser.$(".tabbar").$("button=Git").click();
+    await browser.$(".workspace-actions").$("button=Git").click();
     await panel().waitForDisplayed();
     await panel()
       .$("button=Choose repository")
@@ -2555,7 +2560,7 @@ describe("Git workbench", () => {
       return { pending, stillBusy: choose.disabled };
     });
     expect(choosingAtClose).toEqual({ pending: true, stillBusy: true });
-    await browser.$(".tabbar").$("button=Git").click();
+    await browser.$(".workspace-actions").$("button=Git").click();
     await panel()
       .$("button=Choose repository")
       .waitForEnabled({ timeout: 30000 });
@@ -2571,7 +2576,7 @@ describe("Git workbench", () => {
       return loading;
     });
     expect(loadingAtClose).toBe(true);
-    await browser.$(".tabbar").$("button=Git").click();
+    await browser.$(".workspace-actions").$("button=Git").click();
     await panel()
       .$("button=Choose repository")
       .waitForEnabled({ timeout: 30000 });
@@ -2625,7 +2630,7 @@ describe("Git workbench", () => {
     await browser
       .$(".document-tab:not([hidden]) .cm-content")
       .waitForDisplayed({ timeout: 30000 });
-    await browser.$(".tabbar").$("button=Git").click();
+    await browser.$(".workspace-actions").$("button=Git").click();
     await panel().$("button=Stage selected hunks").waitForExist();
     expect(await panel().$("button=Stage selected hunks").isEnabled()).toBe(
       false,
@@ -2743,7 +2748,7 @@ describe("Git workbench", () => {
     expect(
       await browser.$(".library-git-badge").getAttribute("title"),
     ).toContain("modified");
-    await browser.$(".tabbar").$("button=Git").click();
+    await browser.$(".workspace-actions").$("button=Git").click();
     await panel().$("button=Revoke repository").click();
     await expect(panel()).toHaveText(
       expect.stringContaining("Repository access revoked for this session."),
@@ -3807,7 +3812,7 @@ describe("Everyday workflows", () => {
       );
     }
     if (await browser.$(".library-host").isDisplayed())
-      await browser.$(".tabbar").$("button=Library").click();
+      await browser.$(".workspace-actions").$("button=Library").click();
   }
   function handoff(path) {
     const binary = desktopBinary("debug");
@@ -4031,6 +4036,284 @@ describe("Everyday workflows", () => {
     expect(await fs.readFile(fixture.path, "utf8")).toBe("# First\n");
   });
 
+  it("reorders tabs by pointer and keyboard without replacing Source or losing exact-byte undo", async () => {
+    const original = "\uFEFF# Moving tabs\r\nkeep\nlast\rend";
+    const fixture = await invoke("e2e_fixture", {
+      action: "seed",
+      text: original,
+    });
+    await openHomeFile();
+    await pane().$("button=Source").click();
+    await pane().$(".cm-content").waitForDisplayed();
+    await browser.tauri.execute(() => {
+      window.uxEditor = document.querySelector(
+        ".document-tab:not([hidden]) .cm-editor",
+      );
+      window.uxEditor.querySelector(".cm-content").focus();
+      document.execCommand("insertText", false, "moving ");
+    });
+    await expect(selected()).toHaveText(expect.stringContaining("*"));
+    const first = await selected().getAttribute("id");
+    const second = join(dirname(fixture.path), "second-tab.txt");
+    await (
+      await import("node:fs/promises")
+    ).writeFile(second, "# Second tab\n");
+    handoff(second);
+    await readDocument("Second tab");
+    const other = await selected().getAttribute("id");
+    const source = browser.$(`#${first}`),
+      destination = browser.$(`#${other}`);
+    const from = await source.getLocation(),
+      to = await destination.getLocation(),
+      size = await destination.getSize();
+    await browser.performActions([
+      {
+        type: "pointer",
+        id: "tab-drag",
+        parameters: { pointerType: "mouse" },
+        actions: [
+          {
+            type: "pointerMove",
+            duration: 0,
+            x: Math.round(from.x + 35),
+            y: Math.round(from.y + 15),
+          },
+          { type: "pointerDown", button: 0 },
+          {
+            type: "pointerMove",
+            duration: 300,
+            x: Math.round(to.x + size.width - 8),
+            y: Math.round(to.y + 15),
+          },
+          { type: "pointerUp", button: 0 },
+        ],
+      },
+    ]);
+    await browser.releaseActions();
+    await browser.waitUntil(
+      async () =>
+        (
+          await browser
+            .$$('.tabs [role="tab"]')
+            .map((tab) => tab.getAttribute("id"))
+        ).join(",") === `${other},${first}`,
+    );
+    await expect(selected()).toHaveAttribute("id", first);
+    expect(
+      await browser.tauri.execute(
+        () =>
+          window.uxEditor ===
+          document.querySelector(".document-tab:not([hidden]) .cm-editor"),
+      ),
+    ).toBe(true);
+    await browser.$('[aria-label="Tab actions"]').click();
+    await browser.$(".tab-menu").$("button=Move tab left").click();
+    await browser.waitUntil(
+      async () =>
+        (await browser.$('.tabs [role="tab"]').getAttribute("id")) === first,
+    );
+    await browser.tauri.execute(() =>
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "ArrowRight",
+          altKey: true,
+          shiftKey: true,
+          bubbles: true,
+        }),
+      ),
+    );
+    await browser.waitUntil(
+      async () =>
+        (await browser.$('.tabs [role="tab"]').getAttribute("id")) === other,
+    );
+    await expect(pane().$(".cm-content")).toHaveText(
+      expect.stringContaining("moving "),
+    );
+    await pane().$('button[aria-label="Undo"]').click();
+    await pane().$("header").$("button=Save").waitForEnabled();
+    await pane().$("header").$("button=Save").click();
+    await expect(pane().$(".statusbar")).toHaveText(
+      expect.stringContaining("Saved"),
+    );
+    expect((await invoke("e2e_fixture", { action: "read" })).text).toBe(
+      original,
+    );
+    await browser.saveScreenshot("artifacts/native-ux-tabs.png");
+    await browser.tauri.execute(() => {
+      delete window.uxEditor;
+    });
+  });
+
+  it("resizes the library and previews, reverts and applies settings without losing scope drafts", async () => {
+    const before = await invoke("get_settings", { id: null, scope: "global" });
+    const session = await invoke("get_settings", {
+      id: null,
+      scope: "session",
+    });
+    const prefs = () => browser.$('dialog[aria-label="Preferences"]');
+    try {
+      await invoke("update_settings", { id: null, scope: "session", text: "" });
+      await browser.$(".workspace-actions").$("button=Library").click();
+      const divider = browser.$('[aria-label="Resize library"]');
+      await divider.waitForDisplayed();
+      const location = await divider.getLocation(),
+        size = await divider.getSize();
+      const initial = Number(await divider.getAttribute("aria-valuenow"));
+      await browser.performActions([
+        {
+          type: "pointer",
+          id: "library-drag",
+          parameters: { pointerType: "mouse" },
+          actions: [
+            {
+              type: "pointerMove",
+              duration: 0,
+              x: Math.round(location.x + size.width / 2),
+              y: Math.round(location.y + 80),
+            },
+            { type: "pointerDown", button: 0 },
+            {
+              type: "pointerMove",
+              duration: 250,
+              x: Math.round(location.x + size.width / 2 + 32),
+              y: Math.round(location.y + 80),
+            },
+            { type: "pointerUp", button: 0 },
+          ],
+        },
+      ]);
+      await browser.releaseActions();
+      await browser.waitUntil(
+        async () =>
+          (await invoke("get_settings", { id: null, scope: "global" }))
+            .resolved["library.width"].value ===
+          initial + 32,
+      );
+      await divider.click();
+      await browser.keys("ArrowRight");
+      await browser.waitUntil(
+        async () =>
+          (await invoke("get_settings", { id: null, scope: "global" }))
+            .resolved["library.width"].value ===
+          initial + 48,
+      );
+      await browser.$('button[aria-label="Settings"]').click();
+      await prefs().waitForDisplayed();
+      await browser.waitUntil(
+        async () => !(await prefs().$("fieldset").getProperty("disabled")),
+      );
+      await expect(prefs().$("button=Apply settings")).toBeDisabled();
+      await prefs().$("button=Workspace").click();
+      await prefs().$('input[id="pref-library.width"]').setValue("420");
+      await browser.waitUntil(
+        async () => Number(await divider.getAttribute("aria-valuenow")) === 420,
+      );
+      expect(
+        (await invoke("get_settings", { id: null, scope: "global" })).resolved[
+          "library.width"
+        ].value,
+      ).toBe(initial + 48);
+      await expect(
+        prefs().$('select[aria-label="Settings scope"]'),
+      ).toBeDisabled();
+      await expect(prefs().$('input[id="pref-library.width"]')).toHaveValue(
+        "420",
+      );
+      await prefs().$("button=Revert changes").click();
+      await browser.waitUntil(
+        async () =>
+          Number(await divider.getAttribute("aria-valuenow")) === initial + 48,
+      );
+      await prefs().$('input[id="pref-library.width"]').setValue("398");
+      await prefs().$("button=Apply settings").waitForEnabled();
+      await prefs().$("button=Apply settings").click();
+      await prefs().waitForDisplayed({ reverse: true });
+      expect(
+        (await invoke("get_settings", { id: null, scope: "global" })).resolved[
+          "library.width"
+        ].value,
+      ).toBe(398);
+      await browser.$('button[aria-label="Settings"]').click();
+      await browser.waitUntil(
+        async () => !(await prefs().$("fieldset").getProperty("disabled")),
+      );
+      await prefs().$("button=Appearance").click();
+      await prefs().$("button*=Dark").click();
+      await browser.waitUntil(
+        async () =>
+          (await browser.tauri.execute(() =>
+            document.documentElement.style.getPropertyValue("--paper"),
+          )) === "#202127",
+      );
+      await prefs().$("button=Revert changes").click();
+      await browser.waitUntil(
+        async () => (await prefs().getAttribute("aria-busy")) === "false",
+      );
+      await browser.saveScreenshot("artifacts/native-ux-settings.png");
+      await prefs().$("button=Cancel").click();
+    } finally {
+      if (await prefs().isDisplayed()) await prefs().$("button=Cancel").click();
+      await invoke("update_settings", {
+        id: null,
+        scope: "global",
+        text: before.text,
+      });
+      await invoke("update_settings", {
+        id: null,
+        scope: "session",
+        text: session.text,
+      });
+    }
+  });
+
+  it("opens the complete built-in feature guide and authorizes only its bundled image", async () => {
+    await browser.$('button[aria-label="Open feature guide"]').click();
+    await readDocument("A place for unfinished thoughts");
+    const image = pane().$('button[data-image="marktub-example.png"]');
+    await image.waitForExist({ timeout: 60000 });
+    await image.scrollIntoView();
+    await image.click();
+    await browser.waitUntil(async () =>
+      browser.tauri.execute(() => {
+        const image = document.querySelector(
+          ".document-tab:not([hidden]) article img",
+        );
+        return (
+          image?.complete &&
+          image.naturalWidth === 256 &&
+          image.src.startsWith("data:image/png;base64,")
+        );
+      }),
+    );
+    const headings = await pane()
+      .$$("article h2")
+      .map((heading) => heading.getText());
+    for (const title of [
+      "Read and write",
+      "Notes and navigation",
+      "Math and equation references",
+      "Diagrams",
+      "Local images",
+      "Git and Review",
+      "Sharing and export",
+      "Optional local tools",
+    ])
+      expect(headings).toContain(title);
+    expect(
+      await browser.tauri.execute(() => {
+        const header = document
+          .querySelector(".workspace-actions")
+          .getBoundingClientRect();
+        return (
+          header.top >= 0 &&
+          header.bottom < innerHeight &&
+          document.querySelector(".workbench").scrollTop === 0
+        );
+      }),
+    ).toBe(true);
+    await browser.saveScreenshot("artifacts/native-ux-guide.png");
+  });
+
   it("keeps Source view and exact-byte undo across More, Escape and preference dialog focus", async () => {
     const original = "\uFEFF# Polish\r\nالعربية 日本語 🦀\nlast\rend";
     await invoke("e2e_fixture", { action: "seed", text: original });
@@ -4192,7 +4475,7 @@ describe("Everyday workflows", () => {
       });
     }
     if (!(await browser.$(".library-host").isDisplayed()))
-      await browser.$(".tabbar").$("button=Library").click();
+      await browser.$(".workspace-actions").$("button=Library").click();
     await browser.$("button=Add folder").click();
     await browser
       .$(

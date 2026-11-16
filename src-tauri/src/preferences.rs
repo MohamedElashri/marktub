@@ -58,6 +58,9 @@ pub const COMMANDS: &[(&str, &str, &str)] = &[
     ("find", "Find in document", "Mod+F"),
     ("reload", "Reload document", "Mod+Alt+R"),
     ("compare", "Compare disk changes", "Mod+Shift+D"),
+    ("example", "Open feature guide", "none"),
+    ("move_tab_left", "Move tab left", "Alt+Shift+ArrowLeft"),
+    ("move_tab_right", "Move tab right", "Alt+Shift+ArrowRight"),
     ("new_tab", "New tab", "Mod+T"),
     ("close_tab", "Close tab", "Mod+Shift+X"),
     ("next_tab", "Next tab", "Ctrl+Tab"),
@@ -66,18 +69,18 @@ pub const COMMANDS: &[(&str, &str, &str)] = &[
     ("forward", "Forward in file history", "Alt+ArrowRight"),
 ];
 pub const COLORS: &[(&str, &str, &str)] = &[
-    ("paper", "Page", "#fafbf9"),
-    ("ink", "Text", "#24352f"),
-    ("quiet", "Secondary text", "#59665f"),
-    ("accent", "Links and focus", "#316c57"),
+    ("paper", "Page", "#ffffff"),
+    ("ink", "Text", "#24262d"),
+    ("quiet", "Secondary text", "#5b6170"),
+    ("accent", "Links and focus", "#3d55b4"),
     ("on_accent", "Button text", "#ffffff"),
-    ("line", "Rules", "#c4cec7"),
-    ("surface", "Panels", "#eef3ef"),
-    ("selection", "Selection", "#c4dacd"),
-    ("code", "Code background", "#eef3ef"),
-    ("keyword", "Syntax keyword", "#704080"),
-    ("string", "Syntax string", "#276044"),
-    ("number", "Syntax number", "#76531e"),
+    ("line", "Rules", "#d9dce5"),
+    ("surface", "Panels", "#f3f4f7"),
+    ("selection", "Selection", "#dce3fa"),
+    ("code", "Code background", "#f3f4f7"),
+    ("keyword", "Syntax keyword", "#74409a"),
+    ("string", "Syntax string", "#345c4b"),
+    ("number", "Syntax number", "#87521e"),
     ("added", "Added text", "#17532e"),
     ("added_bg", "Added background", "#e2f2e7"),
     ("removed", "Removed text", "#922c33"),
@@ -123,6 +126,36 @@ pub fn catalogue() -> Vec<Spec> {
             "100",
             Some(80.),
             Some(150.),
+            &[],
+        ),
+        spec(
+            "library.width",
+            "Library width (px)",
+            "Workspace",
+            "number",
+            "280",
+            Some(220.),
+            Some(600.),
+            &[],
+        ),
+        spec(
+            "editor.line_numbers",
+            "Show line numbers by default",
+            "Source",
+            "boolean",
+            "true",
+            None,
+            None,
+            &[],
+        ),
+        spec(
+            "editor.spellcheck",
+            "Spellcheck by default",
+            "Source",
+            "boolean",
+            "false",
+            None,
+            None,
             &[],
         ),
         spec(
@@ -503,12 +536,41 @@ mod tests {
         let empty = Settings::parse(b"").unwrap();
         let good = Settings::parse(b"$theme=custom").unwrap();
         assert!(effective(&Settings::resolve(&good, &empty, &empty, &empty).values()).is_empty());
-        let bad = Settings::parse(b"$color.ink=\"#fafbf9\"").unwrap();
+        let bad = Settings::parse(b"$color.ink=\"#ffffff\"").unwrap();
         let resolved = Settings::resolve(&good, &empty, &bad, &empty);
         assert!(
             effective(&resolved.values())
                 .iter()
                 .any(|d| d.message.contains("ink/paper"))
+        );
+    }
+
+    #[test]
+    fn layout_and_editor_defaults_have_closed_typed_ranges() {
+        for text in [
+            "$library.width=219",
+            "$library.width=601",
+            "$library.width=280.5",
+            "$editor.line_numbers=1",
+            "$editor.spellcheck=yes",
+        ] {
+            assert!(Settings::parse(text.as_bytes()).is_err(), "{text}");
+        }
+        let values = Settings::parse(
+            b"$library.width=420\n$editor.line_numbers=false\n$editor.spellcheck=true",
+        )
+        .unwrap();
+        assert!(
+            effective(
+                &Settings::resolve(
+                    &values,
+                    &Settings::parse(b"").unwrap(),
+                    &Settings::parse(b"").unwrap(),
+                    &Settings::parse(b"").unwrap()
+                )
+                .values()
+            )
+            .is_empty()
         );
     }
 }
