@@ -151,7 +151,7 @@
     "security": "Fixed HTTPS GitHub feed and asset hosts; bounded downloads; no document paths or text transmitted; closed native commands; production private key held outside source and in encrypted Actions secret.",
     "validation": {
       "frontend": "798 passed; 17 Node and 36 Python tooling tests passed",
-      "nativeRust": "169 passed, 6 ignored on Linux before final restart-preflight changes; final targeted checks pending",
+      "nativeRust": "169 passed, 6 ignored on Linux before final configuration/TLS/preflight changes; final four updater regressions passed, including real TLS client construction without network",
       "audits": {
         "javascriptProduction": 0,
         "javascriptAll": 0,
@@ -159,7 +159,12 @@
         "rustWarnings": 0,
         "rustDatabaseCommit": "02e2517f457a359fc6d3440ea4560c8ea188fee8"
       },
-      "webview": "Pending final Linux and macOS checks"
+      "webview": {
+        "linuxX11": "8 passed: update controls, cancellation, real version-bound signatures, existing close/settings guards",
+        "linuxWayland": "Same eight checks passed under actual GNOME Wayland/WebKitGTK",
+        "binarySha256": "18369e7099af82c297f09d38a332a2208655d5e83819d82cc99c33db396beacd",
+        "macOS": "Pending hosted CI"
+      }
     },
     "remaining": [
       "Publish the first update-capable release with both signed packages and latest.json; existing installations need one manual bootstrap upgrade.",

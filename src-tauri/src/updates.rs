@@ -170,6 +170,9 @@ fn allowed(url: &Url) -> bool {
         )
 }
 fn client() -> Result<Client, FileError> {
+    if rustls::crypto::CryptoProvider::get_default().is_none() {
+        let _ = rustls::crypto::ring::default_provider().install_default();
+    }
     Client::builder()
         .https_only(true)
         .connect_timeout(Duration::from_secs(15))
@@ -589,6 +592,10 @@ mod tests {
         ] {
             assert!(!allowed(&Url::parse(url).unwrap()));
         }
+    }
+    #[test]
+    fn secure_client_can_be_constructed_without_a_network_request() {
+        assert!(client().is_ok());
     }
     #[test]
     fn construction_never_starts_a_check() {

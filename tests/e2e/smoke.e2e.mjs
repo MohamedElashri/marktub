@@ -811,6 +811,7 @@ describe("Native close guard", () => {
     await browser.$(".cm-content").waitForExist({ reverse: true });
     await browser.$("button=Source").waitForEnabled();
     await browser.$("button=Source").click();
+    await browser.$(".cm-content").waitForDisplayed();
     await browser.$(".cm-content").addValue("keep-on-close");
     await expect(
       browser.$(".document-tab:not([hidden]) .statusbar"),
