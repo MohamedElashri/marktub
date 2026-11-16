@@ -5061,16 +5061,15 @@ describe("TeX guide rendering", () => {
       () =>
         browser.tauri.execute(
           () =>
-            !!document.querySelector(
+            document.querySelectorAll(
               '.reader-scroll svg[aria-label="TeX math: a^2+b^2=c^2"]',
-            ),
+            ).length === 1,
         ),
       { timeout: 60000 },
     );
     const state = await browser.tauri.execute(() => ({
-      rendered: document.querySelectorAll(
-        '.reader-scroll [data-rich-kind="math"]',
-      ).length,
+      rendered: document.querySelectorAll(".reader-scroll [data-rich-kind]")
+        .length,
       errors: [
         ...document.querySelectorAll(".reader-scroll .render-error"),
       ].map((node) => node.textContent),
