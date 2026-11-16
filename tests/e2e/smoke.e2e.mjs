@@ -4203,12 +4203,16 @@ describe("Everyday workflows", () => {
     );
     await pane().$("button=Open folder").click();
     await browser
+      .$(`button[aria-label="Remove root ${root.split("/").at(-1)}"]`)
+      .waitForExist({ timeout: 60000 });
+    await browser
       .$(".library-views")
       .$("button=Files")
       .waitForEnabled({ timeout: 60000 });
     await browser.$(".library-views").$("button=Files").click();
     const folder = browser.$('button[aria-label="Folder nested"]');
-    await folder.waitForDisplayed({ timeout: 60000 });
+    await folder.waitForExist({ timeout: 60000 });
+    await folder.scrollIntoView({ block: "nearest" });
     await folder.click();
     await expect(folder).toHaveAttribute("aria-expanded", "true");
     await browser.keys("ArrowLeft");
