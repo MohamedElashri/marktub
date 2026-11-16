@@ -4361,6 +4361,15 @@ describe("Everyday workflows", () => {
     await pane().$("button=Split").click();
     await pane().$(".cm-content").waitForDisplayed();
     await expect(pane().$(".toolbar .save-button")).toBeDisplayed();
+    const effective = (
+      await invoke("get_settings", { id: null, scope: "global" })
+    ).resolved;
+    await expect(pane().$('select[aria-label="Reading width"]')).toHaveValue(
+      String(effective["reader.width"].value),
+    );
+    await expect(
+      pane().$('select[aria-label="Reading text size"]'),
+    ).toHaveValue(String(effective["reader.font_size"].value));
   });
 
   it("keeps Source view and exact-byte undo across More, Escape and preference dialog focus", async () => {
