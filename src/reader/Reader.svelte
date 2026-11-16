@@ -16,6 +16,7 @@
     anchorId = null,
     onposition,
     onlink,
+    onnote = () => {},
     onimage,
     onerror,
     title = "Document",
@@ -34,6 +35,7 @@
     anchorId?: string | null;
     onposition: (byte: number, anchor: string | null) => void;
     onlink: (link: string) => void;
+    onnote?: (target: string) => void;
     onimage: (
       link: string,
     ) => Promise<{ dataUrl: string; width: number; height: number } | null>;
@@ -264,22 +266,40 @@
       }
       return;
     }
+    if (target.dataset.noteLink) {
+      onnote(target.dataset.noteLink);
+      return;
+    }
     const link = target.getAttribute("href");
     if (!link || !safeLink(link)) return;
     if (link.startsWith("#")) {
-      let id: string;
-      try {
-        id = decodeURIComponent(link.slice(1));
-      } catch {
-        notice = "This anchor has invalid URL encoding.";
-        return;
-      }
-      const heading = headings.find((h) => h.id === id || h.id === `h-${id}`);
-      if (heading) {
-        await show(heading.section);
-        scrollWithin(host.querySelector(`#${CSS.escape(heading.id)}`));
-      } else notice = "This anchor is not indexed.";
+      await followAnchor(link.slice(1));
     } else onlink(link);
+  }
+  let requestedAnchor = $state<string | null>(null);
+  $effect(() => {
+    const anchor = requestedAnchor;
+    if (anchor === null || !complete) return;
+    requestedAnchor = null;
+    void jumpAnchor(anchor);
+  });
+  export async function followAnchor(anchor: string) {
+    requestedAnchor = anchor;
+  }
+  async function jumpAnchor(anchor: string) {
+    let id: string;
+    try {
+      id = decodeURIComponent(anchor);
+    } catch {
+      notice = "This anchor has invalid URL encoding.";
+      return;
+    }
+    const heading = headings.find(
+      (h) => h.id === id || h.id === `h-${id}` || h.title === id,
+    );
+    if (heading) {
+      await goHeading(heading);
+    } else notice = "This anchor is not indexed.";
   }
   export async function exportHtml() {
     if (!client || !complete) {
@@ -353,14 +373,22 @@
           if (found >= 0 || complete) {
             restored = true;
             const heading = restoreAnchor
-              ? headings.find((h) => h.id === restoreAnchor)
+              ? headings.find(
+                  (h) =>
+                    h.id === restoreAnchor ||
+                    h.title === restoreAnchor.replace(/^h-/, ""),
+                )
               : undefined;
             if (heading) void goHeading(heading);
             else void show(Math.max(0, found));
           }
         } else if (complete && !wasComplete) {
           const restoredHeading = restoreAnchor
-            ? headings.find((h) => h.id === restoreAnchor)
+            ? headings.find(
+                (h) =>
+                  h.id === restoreAnchor ||
+                  h.title === restoreAnchor.replace(/^h-/, ""),
+              )
             : undefined;
           if (restoredHeading) void goHeading(restoredHeading);
           else void show(at);

@@ -65,6 +65,7 @@ fn main() {
         "library_choose_root",
         "library_page",
         "library_open",
+        "note_catalogue",
         "library_preview",
         "library_scan",
         "library_job",

@@ -2973,3 +2973,14 @@ textarea {
 .note-template small {
   color: var(--quiet);
 }
+
+.note-link-result {
+  display: block;
+  width: 100%;
+  text-align: start;
+  margin-block: 0.35rem;
+  overflow-wrap: anywhere;
+}
+.wiki-link {
+  text-decoration-style: dotted;
+}

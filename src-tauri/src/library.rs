@@ -43,6 +43,22 @@ fn c(name: &std::ffi::OsStr) -> Result<CString, FileError> {
 fn uid() -> String {
     Uuid::new_v4().to_string()
 }
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NoteCapture {
+    pub item: Item,
+    pub path: String,
+    pub text: Option<String>,
+}
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NoteCatalogue {
+    pub root: Folder,
+    pub active: String,
+    pub notes: Vec<NoteCapture>,
+    pub complete: bool,
+    pub skipped: usize,
+}
 #[derive(Clone, PartialEq, Eq)]
 struct Stamp(u64, u64, u64, i64, i64, i64, i64);
 fn stamp(m: &fs::Metadata) -> Stamp {
@@ -1059,6 +1075,118 @@ impl Library {
                 .ok_or_else(stale)?
         };
         self.resolve_path(&decode_path(&path).ok_or_else(stale)?)
+    }
+    pub fn note_catalogue(&mut self, base: &Path) -> Result<NoteCatalogue, FileError> {
+        let (root_id, root_path) = self
+            .roots
+            .iter()
+            .filter(|(_, root)| base.starts_with(&root.path))
+            .max_by_key(|(_, root)| root.path.components().count())
+            .map(|(id, root)| (id.clone(), root.path.clone()))
+            .ok_or_else(|| {
+                err(
+                    "unauthorized",
+                    "Open the containing folder in Library to explore note links.",
+                )
+            })?;
+        let active = base
+            .strip_prefix(&root_path)
+            .ok()
+            .and_then(Path::to_str)
+            .ok_or_else(|| err("encoding", "Note links require UTF-8 filenames."))?
+            .to_owned();
+        let root = self.folder(&root_id)?;
+        let mut result = NoteCatalogue {
+            root,
+            active,
+            notes: vec![],
+            complete: true,
+            skipped: 0,
+        };
+        let mut queue = VecDeque::from([root_id]);
+        let mut seen = std::collections::HashSet::new();
+        let deadline = Instant::now() + Duration::from_secs(2);
+        let mut steps = 0;
+        while let Some(dir) = queue.pop_front() {
+            let mut offset = 0;
+            let mut refresh = true;
+            loop {
+                steps += 1;
+                if steps > 1000 || Instant::now() > deadline || result.notes.len() >= 200 {
+                    result.complete = false;
+                    return Ok(result);
+                }
+                let page = self.page(&dir, offset, "name", false, "all", refresh, false)?;
+                refresh = false;
+                for item in page.items {
+                    if !seen.insert(item.id.clone()) {
+                        continue;
+                    }
+                    if let Some(child) = &item.directory {
+                        if self.dirs[child].parts.len() < 64 {
+                            queue.push_back(child.clone());
+                        } else {
+                            result.complete = false;
+                        }
+                        continue;
+                    }
+                    if item.kind != "file"
+                        || !["md", "markdown"].contains(
+                            &Path::new(&item.name)
+                                .extension()
+                                .and_then(|s| s.to_str())
+                                .unwrap_or("")
+                                .to_ascii_lowercase()
+                                .as_str(),
+                        )
+                    {
+                        continue;
+                    }
+                    if result.notes.len() >= 200 {
+                        result.complete = false;
+                        return Ok(result);
+                    }
+                    let (_, parent) = self.dir(&item.parent.id)?;
+                    let relative = parent
+                        .join(&item.name)
+                        .strip_prefix(&root_path)
+                        .ok()
+                        .and_then(Path::to_str)
+                        .map(str::to_owned);
+                    let Some(path) = relative else {
+                        result.skipped += 1;
+                        continue;
+                    };
+                    let text = if item.bytes <= 65536 {
+                        self.scoped(&item.id)
+                            .and_then(|file| file.snapshot_bounded(65536))
+                            .and_then(|(mut file, _, _)| {
+                                let mut text = String::new();
+                                file.read_to_string(&mut text)?;
+                                if text.contains('\0') {
+                                    return Err(err("encoding", "Not a UTF-8 Markdown note."));
+                                }
+                                Ok(text)
+                            })
+                            .ok()
+                    } else {
+                        None
+                    };
+                    if text.is_none() {
+                        result.skipped += 1;
+                    }
+                    result.notes.push(NoteCapture { item, path, text });
+                }
+                offset += PAGE;
+                if offset >= page.total {
+                    if page.complete {
+                        break;
+                    }
+                    offset = 0;
+                }
+            }
+        }
+        Ok(result)
     }
     pub fn resolve_link(
         &mut self,
@@ -2507,6 +2635,49 @@ mod tests {
         assert!(l.progress(&review.id, false).unwrap().canceled);
         assert!(t.path().join("root/A.txt").exists());
         assert!(!t.path().join("root/c.txt").exists());
+    }
+    #[test]
+    fn note_catalogue_reads_only_selected_visible_markdown_and_bounds_captures() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("notes");
+        fs::create_dir(&root).unwrap();
+        fs::write(root.join("First.md"), "# First\n[[Second]]").unwrap();
+        fs::write(root.join("Second.md"), "# Second").unwrap();
+        fs::write(root.join("large.md"), "x".repeat(65537)).unwrap();
+        fs::write(root.join(".hidden.md"), "hidden").unwrap();
+        fs::write(root.join("private.txt"), "not indexed").unwrap();
+        std::os::unix::fs::symlink(dir.path(), root.join("escape")).unwrap();
+        let mut library = Library::new(dir.path().join("private"), vec![]);
+        assert!(library.note_catalogue(&root.join("First.md")).is_err());
+        let folder = library.select(&root).unwrap();
+        let catalogue = library.note_catalogue(&root.join("First.md")).unwrap();
+        assert_eq!(catalogue.root.id, folder.id);
+        assert_eq!(catalogue.active, "First.md");
+        assert!(catalogue.complete);
+        assert_eq!(catalogue.notes.len(), 3);
+        assert_eq!(catalogue.skipped, 1);
+        assert!(
+            catalogue
+                .notes
+                .iter()
+                .find(|n| n.path == "large.md")
+                .unwrap()
+                .text
+                .is_none()
+        );
+        assert!(
+            catalogue
+                .notes
+                .iter()
+                .find(|n| n.path == "First.md")
+                .unwrap()
+                .text
+                .as_ref()
+                .unwrap()
+                .contains("[[Second]]")
+        );
+        library.remove_root(&folder.id).unwrap();
+        assert!(library.note_catalogue(&root.join("First.md")).is_err());
     }
     #[test]
     fn create_rejects_paths_and_never_overwrites() {

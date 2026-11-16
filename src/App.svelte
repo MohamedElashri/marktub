@@ -359,6 +359,7 @@
       if (tabs[existing].document !== descriptor.id)
         await bridge.releaseDocument(descriptor.id);
       active = existing;
+      if (link?.includes("#")) await tabs[existing].pane?.revealLink(link);
       await revealDocumentOnNarrowScreens();
       return;
     }
@@ -751,6 +752,7 @@
         >
           <DocumentPane
             bind:this={tab.pane}
+            onlinked={openTab}
             onnewnote={() => {
               void runCommand("new_note");
             }}

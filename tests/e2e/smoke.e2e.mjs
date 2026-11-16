@@ -3849,11 +3849,13 @@ describe("Everyday workflows", () => {
           (await browser
             .$('dialog[open] [id$="-discard-title"]')
             .isDisplayed()),
+        { timeout: 60000 },
       );
       if (await browser.$('dialog[open] [id$="-discard-title"]').isDisplayed())
         await browser.$("button=Discard edits").click();
       await browser.waitUntil(
         async () => !(await browser.$(`#${id}`).isExisting()),
+        { timeout: 60000 },
       );
     }
     if (await browser.$(".library-host").isDisplayed())
@@ -4082,10 +4084,95 @@ describe("Everyday workflows", () => {
     expect(await fs.readFile(fixture.path, "utf8")).toBe("# First\n");
   });
 
+  it("follows wiki links and shows saved backlinks without replacing unsaved Source", async () => {
+    const fs = await import("node:fs/promises");
+    const fixture = await invoke("e2e_fixture", {
+      action: "seed",
+      text: "# Untouched\n",
+    });
+    const root = dirname(fixture.path);
+    await fs.mkdir(join(root, "one"));
+    await fs.mkdir(join(root, "two"));
+    await fs.writeFile(
+      join(root, "Start.md"),
+      "# Start\n\n[[Other#Details|Open other]] and [[Duplicate]]\n",
+    );
+    await fs.writeFile(
+      join(root, "Other.md"),
+      "# Other\n\n## Details\n\nA linked note.\n",
+    );
+    await fs.writeFile(join(root, "Back.md"), "[Other](Other.md)\n");
+    for (const folder of ["one", "two"])
+      await fs.writeFile(join(root, folder, "Duplicate.md"), "# Duplicate\n");
+    const authorized = await invoke("library_choose_root");
+    handoff(join(root, "Start.md"));
+    await readDocument("Start");
+    const startTab = await selected().getAttribute("id");
+    await pane().$("button=Source").click();
+    await pane().$(".cm-content").waitForDisplayed({ timeout: 60000 });
+    await browser.tauri.execute(() => {
+      window.linkEditor = document.querySelector(
+        ".document-tab:not([hidden]) .cm-editor",
+      );
+      window.linkEditor.querySelector(".cm-content").focus();
+      document.execCommand("insertText", false, "[[UnsavedOnly]] ");
+    });
+    await pane().$("button=Split").click();
+    const links = () => pane().$('dialog[aria-label="Note links"][open]');
+    try {
+      await pane()
+        .$('a[data-note-link="Other#Details"]')
+        .waitForDisplayed({ timeout: 60000 });
+      await pane().$('a[data-note-link="Other#Details"]').click();
+      await readDocument("Other");
+      await pane().$(".toolbar").$("button=Links").click();
+      await links()
+        .$('section[aria-label="Backlinks"]')
+        .waitForDisplayed({ timeout: 60000 });
+      await expect(links().$('section[aria-label="Backlinks"]')).toHaveText(
+        expect.stringContaining("Start.md"),
+      );
+      await expect(links().$('section[aria-label="Backlinks"]')).toHaveText(
+        expect.stringContaining("Back.md"),
+      );
+      await links().$("button=Close links").click();
+      await browser.$(`#${startTab}`).click();
+      expect(
+        await browser.tauri.execute(
+          () =>
+            window.linkEditor ===
+            document.querySelector(".document-tab:not([hidden]) .cm-editor"),
+        ),
+      ).toBe(true);
+      await expect(pane().$(".cm-content")).toHaveText(
+        expect.stringContaining("UnsavedOnly"),
+      );
+      await pane().$('a[data-note-link="Duplicate"]').click();
+      await links()
+        .$('section[aria-label="Matching notes"]')
+        .waitForDisplayed({ timeout: 60000 });
+      await expect(links()).toHaveText(
+        expect.stringContaining("one/Duplicate.md"),
+      );
+      await expect(links()).toHaveText(
+        expect.stringContaining("two/Duplicate.md"),
+      );
+      expect(await browser.$$(".tabs .tab").length).toBe(2);
+      await browser.saveScreenshot("artifacts/native-note-links.png");
+    } finally {
+      if (await links().isExisting())
+        await links().$("button=Close links").click();
+      await browser.tauri.execute(() => {
+        delete window.linkEditor;
+      });
+      await invoke("library_remove_root", { id: authorized.id });
+    }
+  });
+
   it("creates recoverable new notes and templates and saves only to a native-selected destination", async () => {
     await invoke("e2e_fixture", { action: "seed", text: "# Existing file\n" });
     await browser.$(".workspace-actions").$("button=New note").click();
-    await pane().$(".cm-content").waitForDisplayed();
+    await pane().$(".cm-content").waitForDisplayed({ timeout: 60000 });
     await ready();
     await expect(selected()).toHaveText(
       expect.stringContaining("Untitled.md *"),
@@ -4116,7 +4203,7 @@ describe("Everyday workflows", () => {
     await chooser.$("input[maxlength='160']").setValue("Team planning");
     await chooser.$('input[value="meeting"]').click();
     await chooser.$("button=Create note").click();
-    await pane().$(".cm-content").waitForDisplayed();
+    await pane().$(".cm-content").waitForDisplayed({ timeout: 60000 });
     await expect(pane().$(".cm-content")).toHaveText(
       expect.stringContaining("## Decisions"),
     );

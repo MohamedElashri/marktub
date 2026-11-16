@@ -33,6 +33,7 @@
     onfolder,
     onnewnote,
     ontemplate,
+    onlinked,
   }: {
     active?: boolean;
     ongit: () => void | Promise<void>;
@@ -44,6 +45,7 @@
     onfolder: () => Promise<void>;
     onnewnote: () => void;
     ontemplate: () => void;
+    onlinked: (document: Descriptor, link?: string) => Promise<void>;
     previewSettings?: Values | null;
     onstate: (
       name: string,
@@ -131,6 +133,23 @@
     PowerComponent ??= (await import("./power/Panel.svelte")).default;
     await tick();
     await powerPanel?.show();
+  }
+  let LinksComponent = $state<
+    typeof import("./NoteLinks.svelte").default | null
+  >(null);
+  let linksPanel = $state<import("./NoteLinks.svelte").default>();
+  async function showLinks(target?: string) {
+    if (!realDocument() || busy) return;
+    LinksComponent ??= (await import("./NoteLinks.svelte")).default;
+    await tick();
+    if (target) await linksPanel?.follow(target);
+    else await linksPanel?.show();
+  }
+  export async function revealLink(link: string) {
+    if (!link.includes("#")) return;
+    await switchMode("read");
+    await tick();
+    await reader?.followAnchor(link.slice(link.indexOf("#") + 1));
   }
   let ReviewComponent = $state<typeof ReviewPanel | null>(null),
     reviewPanel = $state<ReviewPanel>();
@@ -1111,6 +1130,9 @@
         onclick={toggleReview}
         disabled={busy}>{reviewEnabled ? "Review on" : "Review"}</button
       >{/if}
+    {#if realDocument()}<button onclick={() => showLinks()} disabled={busy}
+        >Links</button
+      >{/if}
     {#if session}<button
         class="save-button"
         onclick={() => save()}
@@ -1158,6 +1180,11 @@
     active={busy}
     label={editorUndoing ? "Applying undo / redo…" : operation}
   />
+  {#if LinksComponent && realDocument()}<LinksComponent
+      bind:this={linksPanel}
+      documentId={realDocument()!}
+      onopen={onlinked}
+    />{/if}
   {#if PowerComponent}<PowerComponent
       bind:this={powerPanel}
       oncapture={capturePower}
@@ -1476,6 +1503,7 @@
                       .catch((e) => (message = bridge.errorMessage(e)));
                 }}
                 onlink={(link) => void open(false, link)}
+                onnote={(target) => void showLinks(target)}
                 onimage={async (link) => {
                   const id = realDocument();
                   if (!id)
