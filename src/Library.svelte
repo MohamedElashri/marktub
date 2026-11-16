@@ -187,6 +187,7 @@
       : [...selected, item.id];
   }
   async function open(item: api.Item) {
+    if (busy) return;
     if (item.directory) {
       await enter(
         { id: item.directory, name: item.name, root: current?.root ?? "" },
@@ -464,11 +465,7 @@
             class="file-name"
             title={item.name}
             disabled={item.kind === "link" || item.kind === "special"}
-            ondblclick={() => open(item)}
-            onclick={() => {
-              if (item.directory) void open(item);
-              else selected = [item.id];
-            }}
+            onclick={() => open(item)}
             onkeydown={(event) => {
               if (event.key === " ") {
                 event.preventDefault();

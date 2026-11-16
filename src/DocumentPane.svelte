@@ -251,8 +251,6 @@
   let mode = $state<"read" | "source" | "split" | "visual">("read");
   let splitPercent = $state(50),
     writingFocus = $state(false),
-    spellcheck = $state(false),
-    numbers = $state(true),
     windowStart = $state(0);
   let syncUntil = 0,
     renderRequest = 0;
@@ -320,6 +318,14 @@
     await tick();
     editor?.revealLine(line, true);
   }
+  const configuredNumbers = $derived(
+    Boolean(value("editor.line_numbers", true)),
+  );
+  const configuredSpellcheck = $derived(
+    Boolean(value("editor.spellcheck", false)),
+  );
+  let numbers = $derived(configuredNumbers);
+  let spellcheck = $derived(configuredSpellcheck);
   export function preferences() {
     return settings?.resolved ?? {};
   }

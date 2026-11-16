@@ -90,7 +90,7 @@ def inspect(package, binary):
         config = json.loads(Path("src-tauri/tauri.conf.json").read_text())
         icons = verify_icons(root, text, [Path("src-tauri") / name for name in config["bundle"].get("icon", []) if name.endswith(".png")])
         resources = {}
-        for name, source in [("specimen.md", Path("tests/fixtures/specimen.md")), ("licenses.txt", Path("artifacts/licenses/licenses.txt"))]:
+        for name, source in [("Marktub Guide.md", Path("tests/fixtures/specimen.md")), ("marktub-example.png", Path("src-tauri/icons/256x256.png")), ("licenses.txt", Path("artifacts/licenses/licenses.txt"))]:
             candidates = list((root / "usr/lib").rglob(name))
             assert len(candidates) == 1, (name, candidates)
             assert candidates[0].is_file() and not candidates[0].is_symlink()

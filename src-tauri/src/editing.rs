@@ -1158,13 +1158,17 @@ impl Editing {
     ) -> Result<SettingsResult, FileError> {
         let (f, w) = self.record_keys(docs, id)?;
         if ["workspace", "file"].contains(&scope)
-            && crate::settings::Settings::parse(text.as_bytes())
-                .is_ok_and(|s| s.values().keys().any(|k| k.starts_with("shortcut.")))
+            && crate::settings::Settings::parse(text.as_bytes()).is_ok_and(|s| {
+                s.values()
+                    .keys()
+                    .any(|k| k.starts_with("shortcut.") || k == "library.width")
+            })
         {
             let mut result = self.settings(docs, id, scope)?;
             result.diagnostics = vec![crate::settings::Diagnostic {
                 line: 1,
-                message: "Shortcuts are global or session-only preferences.".into(),
+                message: "Shortcuts and library layout are global or session-only preferences."
+                    .into(),
             }];
             return Ok(result);
         }
@@ -1975,6 +1979,27 @@ mod tests {
                 .unwrap()
                 .diagnostics
                 .is_empty()
+        );
+        for scope in ["workspace", "file"] {
+            assert!(
+                !s.update_settings(&docs, Some(&doc.id), scope, "$library.width=440")
+                    .unwrap()
+                    .diagnostics
+                    .is_empty()
+            );
+        }
+        assert!(
+            s.update_settings(&docs, None, "global", "$library.width=440")
+                .unwrap()
+                .diagnostics
+                .is_empty()
+        );
+        assert_eq!(
+            s.settings(&docs, None, "global")
+                .unwrap()
+                .resolved
+                .get("library.width"),
+            Some(&crate::settings::Value::Number(440.))
         );
         assert_eq!(fs::read(path).unwrap(), "\u{feff}a\r\nb\nc\r🦀".as_bytes());
     }

@@ -13,13 +13,18 @@
     type Command,
   } from "./commands";
   import BusyStatus from "./ui/BusyStatus.svelte";
+  import Icon from "./ui/Icon.svelte";
+  import TabBar from "./TabBar.svelte";
+  import ResizeHandle from "./ui/ResizeHandle.svelte";
+  import { libraryWidth, librarySize } from "./workspace";
+  import { literals, put } from "./preferences";
   import type { Values } from "./preferences";
   import type ReviewArchive from "./review/Archive.svelte";
   import DocumentPane from "./DocumentPane.svelte";
   import type Library from "./Library.svelte";
   import * as bridge from "./bridge";
   import * as library from "./library";
-  import { sessionSelection } from "./tabs";
+  import { sessionSelection, moveTab } from "./tabs";
   type Tab = {
     key: number;
     name: string;
@@ -96,6 +101,14 @@
         enabled = false;
         reason = "Four-tab limit reached";
       }
+      if (
+        ["move_tab_left", "move_tab_right"].includes(id) &&
+        (closingTab !== null ||
+          (id === "move_tab_left" ? active === 0 : active === tabs.length - 1))
+      ) {
+        enabled = false;
+        reason = "The tab is already at this edge, or is closing";
+      }
       if (["next_tab", "previous_tab"].includes(id) && tabs.length < 2) {
         enabled = false;
         reason = "Open another tab";
@@ -122,6 +135,7 @@
     await Promise.all(tabs.map((t) => t.pane?.refreshPreferences()));
   }
   async function showPreferences() {
+    await layoutWrite;
     PreferencesComponent ??= (await import("./Preferences.svelte")).default;
     await tick();
     await preferencesPanel?.show(
@@ -155,17 +169,16 @@
             return library.configure(false, panel?.viewName() ?? "list");
           }
           return showLibrary();
+        case "example":
+          return openTab(await bridge.openExample());
         case "new_tab":
-          if (tabs.length < 4) {
-            tabs.push({
-              key: ++serial,
-              name: "New tab",
-              dirty: false,
-              document: null,
-            });
-            active = tabs.length - 1;
-          }
-          return;
+          return newTab();
+        case "move_tab_left":
+        case "move_tab_right":
+          return reorderTab(
+            tabs[active].key,
+            active + (id === "move_tab_left" ? -1 : 1),
+          );
         case "close_tab":
           return closeTab(active);
         case "next_tab":
@@ -184,6 +197,72 @@
     } catch (error) {
       message = bridge.errorMessage(error);
     }
+  }
+  function newTab() {
+    if (tabs.length >= 4) return;
+    tabs.push({ key: ++serial, name: "New tab", dirty: false, document: null });
+    active = tabs.length - 1;
+  }
+  let tabAnnouncement = $state("");
+  function reorderTab(key: number, destination: number) {
+    if (closingTab !== null) return;
+    const moved = moveTab(tabs, active, key, destination);
+    if (moved.tabs === tabs) return;
+    tabs = moved.tabs;
+    active = moved.active;
+    const index = tabs.findIndex((tab) => tab.key === key);
+    tabAnnouncement = `${tabs[index].name} moved to position ${index + 1} of ${tabs.length}.`;
+  }
+  let viewportWidth = $state(1024),
+    draftWidth = $state<number | null>(null);
+  const sidebarWidth = $derived(
+    libraryWidth(
+      Number(
+        previewValues?.["library.width"]?.value ??
+          draftWidth ??
+          currentValues["library.width"]?.value ??
+          librarySize.default,
+      ),
+      viewportWidth,
+    ),
+  );
+
+  let layoutWrite = Promise.resolve(),
+    layoutRevision = 0;
+  function resizeLibrary(width: number) {
+    const next = libraryWidth(width, viewportWidth),
+      revision = ++layoutRevision;
+    draftWidth = next;
+    let saved = false;
+    layoutWrite = layoutWrite
+      .then(async () => {
+        const session = await bridge.getSettings(null, "session");
+        const scope =
+          literals(session.text)["library.width"] === undefined
+            ? "global"
+            : "session";
+        const previous =
+          scope === "session"
+            ? session
+            : await bridge.getSettings(null, "global");
+        const result = await bridge.updateSettings(
+          null,
+          scope,
+          put(previous.text, "library.width", String(next)),
+        );
+        if (result.diagnostics.length)
+          throw Error(result.diagnostics.map((d) => d.message).join(" "));
+        await refreshPreferences();
+        saved = true;
+      })
+      .catch((error) => {
+        message = `Library resized for this session. Could not save its width: ${bridge.errorMessage(error)}`;
+      })
+      .finally(() => {
+        if (revision === layoutRevision) {
+          if (saved) draftWidth = null;
+        }
+      });
   }
   let sidebar = $state(false);
   let LibraryComponent = $state<typeof Library | null>(null);
@@ -232,6 +311,13 @@
       folderBusy = false;
     }
   }
+  async function revealDocumentOnNarrowScreens() {
+    if (viewportWidth > 700 || !sidebar) return;
+    sidebar = false;
+    await library
+      .configure(false, panel?.viewName() ?? "list")
+      .catch((error) => (message = bridge.errorMessage(error)));
+  }
   const openingTabs = new SvelteSet<number>();
   async function openTab(descriptor: bridge.Descriptor, link?: string) {
     const existing = tabs.findIndex(
@@ -243,6 +329,7 @@
       if (tabs[existing].document !== descriptor.id)
         await bridge.releaseDocument(descriptor.id);
       active = existing;
+      await revealDocumentOnNarrowScreens();
       return;
     }
     const available = (tab: Tab) =>
@@ -278,6 +365,7 @@
         throw Error("The target tab closed before the document opened.");
       await pane.load(descriptor, link);
       adopted = true;
+      await revealDocumentOnNarrowScreens();
       await tick();
       await saveSession();
     } catch (error) {
@@ -512,95 +600,81 @@
 <svelte:head
   ><title>{tabs[active]?.name ?? "Marktub"} — Marktub</title></svelte:head
 >
-<div class="workbench" class:has-library={sidebar}>
-  <nav class="tabbar" aria-label="Open documents">
-    <button
-      aria-expanded={sidebar}
-      onclick={() => {
-        if (sidebar) {
-          sidebar = false;
-          void library
-            .configure(false, panel?.viewName() ?? "list")
-            .catch((e) => (message = bridge.errorMessage(e)));
-        } else void showLibrary();
-      }}>Library</button
-    >
-    <button
-      aria-label="Back in file history"
-      disabled={historyAt <= 0}
-      onclick={() => navigate(-1)}>‹</button
-    >
-    <button
-      aria-label="Forward in file history"
-      disabled={historyAt + 1 >= history.length}
-      onclick={() => navigate(1)}>›</button
-    >
-    <div class="tabs" role="tablist" aria-label="Document tabs">
-      {#each tabs as tab, index (tab.key)}<div class="tab">
-          <button
-            role="tab"
-            id={`document-tab-${tab.key}`}
-            aria-controls={`document-panel-${tab.key}`}
-            tabindex={index === active ? 0 : -1}
-            aria-selected={index === active}
-            title={`${tab.name}${tab.dirty ? " — unsaved changes" : ""}`}
-            onkeydown={async (event) => {
-              if (
-                !["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)
-              )
-                return;
-              event.preventDefault();
-              active =
-                event.key === "Home"
-                  ? 0
-                  : event.key === "End"
-                    ? tabs.length - 1
-                    : (index +
-                        (event.key === "ArrowRight" ? 1 : -1) +
-                        tabs.length) %
-                      tabs.length;
-              await tick();
-              window.document
-                .getElementById(`document-tab-${tabs[active].key}`)
-                ?.focus();
-            }}
-            onclick={() => (active = index)}
-            >{tab.name}{tab.dirty ? " *" : ""}</button
-          ><button
-            aria-label={`Close ${tab.name}`}
-            disabled={closingTab !== null ||
-              openingTabs.has(tab.key) ||
-              tab.pane?.commandState().busy}
-            onclick={() => closeTab(index)}>×</button
-          >
-        </div>{/each}
-    </div>
-    <button
-      aria-label="New tab"
-      disabled={tabs.length >= 4}
-      onclick={() => {
-        tabs.push({
-          key: ++serial,
-          name: "New tab",
-          dirty: false,
-          document: null,
-        });
-        active = tabs.length - 1;
-      }}>+</button
-    >
-    <button onclick={showGit}>Git</button>
-    <button onclick={showPalette}>Commands</button>
-    <button onclick={() => showLibrary(true)}
-      >Quick open <kbd
-        aria-label={shortcutLabel(
-          String(currentValues["shortcut.quick_open"]?.value ?? "Mod+P"),
-        ).spoken}
-        >{shortcutLabel(
-          String(currentValues["shortcut.quick_open"]?.value ?? "Mod+P"),
-        ).visual}</kbd
-      ></button
-    >
-  </nav>
+<svelte:window bind:innerWidth={viewportWidth} />
+<div
+  class="workbench"
+  class:has-library={sidebar}
+  style={`--library-width:${sidebarWidth}px`}
+>
+  <header class="workbench-header">
+    <nav class="workspace-actions" aria-label="Workspace">
+      <button
+        aria-expanded={sidebar}
+        title="Show or hide library"
+        onclick={() => {
+          void runCommand("browser");
+        }}><Icon name="folder" />Library</button
+      >
+      <div class="history-actions">
+        <button
+          aria-label="Back in file history"
+          title="Back"
+          disabled={historyAt <= 0}
+          onclick={() => navigate(-1)}>‹</button
+        >
+        <button
+          aria-label="Forward in file history"
+          title="Forward"
+          disabled={historyAt + 1 >= history.length}
+          onclick={() => navigate(1)}>›</button
+        >
+      </div>
+      <button class="quick-open-button" onclick={() => showLibrary(true)}
+        ><Icon name="find" /><span>Quick open</span><kbd
+          aria-label={shortcutLabel(
+            String(currentValues["shortcut.quick_open"]?.value ?? "Mod+P"),
+          ).spoken}
+          >{shortcutLabel(
+            String(currentValues["shortcut.quick_open"]?.value ?? "Mod+P"),
+          ).visual}</kbd
+        ></button
+      >
+      <div class="workspace-tools">
+        <button onclick={showGit}>Git</button>
+        <button onclick={showPalette}>Commands</button>
+        <button
+          aria-label="Open feature guide"
+          title="Built-in feature guide"
+          onclick={() => runCommand("example")}
+          ><Icon name="book" /><span>Guide</span></button
+        >
+        <button
+          class="settings-button"
+          aria-label="Settings"
+          title={`Settings · ${shortcutLabel(String(currentValues["shortcut.preferences"]?.value ?? "Mod+Comma")).visual}`}
+          onclick={showPreferences}
+          ><Icon name="settings" /><span>Settings</span></button
+        >
+      </div>
+    </nav>
+    <TabBar
+      tabs={tabs.map((tab) => ({
+        key: tab.key,
+        name: tab.name,
+        dirty: tab.dirty,
+        busy: openingTabs.has(tab.key) || !!tab.pane?.commandState().busy,
+      }))}
+      {active}
+      locked={closingTab !== null}
+      onselect={(index) => (active = index)}
+      onclose={(index) => {
+        void closeTab(index);
+      }}
+      onmove={reorderTab}
+      onnew={newTab}
+    />
+  </header>
+  <span class="sr-only" aria-live="polite">{tabAnnouncement}</span>
   <BusyStatus
     active={nativeOpening && !tabs[active]?.pane?.commandState().busy}
     label="Opening file…"
@@ -612,7 +686,11 @@
       >
     </div>{/if}
   <div class="workbench-body">
-    {#if LibraryComponent}<aside class="library-host" hidden={!sidebar}>
+    {#if LibraryComponent}<aside
+        id="library-sidebar"
+        class="library-host"
+        hidden={!sidebar}
+      >
         <LibraryComponent
           bind:this={panel}
           onopen={openTab}
@@ -621,6 +699,14 @@
           onrecentchange={(hints) => (recentFiles = hints.slice(0, 6))}
         />
       </aside>{/if}
+    {#if sidebar}<ResizeHandle
+        value={sidebarWidth}
+        min={librarySize.min}
+        max={libraryWidth(librarySize.max, viewportWidth)}
+        reset={librarySize.default}
+        onpreview={(width) => (draftWidth = width)}
+        oncommit={resizeLibrary}
+      />{/if}
     <div class="document-host">
       {#each tabs as tab, index (tab.key)}<div
           class="document-tab"
@@ -660,7 +746,10 @@
 {#if PreferencesComponent}<PreferencesComponent
     bind:this={preferencesPanel}
     onpreview={(values) => (previewValues = values)}
-    oncommit={refreshPreferences}
+    oncommit={async () => {
+      await refreshPreferences();
+      draftWidth = null;
+    }}
   />{/if}
 {#if PaletteComponent}<PaletteComponent
     bind:this={palettePanel}

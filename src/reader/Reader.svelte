@@ -71,6 +71,7 @@
       .slice(0, 200),
   );
   $effect(() => {
+    if (embedded) return;
     document.documentElement.dataset.readingFocus = String(focus);
     return () => {
       delete document.documentElement.dataset.readingFocus;
@@ -394,19 +395,25 @@
       <button onclick={copyShown}>Copy shown text</button>
       <label
         >Theme <select
+          aria-label="Reading theme"
           value={preferences.theme}
           onchange={(e) => onpreference("theme", e.currentTarget.value)}
-          ><option>system</option><option>light</option><option>paper</option
-          ><option>dark</option><option>midnight</option><option>custom</option
+          ><option value="system">Follow system</option><option value="light"
+            >Light</option
+          ><option value="paper">Parchment</option><option value="dark"
+            >Dark</option
+          ><option value="midnight">Ink</option><option value="custom"
+            >Custom</option
           ></select
         ></label
       >
       <label
         >Width <select
-          value={preferences.width}
+          aria-label="Reading width"
+          value={String(preferences.width)}
           onchange={(e) => onpreference("reader.width", e.currentTarget.value)}
           >{#if ![600, 760, 1000].includes(preferences.width)}<option
-              value={preferences.width}>{preferences.width}px</option
+              value={String(preferences.width)}>{preferences.width}px</option
             >{/if}<option value="600">Narrow</option><option value="760"
             >Comfortable</option
           ><option value="1000">Wide</option></select
@@ -414,11 +421,12 @@
       >
       <label
         >Text <select
-          value={preferences.size}
+          aria-label="Reading text size"
+          value={String(preferences.size)}
           onchange={(e) =>
             onpreference("reader.font_size", e.currentTarget.value)}
           >{#if ![16, 18, 22, 28].includes(preferences.size)}<option
-              value={preferences.size}>{preferences.size}</option
+              value={String(preferences.size)}>{preferences.size}</option
             >{/if}<option value="16">16</option><option value="18">18</option
           ><option value="22">22</option><option value="28">28</option></select
         ></label
