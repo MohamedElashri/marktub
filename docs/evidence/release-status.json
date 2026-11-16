@@ -1,11 +1,11 @@
 {
   "schemaVersion": 3,
-  "date": "2026-11-15",
-  "version": "0.1.0",
-  "status": "Hosted desktop and advisory checks passed; Linux and universal macOS artifacts verified. Physical input/accessibility/printing, Intel runtime and minimum-macOS qualifications remain. Release not published.",
+  "date": "2026-11-16",
+  "version": "0.1.1",
+  "status": "Hosted desktop and advisory checks passed; packaged and installed icons verified. Physical input/accessibility/printing, Intel runtime and minimum-macOS qualifications remain.",
   "source": {
-    "baseCommit": "34af363589d369abf5649571cd61e0900f1106b7",
-    "scope": "Candidate snapshot; the deterministic source-archive manifest binds exact maintained files. Prepared Git revision is recorded with the release artifacts."
+    "qualifiedCommit": "507767c02b7776789dc13e0c4b2e44774fe00f9f",
+    "scope": "Hosted checks and release binaries bind to this commit; final README/evidence edits are recorded in the deterministic release source manifest."
   },
   "host": {
     "os": "Zorin OS 18.1, Ubuntu noble base",
@@ -23,13 +23,12 @@
       "status": "pass",
       "files": 19,
       "tests": 788,
-      "scope": "Typecheck, lint, unit tests, tooling and formatting",
-      "transientFailure": "One 100k-heading capacity fixture exceeded its default 5-second unit-test timeout under concurrent compilation; full check repeated after local release compilation completed and all 788 passed without changing the timeout or test."
+      "scope": "Typecheck, lint, unit tests, tooling and formatting"
     },
     "tooling": {
       "status": "pass",
       "nodeTests": 17,
-      "pythonTests": 21
+      "pythonTests": 34
     },
     "dependencies": {
       "status": "pass",
@@ -74,18 +73,18 @@
       },
       "revisionScope": "Full local X11/Wayland runs precede attribution-only build changes; each retained executable hash identifies its measured revision. Current-source hosted smoke is recorded separately.",
       "hostedLinux": {
-        "run": 43701573126,
-        "sourceCommit": "874b6f260953bf8b5186625720ccb337e2d149d1",
+        "run": 43777673785,
+        "sourceCommit": "507767c02b7776789dc13e0c4b2e44774fe00f9f",
         "passed": 54,
-        "seconds": 135.7,
+        "seconds": 128.6,
         "backend": "X11/WebKitGTK on hosted Ubuntu amd64",
         "helperScope": "Native lifecycle captures and post-exit attribution checked by the suite; source and run bound, debug executable hash not retained"
       },
       "hostedMacOS": {
-        "run": 43701573126,
-        "sourceCommit": "874b6f260953bf8b5186625720ccb337e2d149d1",
+        "run": 43777673785,
+        "sourceCommit": "507767c02b7776789dc13e0c4b2e44774fe00f9f",
         "passed": 53,
-        "seconds": 261.9,
+        "seconds": 196.0,
         "backend": "WKWebView on hosted macOS ARM64; universal app built/validated as desktop MACOS for arm64 and x86_64",
         "scope": "Runtime covers the runner-native slice; no Intel runtime, minimum-system or physical-input inference"
       }
@@ -94,44 +93,58 @@
       "scope": "locally built deb extraction, executable/resources/desktop/dependencies; not install or GUI certification",
       "package": {
         "Package": "marktub",
-        "Version": "0.1.0",
+        "Version": "0.1.1",
         "Architecture": "amd64",
         "Depends": "libwebkit2gtk-4.1-0, libgtk-3-0"
       },
-      "debSha256": "4017af0fbb4079ec24bf8231e95e5b31ef48571e9528461c789c284b3658ed22",
-      "debBytes": 11772510,
-      "binarySha256": "77356cea8f913a275715f62e62110e9088160d9d4d779fce4340be36d50dafd0",
-      "binaryBytes": 22627480,
-      "unbundledBinarySha256": "5a80d12ca6301d644ceb3004e0d1b2898d9de3a1675b1e87e2c9461e793ddf86",
+      "debSha256": "3fa811e55d65623d59822df7865d0658b9caddc26584be930dea8eaca7f1ad2c",
+      "debBytes": 11787234,
+      "binarySha256": "8927addf39983e0426223ac5c4ce218fcf8554712d6d8a9c0318097835b32ae9",
+      "binaryBytes": 22628376,
+      "unbundledBinarySha256": "a45abee26995065a0d6fb386c2295920bccabf1b44c1d4de1856cf34f73e99a0",
       "bundleMarkerPatch": "only the fixed Tauri UNK-to-DEB marker; every other byte identical",
       "desktopFile": "Marktub.desktop",
+      "iconsSha256": {
+        "usr/share/icons/hicolor/512x512/apps/marktub.png": "75d4005ffc4637060d361e507b4e3396af173f94751c0cf7f461ba86e11c79d3",
+        "usr/share/icons/hicolor/32x32/apps/marktub.png": "58431c25a54a79f13f496604850a52f482dd453155f38161bf724567e73047ae",
+        "usr/share/icons/hicolor/64x64/apps/marktub.png": "3a9c59cd974c2b3cba220ddf6b7b6cd978310bbcfa573105a7d53e09099a0a4b",
+        "usr/share/icons/hicolor/128x128/apps/marktub.png": "762ce1616c4448f4582fb65dbcea9612b45ea577a64115c27f3aa2f3e08b0909",
+        "usr/share/icons/hicolor/256x256/apps/marktub.png": "e1ca9eaf3250cd381a316ee315ddae8f541736c1f9a0ac1e678d3a7b17641b8b"
+      },
       "resourcesSha256": {
         "specimen.md": "24f52d55b6381919b0e6c96be24fe955cbf52abe49e8c62d4c8d72aea7154aa1",
         "licenses.txt": "58d6a65c3316b5f9bf1f3513f9d9e0e9aedb14a06c7249edc4a0e5c3146f20ed"
       },
       "portableLoaderAndLibraries": true,
       "status": "pass",
-      "source": "Hosted Ubuntu amd64 job 132773648998 in run 43701573126; source commit 874b6f260953bf8b5186625720ccb337e2d149d1",
+      "source": "Hosted Ubuntu amd64 job 133007577356 in run 43777673785; source commit 507767c02b7776789dc13e0c4b2e44774fe00f9f",
       "releaseIsolation": "pass: normal frontend, ACL, executable and dependency graph exclude test hooks",
       "independentLocalRebuild": {
         "status": "pass",
-        "debSha256": "38a71aa588249990fe4d54cf167474fba4940024b843c1d66b39958661dc0a41",
-        "binarySha256": "5ec8b451b07b920f76ee95533c0324f171a9fcf6303af6e1d00631472fb74e41",
-        "generatedResourcesMatchHosted": true
+        "debSha256": "18c57fb18668eefb927517403e038eb99c3e4460816287487dbe893a9a2189e8",
+        "binarySha256": "6e86c55fd7ce7f3fa13a95e7d7c4b637c960604c5c164591c06de4282820c9c0",
+        "generatedResourcesMatchHosted": true,
+        "iconsMatchHosted": true,
+        "offlineInstalledIconLookup": "pass"
       }
     },
     "offlineInstalledUbuntu": {
       "status": "pass",
       "scope": "offline Ubuntu runtime container, installed normal Debian package, 3 four-mode cycles, bundled example and post-close sampling; synthetic AT-SPI, not physical input or a full installed desktop",
-      "installed": "libgtk-3-0t64 3.24.41-4ubuntu1.3\nlibwebkit2gtk-4.1-0 2.52.6-0ubuntu0.24.04.1\nmarktub 0.1.0\n",
-      "binarySha256": "77356cea8f913a275715f62e62110e9088160d9d4d779fce4340be36d50dafd0",
+      "installed": "libgtk-3-0t64 3.24.41-4ubuntu1.3\nlibwebkit2gtk-4.1-0 2.52.6-0ubuntu0.24.04.1\nmarktub 0.1.1\n",
+      "binarySha256": "8927addf39983e0426223ac5c4ce218fcf8554712d6d8a9c0318097835b32ae9",
+      "desktopIntegration": {
+        "desktopId": "Marktub.desktop",
+        "iconFile": "/usr/share/icons/hicolor/128x128/apps/marktub.png",
+        "iconSha256": "762ce1616c4448f4582fb65dbcea9612b45ea577a64115c27f3aa2f3e08b0909"
+      },
       "observations": 16,
       "samples": 18,
       "allCounterIntervalsComplete": true,
       "documentUnchanged": true,
       "sampledHelperLifecycleConfirmed": true,
       "os": "Ubuntu 24.04.4 LTS runtime container; host kernel shared",
-      "imageId": "sha256:761f0cbd78c25e678776dc2cd6296f914eb0d022591e43e5b1053d2c30b8aba5",
+      "imageId": "sha256:1af217e1fc09830bcda6c904346992501a9e1e4dce36674b24c042da455e9f24",
       "networkMode": "none"
     },
     "sourceArchive": {
@@ -185,26 +198,23 @@
       ]
     },
     "hostedCI": {
-      "supersededRuns": [43697786613, 43698765383, 43700821518, 43701095085],
-      "supersededStatus": "cancelled for requested universal-only macOS workflow",
-      "priorFailure": "Earlier macOS Git snapshot NotFound was consistent with detached Git maintenance; fixture commands now disable automatic maintenance, and all 150 current macOS native tests pass. Clean-checkout Rust checks also needed generated bundle resources; pnpm check now prepares them before native checks.",
       "macosScope": "One native macOS runner builds universal-apple-darwin debug smoke and normal app/DMG; both slices require desktop MACOS platform. Runtime checks cover only runner-native slice, not minimum OS or both physical architectures.",
-      "run": 43701573126,
-      "url": "https://github.com/MohamedElashri/marktub/actions/runs/43701573126",
-      "sourceCommit": "874b6f260953bf8b5186625720ccb337e2d149d1",
+      "run": 43777673785,
+      "url": "https://github.com/MohamedElashri/marktub/actions/runs/43777673785",
+      "sourceCommit": "507767c02b7776789dc13e0c4b2e44774fe00f9f",
       "status": "pass",
-      "linux": "pass: frontend/tooling, strict Rust, optimized backport/diagnostic fixtures, 54 actual WebView tests, normal package isolation, installed app and process samples",
+      "linux": "pass: frontend/tooling, strict Rust, optimized backport/diagnostic fixtures, 54 actual WebView tests, normal package isolation, all five icon sizes, installed GTK icon lookup, app UI and process samples",
       "advisories": "pass: production/all JavaScript and Rust registry, zero findings",
-      "macos": "pass: 150 native Rust tests; 53 actual WKWebView tests in universal debug app; normal universal app/DMG; isolation, desktop architecture/platform, ad-hoc signature, resources and finite process counters",
-      "currentWorkflow": "One native macOS job, one Ubuntu job and advisories; superseded branch runs cancel automatically"
+      "macos": "pass: 150 native Rust tests; 53 actual WKWebView tests in universal debug app; normal universal app/DMG; isolation, desktop architecture/platform, ad-hoc signature, registered original icon, resources and finite process counters",
+      "currentWorkflow": "One native macOS job, one Ubuntu job and advisories; this revision dispatched once to avoid duplicate push/PR builds"
     },
     "macOSPackage": {
       "kind": "local ad-hoc macOS DMG verification, not public notarized/clean-machine/Gatekeeper certification",
-      "dmgSha256": "a8e61ac97ce00c2391ce49c8bfa1d50354e8fcefc208fecd3119e36d54a6aae6",
-      "dmgBytes": 21317344,
-      "binarySha256": "9b7f178fe3b59a57bb10ee072a1fe2b7fd99a61368fa9173b28a29e1dedf7837",
-      "binaryBytes": 39740384,
-      "bundleBytes": 41076902,
+      "dmgSha256": "d2bc6eec94ab928ab2112871a095011d9ba9db57b9f833a3dc7428f54faed414",
+      "dmgBytes": 21376272,
+      "binarySha256": "8bd01d301a270f1df08d0c41f11a63995c9edd1d5e103e0c6c3e7e24271559db",
+      "binaryBytes": 39740368,
+      "bundleBytes": 41121748,
       "architectures": ["x86_64", "arm64"],
       "platform": "MACOS",
       "minimumSystemVersion": "13.0",
@@ -215,6 +225,8 @@
       "downloadedDmgHashMatches": true,
       "downloadedAppArchiveBinaryHashMatches": true,
       "bothDownloadedSlicesPlatform": "MACOS",
+      "iconFile": "icon.icns",
+      "iconSha256": "a3b614945b1937defed4689884f16a9ac0c4d01d01300f4ef4f399fb5ce8e77e",
       "host": "Native macOS ARM64 runner, Darwin 24.6.0; macOS SDK 15.5",
       "processSampling": {
         "status": "pass",
@@ -234,8 +246,8 @@
       "warnings": {},
       "database": {
         "advisory-count": 1509,
-        "last-commit": "4ef2df8e806a65e2f1ecc14f56f51249062b23d6",
-        "last-updated": "2026-11-13T13:33:03+01:00"
+        "last-commit": "02e2517f457a359fc6d3440ea4560c8ea188fee8",
+        "last-updated": "2026-11-15T10:59:21+01:00"
       },
       "deny": ["unsound", "unmaintained"],
       "ignores": []
@@ -296,10 +308,10 @@
   "remainingQualifications": [
     "Native Intel runtime and minimum-supported macOS verification; both universal slices compile and validate as desktop MACOS, while hosted runtime coverage is ARM64",
     "Physical IME, screen-reader speech/navigation, keyboard/image integration, font dialogs, HiDPI and printing",
-    "Full installed Ubuntu desktop and downloaded-package channel; offline runtime-container install is narrower",
+    "Full installed Ubuntu desktop qualification; installed-package UI checks use isolated hosted and offline runtime desktops",
     "Sustained large Source, multitab, Git/Review resource distributions and compositor/input-to-paint/DOM/IPC measurements",
     "Broader filesystem/Git/storage/crash faults, converters/fonts/layout and tool-version combinations",
-    "Downloaded-package opening/Gatekeeper and final distribution review; hosted desktop CI passed"
+    "Downloaded macOS opening/Gatekeeper and clean-machine channel verification"
   ],
   "distributionDecision": {
     "macOS": "ad-hoc signing; no paid Apple Developer account",

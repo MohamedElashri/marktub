@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="src-tauri/icons/128x128@2x.png" width="72" height="72" alt="Marktub icon" />
+  <img src="src-tauri/icons/256x256.png" width="72" height="72" alt="Marktub icon" />
 </p>
 
 <h1 align="center">Marktub</h1>
