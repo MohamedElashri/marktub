@@ -3448,7 +3448,7 @@ describe("Export and local jobs", () => {
     await browser.$('button[aria-label="Open feature guide"]').click();
     await pane().$("article").waitForDisplayed({ timeout: 60000 });
     await open();
-    await panel().$("button=Document fences").click();
+    await panel().$("button*=Document fences").click();
     await select('select[aria-label="Captured fence"]', "shell");
     const setup = panel().$('[aria-label="Shell setup required"]');
     await expect(setup).toHaveText(
