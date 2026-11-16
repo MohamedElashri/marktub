@@ -1,6 +1,9 @@
 <script lang="ts">
   import { listen } from "@tauri-apps/api/event";
   import { onMount } from "svelte";
+  import { SvelteMap } from "svelte/reactivity";
+  import FolderTree from "./FolderTree.svelte";
+  import WorkspaceSearch from "./WorkspaceSearch.svelte";
   import type { Descriptor } from "./bridge";
   import { errorMessage } from "./bridge";
   import * as api from "./library";
@@ -44,15 +47,15 @@
     destination = $state("");
   let review = $state<api.Review | null>(null),
     progress = $state<api.Progress | null>(null);
-  let query = $state(""),
-    content = $state(false);
+  let searchPanel: WorkspaceSearch;
+  let detailsOpen = $state(false),
+    treeRevision = $state(0);
+  const expandedFolders = new SvelteMap<string, string>();
+  let treeInitialized = false;
   let preview = $state(""),
     previewName = $state(""),
     previewHtml = $state("");
-  let previewDialog: HTMLDialogElement,
-    reviewDialog: HTMLDialogElement,
-    quickDialog: HTMLDialogElement;
-  let queryInput: HTMLInputElement;
+  let previewDialog: HTMLDialogElement, reviewDialog: HTMLDialogElement;
   let timer: ReturnType<typeof setTimeout> | undefined,
     listingTimer: ReturnType<typeof setTimeout> | undefined;
   let generation = 0,
@@ -88,12 +91,28 @@
   export function viewName() {
     return view;
   }
-  export function quickOpen() {
-    quickDialog.showModal();
-    queryInput.focus();
+  export async function quickOpen(content = false) {
+    await searchPanel.show(content);
+  }
+  async function removeRoot(root: api.Folder) {
+    await run(async () => {
+      await api.removeRoot(root.id);
+      for (const [id, owner] of expandedFolders)
+        if (owner === root.id) expandedFolders.delete(id);
+      if (current?.root === root.id) {
+        current = null;
+        page = null;
+        trail = [];
+      }
+      await refreshState();
+    });
   }
   async function refreshState(selectMissing = true) {
     libraryState = await api.state();
+    if (!treeInitialized && libraryState.roots[0]) {
+      expandedFolders.set(libraryState.roots[0].id, libraryState.roots[0].root);
+      treeInitialized = true;
+    }
     onrecentchange(libraryState.recent);
     if (libraryState.job && progress?.id !== libraryState.job)
       void poll(libraryState.job);
@@ -124,6 +143,8 @@
         ignored = saved.ignored;
         filter = saved.filter;
         await enter(folder, [], saved.offset);
+        if (expandedFolders.size < 16)
+          expandedFolders.set(folder.id, folder.root);
       }
     });
     busy = false;
@@ -289,13 +310,6 @@
       await poll(id);
     });
   }
-  async function scan() {
-    await run(async () => {
-      const id = await api.scan(query, content, hidden, ignored);
-      quickDialog.close();
-      await poll(id);
-    });
-  }
   async function changeView() {
     await run(() => api.configure(true, view));
   }
@@ -337,27 +351,54 @@
       class="library-help"
     >
       Remembered folders: {libraryState.rootHints
+        .filter((hint) => !hint.authorized)
         .map((r) => r.name)
         .join(", ")}. Use Add folder to reselect.
     </p>{/if}
+  <nav class="library-views" aria-label="Library browser view">
+    <button
+      disabled={busy}
+      aria-pressed={!detailsOpen}
+      onclick={() => {
+        detailsOpen = false;
+      }}>Files</button
+    >
+    <button
+      disabled={busy}
+      aria-pressed={detailsOpen}
+      onclick={() => {
+        detailsOpen = true;
+      }}>File details</button
+    >
+    <button
+      aria-label="Refresh folders"
+      onclick={() => {
+        treeRevision++;
+        void load(true);
+      }}>↻</button
+    >
+    <button onclick={() => quickOpen()}>Find files</button>
+  </nav>
   <div class="root-list" aria-label="Authorized folders">
-    {#each libraryState?.roots ?? [] as root (root.id)}<div>
+    {#each libraryState?.roots ?? [] as root (root.id)}<div class="tree-root">
+        {#if detailsOpen}<button
+            aria-pressed={current?.root === root.id}
+            title={root.label}
+            onclick={() => enter(root, [])}>▱ {root.name}</button
+          >
+        {:else}<FolderTree
+            folder={root}
+            expanded={expandedFolders}
+            revision={treeRevision}
+            {hidden}
+            {ignored}
+            onopen={open}
+            onfolder={enter}
+          />{/if}
         <button
-          aria-pressed={current?.root === root.id}
-          title={root.label}
-          onclick={() => enter(root, [])}>▱ {root.name}</button
-        ><button
+          class="remove-root"
           aria-label={`Remove root ${root.name}`}
-          onclick={() =>
-            run(async () => {
-              await api.removeRoot(root.id);
-              if (current?.root === root.id) {
-                current = null;
-                page = null;
-                trail = [];
-              }
-              await refreshState();
-            })}>×</button
+          onclick={() => removeRoot(root)}>×</button
         >
       </div>{/each}
   </div>
@@ -367,7 +408,7 @@
         onclick={() => (message = "")}>×</button
       >
     </p>{/if}
-  {#if current}
+  {#if current && detailsOpen}
     <nav class="breadcrumbs" aria-label="Folder breadcrumbs">
       {#each trail as folder, index (folder.id)}<button
           onclick={() => enter(folder, trail.slice(0, index))}
@@ -433,7 +474,7 @@
         />Ignored</label
       >
       <button onclick={() => load(true)}>Refresh</button><button
-        onclick={quickOpen}>Search folders</button
+        onclick={() => quickOpen()}>Search folders</button
       >
     </div>
     <details class="library-policy">
@@ -583,12 +624,6 @@
               await api.job(progress!.id, true);
             })}>Cancel job</button
         >{/if}
-      {#each progress.results as hit (hit.item.id)}<div class="search-result">
-          <button onclick={() => open(hit.item)}>{hit.item.name}</button><button
-            aria-label={`Preview result ${hit.item.name}`}
-            onclick={() => showPreview(hit.item)}>Preview</button
-          >{#if hit.context}<p>{hit.context}</p>{/if}
-        </div>{/each}
       {#if progress.selection.length}<h3>Moved selection</h3>
         {#each progress.selection as item (item.id)}<button
             onclick={() => open(item)}>Open {item.name}</button
@@ -683,36 +718,14 @@
     >
   </div>
 </dialog>
-<dialog bind:this={quickDialog} aria-label="Quick open and search">
-  <h2>Find in authorized folders</h2>
-  <form
-    onsubmit={(event) => {
-      event.preventDefault();
-      void scan();
-    }}
-  >
-    <label
-      >Filename or text<input
-        bind:this={queryInput}
-        aria-label="Workspace query"
-        bind:value={query}
-        maxlength="256"
-      /></label
-    ><label
-      ><input type="checkbox" bind:checked={content} />Search file content
-      (literal, case-sensitive)</label
-    >
-    <p>
-      Filename search is fuzzy. Content search covers UTF-8 Markdown/text up to
-      8 MiB each, 256 MiB per job and 200 results. Hidden and ignore settings
-      apply.
-    </p>
-    <div class="dialog-actions">
-      <button type="button" onclick={() => quickDialog.close()}>Cancel</button
-      ><button class="primary" type="submit">Search</button>
-    </div>
-  </form>
-</dialog>
+<WorkspaceSearch
+  bind:this={searchPanel}
+  {hidden}
+  {ignored}
+  onopen={open}
+  {onrecent}
+  onpreview={showPreview}
+/>
 
 <dialog bind:this={dropDialog} aria-label="Dropped items">
   <h2>Dropped items</h2>
