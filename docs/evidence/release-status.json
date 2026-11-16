@@ -1,186 +1,73 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "date": "2026-11-16",
-  "version": "0.1.1",
-  "status": "Hosted desktop and advisory checks passed; packaged and installed icons verified. Physical input/accessibility/printing, Intel runtime and minimum-macOS qualifications remain.",
+  "version": "0.1.2",
+  "status": "Desktop, package and advisory checks passed",
   "source": {
-    "qualifiedCommit": "507767c02b7776789dc13e0c4b2e44774fe00f9f",
-    "scope": "Hosted checks and release binaries bind to this commit; final README/evidence edits are recorded in the deterministic release source manifest."
+    "qualifiedCommit": "eea4a6dfeed2b0e5d375805371ce04f2690c4ccd",
+    "qualifiedTree": "1abb7624b60156b04b0dc370a9e6f288256abde0",
+    "scope": "Hosted packages and checks bind to this commit. Final README copy and qualification-record edits are included in the checked release source archive; runtime code, manifests and dependency locks remain identical."
   },
-  "host": {
-    "os": "Zorin OS 18.1, Ubuntu noble base",
-    "architecture": "x86_64",
-    "kernel": "7.0.0-42-generic",
-    "cpu": "AMD Ryzen 7 7735H  with Radeon Graphics",
-    "logicalCpus": 16,
-    "memoryBytes": 63972536320,
-    "gtk": "3.24.41",
-    "webKitGTK": "2.52.6",
-    "sessions": "GNOME Wayland and isolated X11/Xvfb/Openbox"
-  },
+  "changes": [
+    "Add note templates, wikilinks and backlinks.",
+    "Improve folder browsing and search, with up to 16 reorderable tabs.",
+    "Add a resizable Library, clearer settings, neutral themes and a built-in guide.",
+    "Keep recovery accessible without crowding small writing panes."
+  ],
   "checks": {
-    "frontend": {
+    "hostedCI": {
+      "run": 43955561520,
+      "url": "https://github.com/MohamedElashri/marktub/actions/runs/43955561520",
       "status": "pass",
-      "files": 19,
-      "tests": 788,
-      "scope": "Typecheck, lint, unit tests, tooling and formatting"
+      "linux": "pass",
+      "macOS": "pass",
+      "advisories": "pass"
+    },
+    "frontend": {
+      "tests": 798,
+      "testFiles": 21,
+      "typecheck": "pass; zero errors or warnings",
+      "lintAndFormatting": "pass"
     },
     "tooling": {
-      "status": "pass",
       "nodeTests": 17,
       "pythonTests": 34
     },
-    "dependencies": {
-      "status": "pass",
-      "overrides": 4,
-      "optimizedSoundnessRegression": "pass; original source reproduced SIGSEGV",
-      "compilerErrorFixtures": 5,
-      "sourceIntegrity": "pass; exact source and patch hashes",
-      "validMacroConsumer": "pass: boxed, variant, strong closure, object subclass and file-template child expansion"
-    },
     "nativeRust": {
-      "status": "pass",
-      "rustfmt": "pass",
-      "clippy": "all targets; warnings denied",
-      "testsPassed": 159,
-      "ignored": 6,
-      "ignoredScope": "Four subprocess helper entries exercised by parent tests; bounded cross-volume/ENOSPC and selected converter fixtures pass separately",
-      "crossVolume": "pass; network-isolated disposable 128 MiB tmpfs, exact sources and ENOSPC",
-      "converters": "pass; selected Pandoc/Typst/XeLaTeX, hostile Markdown, approved image and no-shell-escape"
+      "linuxTests": 166,
+      "macOSTests": 157,
+      "ignoredPerPlatform": 6,
+      "rustfmtAndStrictClippy": "pass",
+      "ignoredScope": "Existing subprocess helper entries and separately selected environment fixtures retain their explicit scope; no new ignores."
     },
     "nativeWebView": {
-      "x11": {
-        "sha256": "3a8680a99899d51818ed61dbd6202cd118725925175046f987b37f89c92b0c3a",
-        "bytes": 375642928,
-        "passed": 54,
-        "seconds": 308.9,
-        "backend": "X11/Xvfb/Openbox/WebKitGTK; uninterrupted",
-        "pdfViewer": "real Evince with ordinary owned-window close and unchanged focus checks"
-      },
-      "wayland": {
-        "sha256": "3a8680a99899d51818ed61dbd6202cd118725925175046f987b37f89c92b0c3a",
-        "bytes": 375642928,
-        "passed": 54,
-        "seconds": 264.2,
-        "backend": "GNOME Wayland/WebKitGTK; uninterrupted",
-        "pdfViewer": "real Evince, verified owned sole window closed by normal GTK action; unchanged focus assertions",
-        "testHarnessSha256": "92dadadd9cd62cbafb3bd025f59c78b52b89fd87a39d43d21381855e2e7ed6cc"
-      },
-      "helperLifecycles": {
-        "x11": 15,
-        "wayland": 15,
-        "allObservedHelpersExited": true
-      },
-      "revisionScope": "Full local X11/Wayland runs precede attribution-only build changes; each retained executable hash identifies its measured revision. Current-source hosted smoke is recorded separately.",
-      "hostedLinux": {
-        "run": 43777673785,
-        "sourceCommit": "507767c02b7776789dc13e0c4b2e44774fe00f9f",
-        "passed": 54,
-        "seconds": 128.6,
-        "backend": "X11/WebKitGTK on hosted Ubuntu amd64",
-        "helperScope": "Native lifecycle captures and post-exit attribution checked by the suite; source and run bound, debug executable hash not retained"
-      },
-      "hostedMacOS": {
-        "run": 43777673785,
-        "sourceCommit": "507767c02b7776789dc13e0c4b2e44774fe00f9f",
-        "passed": 53,
-        "seconds": 196.0,
-        "backend": "WKWebView on hosted macOS ARM64; universal app built/validated as desktop MACOS for arm64 and x86_64",
-        "scope": "Runtime covers the runner-native slice; no Intel runtime, minimum-system or physical-input inference"
+      "linuxTests": 61,
+      "macOSTests": 60,
+      "linuxBackend": "Actual X11/WebKitGTK on Ubuntu amd64",
+      "macOSBackend": "Actual WKWebView in the universal desktop app; runner-native slice",
+      "focusedWaylandBeforeVersionBump": {
+        "passed": 4,
+        "seconds": 7.7,
+        "sourceCommit": "2135a85ec835a4fffc566a5ee40f055ef7ba61ef",
+        "binarySha256": "bc54962b6053b3ba753dc12b7b822865b91eb8d96fb184d13edc2946cb79f0de",
+        "scope": "Actual GNOME Wayland/WebKitGTK: wikilinks/backlinks, drafts/templates, settings/divider and retained-recovery narrow layout; feature-identical normal workflow before the version-only release bump"
       }
     },
-    "normalPackage": {
-      "scope": "locally built deb extraction, executable/resources/desktop/dependencies; not install or GUI certification",
-      "package": {
-        "Package": "marktub",
-        "Version": "0.1.1",
-        "Architecture": "amd64",
-        "Depends": "libwebkit2gtk-4.1-0, libgtk-3-0"
-      },
-      "debSha256": "3fa811e55d65623d59822df7865d0658b9caddc26584be930dea8eaca7f1ad2c",
-      "debBytes": 11787234,
-      "binarySha256": "8927addf39983e0426223ac5c4ce218fcf8554712d6d8a9c0318097835b32ae9",
-      "binaryBytes": 22628376,
-      "unbundledBinarySha256": "a45abee26995065a0d6fb386c2295920bccabf1b44c1d4de1856cf34f73e99a0",
-      "bundleMarkerPatch": "only the fixed Tauri UNK-to-DEB marker; every other byte identical",
-      "desktopFile": "Marktub.desktop",
-      "iconsSha256": {
-        "usr/share/icons/hicolor/512x512/apps/marktub.png": "75d4005ffc4637060d361e507b4e3396af173f94751c0cf7f461ba86e11c79d3",
-        "usr/share/icons/hicolor/32x32/apps/marktub.png": "58431c25a54a79f13f496604850a52f482dd453155f38161bf724567e73047ae",
-        "usr/share/icons/hicolor/64x64/apps/marktub.png": "3a9c59cd974c2b3cba220ddf6b7b6cd978310bbcfa573105a7d53e09099a0a4b",
-        "usr/share/icons/hicolor/128x128/apps/marktub.png": "762ce1616c4448f4582fb65dbcea9612b45ea577a64115c27f3aa2f3e08b0909",
-        "usr/share/icons/hicolor/256x256/apps/marktub.png": "e1ca9eaf3250cd381a316ee315ddae8f541736c1f9a0ac1e678d3a7b17641b8b"
-      },
-      "resourcesSha256": {
-        "specimen.md": "24f52d55b6381919b0e6c96be24fe955cbf52abe49e8c62d4c8d72aea7154aa1",
-        "licenses.txt": "58d6a65c3316b5f9bf1f3513f9d9e0e9aedb14a06c7249edc4a0e5c3146f20ed"
-      },
-      "portableLoaderAndLibraries": true,
-      "status": "pass",
-      "source": "Hosted Ubuntu amd64 job 133007577356 in run 43777673785; source commit 507767c02b7776789dc13e0c4b2e44774fe00f9f",
-      "releaseIsolation": "pass: normal frontend, ACL, executable and dependency graph exclude test hooks",
-      "independentLocalRebuild": {
-        "status": "pass",
-        "debSha256": "18c57fb18668eefb927517403e038eb99c3e4460816287487dbe893a9a2189e8",
-        "binarySha256": "6e86c55fd7ce7f3fa13a95e7d7c4b637c960604c5c164591c06de4282820c9c0",
-        "generatedResourcesMatchHosted": true,
-        "iconsMatchHosted": true,
-        "offlineInstalledIconLookup": "pass"
-      }
+    "dependencyBackports": {
+      "status": "pass; provenance, optimized soundness and native compiler regressions",
+      "record": "dependency-overrides.json"
     },
-    "offlineInstalledUbuntu": {
-      "status": "pass",
-      "scope": "offline Ubuntu runtime container, installed normal Debian package, 3 four-mode cycles, bundled example and post-close sampling; synthetic AT-SPI, not physical input or a full installed desktop",
-      "installed": "libgtk-3-0t64 3.24.41-4ubuntu1.3\nlibwebkit2gtk-4.1-0 2.52.6-0ubuntu0.24.04.1\nmarktub 0.1.1\n",
-      "binarySha256": "8927addf39983e0426223ac5c4ce218fcf8554712d6d8a9c0318097835b32ae9",
-      "desktopIntegration": {
-        "desktopId": "Marktub.desktop",
-        "iconFile": "/usr/share/icons/hicolor/128x128/apps/marktub.png",
-        "iconSha256": "762ce1616c4448f4582fb65dbcea9612b45ea577a64115c27f3aa2f3e08b0909"
-      },
-      "observations": 16,
-      "samples": 18,
-      "allCounterIntervalsComplete": true,
-      "documentUnchanged": true,
-      "sampledHelperLifecycleConfirmed": true,
-      "os": "Ubuntu 24.04.4 LTS runtime container; host kernel shared",
-      "imageId": "sha256:1af217e1fc09830bcda6c904346992501a9e1e4dce36674b24c042da455e9f24",
-      "networkMode": "none"
+    "releaseIsolation": "pass on Linux and macOS; normal frontend, ACL, executable and Rust graph exclude test fixture/server/evaluator hooks",
+    "installedLinux": {
+      "status": "pass; clean-profile UI, bundled guide and native desktop/icon lookup",
+      "desktopId": "Marktub.desktop",
+      "allIconSizesPresent": true,
+      "documentsUnchanged": true,
+      "observedHelperLifecyclesConfirmed": true
     },
-    "sourceArchive": {
-      "status": "pass: reproduced byte-for-byte and every member/hash/mode verified against the maintained inventory",
-      "scope": "maintained source, tests and legal notices; excludes Git history, caches, private profiles and local reports",
-      "checksums": "Exact final archive/package hashes are in the adjacent release manifest and SHA256SUMS, outside the source archive to avoid self-reference"
-    },
-    "pdf": {
-      "tools": {
-        "pandoc": {
-          "version": "pandoc 3.14",
-          "sha256": "c6049d8f9f0bb8131d139193683bc91985a50e8fc57e05de865f010647a9d899"
-        },
-        "typst": {
-          "version": "typst 0.15.1 (9dfd3a08)",
-          "sha256": "29273eaa04f6d00edd0c2bec578f565fc9c65be856bfbffc894567c68ed0b237"
-        },
-        "xelatex": {
-          "version": "XeTeX 3.141592653-2.6-0.999998 (TeX Live 2026)",
-          "sha256": "5e3229c24f3bd06c47b6f118e765973902a2c4cfc2ec9a84d7e9138cd61aecba"
-        }
-      },
-      "visualReview": "Two real WebView-exported Typst pages inspected: multilingual text, complete inline/numbered math, reference, table, images, diagram, fence and footnote; no clipping observed",
-      "pdfSha256": "64f23ee87c40fa736383f5029ef803ff0b4c4a6a52b8e8aacdecc1c4d5620113",
-      "javascript": false,
-      "fonts": "All five reported text fonts embedded and subsetted",
-      "hostDiagnostic": {
-        "tool": "Poppler pdfinfo 24.02.0",
-        "message": "Suspects object is wrong type (boolean)",
-        "observedPdfValue": "/Suspects false",
-        "scope": "Older parser diagnostic for a boolean false; current upstream parses false without this diagnostic. Retained unchanged output, not PDF/UA/printing certification.",
-        "parserSource": "https://skia.googlesource.com/third_party/poppler/+/104cc3864bc75dedef3860a44164967afbbcd48b/poppler/Catalog.cc"
-      }
-    },
+    "processChecks": "pass; documents unchanged, finite counters, complete measured intervals and observed helpers exited; finite hosted samples are not broad performance claims",
     "readmeScreenshots": {
-      "scope": "normal Linux app; native AT-SPI actions and direct client-area captures; isolated X11 profile with a synthetic notebook; unreleased note workflows",
+      "scope": "normal Linux app; native AT-SPI actions and direct client-area captures; isolated X11 profile with a synthetic notebook; unreleased note workflows; captured before the version-only bump",
       "sourceCommit": "2135a85ec835a4fffc566a5ee40f055ef7ba61ef",
       "binarySha256": "7b26fcd2df3b7297478a6fd1949ffd73c8463d88cabd89d434e63daf8666c831",
       "images": [
@@ -197,114 +84,47 @@
           "height": 760
         }
       ]
+    }
+  },
+  "packages": {
+    "ubuntu": {
+      "file": "Marktub_0.1.2_amd64.deb",
+      "version": "0.1.2",
+      "debSha256": "cc530b1391b5a22a0b7af132ec0bd6a653b78532902d2c27a2a6a90673526411",
+      "binarySha256": "567ade01d9876cdcd230d52b17f3e4ae351dae1e071c512dbb218af1e68ad24b",
+      "portableLoaderAndLibraries": true,
+      "resourcesByteIdentical": true
     },
-    "hostedCI": {
-      "macosScope": "One native macOS runner builds universal-apple-darwin debug smoke and normal app/DMG; both slices require desktop MACOS platform. Runtime checks cover only runner-native slice, not minimum OS or both physical architectures.",
-      "run": 43777673785,
-      "url": "https://github.com/MohamedElashri/marktub/actions/runs/43777673785",
-      "sourceCommit": "507767c02b7776789dc13e0c4b2e44774fe00f9f",
-      "status": "pass",
-      "linux": "pass: frontend/tooling, strict Rust, optimized backport/diagnostic fixtures, 54 actual WebView tests, normal package isolation, all five icon sizes, installed GTK icon lookup, app UI and process samples",
-      "advisories": "pass: production/all JavaScript and Rust registry, zero findings",
-      "macos": "pass: 150 native Rust tests; 53 actual WKWebView tests in universal debug app; normal universal app/DMG; isolation, desktop architecture/platform, ad-hoc signature, registered original icon, resources and finite process counters",
-      "currentWorkflow": "One native macOS job, one Ubuntu job and advisories; this revision dispatched once to avoid duplicate push/PR builds"
-    },
-    "macOSPackage": {
-      "kind": "local ad-hoc macOS DMG verification, not public notarized/clean-machine/Gatekeeper certification",
-      "dmgSha256": "d2bc6eec94ab928ab2112871a095011d9ba9db57b9f833a3dc7428f54faed414",
-      "dmgBytes": 21376272,
-      "binarySha256": "8bd01d301a270f1df08d0c41f11a63995c9edd1d5e103e0c6c3e7e24271559db",
-      "binaryBytes": 39740368,
-      "bundleBytes": 41121748,
+    "macOS": {
+      "file": "Marktub_0.1.2_universal.dmg",
+      "embeddedVersion": "0.1.2",
+      "embeddedBuildVersion": "0.1.2",
+      "versionVerification": "Info.plist from the corresponding signed normal-app archive; executable hash matches the mounted and signature-verified DMG app",
+      "dmgSha256": "6a1a668333242331b0e9a4ec1ea6982b36bde0e3e8308a609ba7c0415a02012d",
+      "binarySha256": "eb1ebde9edbc9a2a01cb92f4f52efb01858dcee589be4e0db2b78a2909e920c5",
       "architectures": ["x86_64", "arm64"],
       "platform": "MACOS",
       "minimumSystemVersion": "13.0",
-      "resourcesByteIdentical": true,
       "strictAdHocSignature": "pass",
-      "volumeDetached": true,
-      "status": "pass",
-      "downloadedDmgHashMatches": true,
-      "downloadedAppArchiveBinaryHashMatches": true,
-      "bothDownloadedSlicesPlatform": "MACOS",
-      "iconFile": "icon.icns",
-      "iconSha256": "a3b614945b1937defed4689884f16a9ac0c4d01d01300f4ef4f399fb5ce8e77e",
-      "host": "Native macOS ARM64 runner, Darwin 24.6.0; macOS SDK 15.5",
-      "processSampling": {
-        "status": "pass",
-        "scope": "Three finite normal-build-tree empty-app samples, not installed-copy UI or downloaded-package opening; DMG copy executable hash is identical",
-        "samples": 3,
-        "allCounterIntervalsComplete": true,
-        "allCounterAndFootprintSamplesValid": true,
-        "observedHelperLifecycleConfirmed": true
-      }
+      "resourcesByteIdentical": true,
+      "scope": "Both desktop slices compile and validate; runtime checks cover only the runner-native architecture"
     }
   },
   "security": {
-    "javascriptProduction": "zero findings",
-    "javascriptAll": "zero findings",
-    "rustRegistry": {
-      "vulnerabilities": 0,
-      "warnings": {},
-      "database": {
-        "advisory-count": 1509,
-        "last-commit": "02e2517f457a359fc6d3440ea4560c8ea188fee8",
-        "last-updated": "2026-11-15T10:59:21+01:00"
-      },
-      "deny": ["unsound", "unmaintained"],
-      "ignores": []
+    "javascriptProduction": 0,
+    "javascriptAll": 0,
+    "rustVulnerabilities": 0,
+    "rustWarnings": {},
+    "rustAuditVersion": "0.23.0",
+    "rustAdvisoryDatabase": {
+      "advisory-count": 1509,
+      "last-commit": "02e2517f457a359fc6d3440ea4560c8ea188fee8",
+      "last-updated": "2026-11-15T10:59:21+01:00"
     },
-    "localOverrides": {
-      "coverage": "Cargo audit excludes path dependencies. These application-owned sources retain original identities and licenses, verified file/archive/patch provenance, optimized soundness and native compiler regressions. They are not covered by a clean registry audit.",
-      "record": "dependency-overrides.json",
-      "packages": [
-        {
-          "name": "glib",
-          "version": "0.18.5",
-          "path": "src-tauri/vendor/glib",
-          "patch": "patches/glib.patch",
-          "advisories": ["RUSTSEC-2024-0429"],
-          "reason": "Backport upstream b5a4071: mutable GVariant string out-pointer; optimized iterator regression required."
-        },
-        {
-          "name": "glib-macros",
-          "version": "0.18.5",
-          "path": "src-tauri/vendor/glib-macros",
-          "patch": "patches/glib-macros.patch",
-          "advisories": ["RUSTSEC-2024-0370"],
-          "reason": "Replace unmaintained macro-error handling with existing maintained syn::Error diagnostics."
-        },
-        {
-          "name": "gtk3-macros",
-          "version": "0.18.2",
-          "path": "src-tauri/vendor/gtk3-macros",
-          "patch": "patches/gtk3-macros.patch",
-          "advisories": ["RUSTSEC-2024-0370"],
-          "reason": "Replace unmaintained macro-error handling with existing maintained syn::Error diagnostics."
-        },
-        {
-          "name": "tauri-plugin-single-instance",
-          "version": "2.5.5",
-          "path": "src-tauri/vendor/tauri-plugin-single-instance",
-          "patch": "patches/tauri-plugin-single-instance.patch",
-          "advisories": [
-            "RUSTSEC-2026-0370",
-            "RUSTSEC-2026-0371",
-            "RUSTSEC-2026-0372"
-          ],
-          "reason": "Use maintained zbus with merged wire/names/derive modules; preserve the native single-instance protocol."
-        }
-      ]
-    },
-    "licenses": {
-      "retainedRustPackages": 463,
-      "missing": [],
-      "generatedDirectory": "artifacts/licenses",
-      "trackedGeneratedInventories": false,
-      "identicalTexts": "retained once with all component attributions",
-      "sourceNotices": "Required upstream source licenses, patched dependency notices and bundled font notices retained",
-      "packagedBytes": 1331189,
-      "exportFrontendNoticeBytes": 223859
-    }
+    "deny": ["unsound", "unmaintained"],
+    "ignores": [],
+    "localOverrides": "Registry audit excludes path dependencies. Exact source/patch provenance and optimized native regressions pass; see dependency-overrides.json.",
+    "licenses": "Required source licenses, patched dependency notices and bundled font notices remain; build-generated attributions stay in artifacts and packages."
   },
   "remainingQualifications": [
     "Native Intel runtime and minimum-supported macOS verification; both universal slices compile and validate as desktop MACOS, while hosted runtime coverage is ARM64",
@@ -320,242 +140,5 @@
     "opening": "macOS may block downloaded apps; per-app user trust decision remains necessary; no automatic Gatekeeper/quarantine bypass"
   },
   "evidencePolicy": "Results apply only to their recorded executable, source, host and scope. Raw local traces and failed runs remain in ignored artifacts; maintained tests, provenance and legal notices remain in source. No ignored advisory, release evaluator or physical-input inference.",
-  "productionMeasurement": {
-    "binarySha256": "33ae3ec938a79b7e4033fa7065a5105d7496c5947ce22839d6b13da3f7563f04",
-    "host": "same Linux desktop host recorded above; no concurrent compilation",
-    "scope": "finite AT-SPI workflows and observed descendants; PSS is not physical footprint, leader context switches are not wakeups or energy; no input-to-paint claim",
-    "workloads": [
-      {
-        "workload": "rich-cycles",
-        "scope": "one specimen, ten four-mode cycles and five minutes after close",
-        "documentSha256": "24f52d55b6381919b0e6c96be24fe955cbf52abe49e8c62d4c8d72aea7154aa1",
-        "tabs": 1,
-        "cycles": 10,
-        "samples": 47,
-        "pssMinBytes": 367083520,
-        "pssMaxBytes": 426011648,
-        "postCloseIdlePssBytes": [
-          406031360, 406031360, 406035456, 406035456, 406039552
-        ],
-        "postCloseIdleCpuPercentOfOneCore": [
-          0.16643357007182444, 0.04993057267794202, 0.03328878499187282,
-          0.033288940758191145, 0.06657840890969854
-        ],
-        "allCounterIntervalsComplete": true,
-        "allDocumentsUnchanged": true,
-        "observedHelperLifecycleConfirmed": true
-      },
-      {
-        "workload": "source-100MiB-three-tabs",
-        "scope": "three documents open, active tab cycles Source/Read",
-        "documentSha256": "1563d8c3ee66150338bf227e08db6012517b9ad8391ed57232ad1ffcbfeea0e5",
-        "tabs": 3,
-        "cycles": 3,
-        "samples": 10,
-        "pssMinBytes": 421239808,
-        "pssMaxBytes": 734469120,
-        "postCloseIdlePssBytes": [421485568, 421239808],
-        "postCloseIdleCpuPercentOfOneCore": [0.6940591972471759, 0.0],
-        "allCounterIntervalsComplete": true,
-        "allDocumentsUnchanged": true,
-        "observedHelperLifecycleConfirmed": true
-      },
-      {
-        "workload": "source-10MiB-three-tabs",
-        "scope": "three documents open, active tab cycles Source/Read",
-        "documentSha256": "c173c9b97cb4952f9082e91d4acd2330721cab7a18eb85b0cc780475ebd8f572",
-        "tabs": 3,
-        "cycles": 3,
-        "samples": 10,
-        "pssMinBytes": 481618944,
-        "pssMaxBytes": 853721088,
-        "postCloseIdlePssBytes": [606023680, 605777920],
-        "postCloseIdleCpuPercentOfOneCore": [
-          0.9904484265727742, 0.09905170368254017
-        ],
-        "allCounterIntervalsComplete": true,
-        "allDocumentsUnchanged": true,
-        "observedHelperLifecycleConfirmed": true
-      },
-      {
-        "workload": "source-1MiB-three-tabs",
-        "scope": "three documents open, active tab cycles Source/Read",
-        "documentSha256": "e7a6c5bacade968f649217afc80f2b1387a42ef061ed37498265f56725c6fad6",
-        "tabs": 3,
-        "cycles": 3,
-        "samples": 10,
-        "pssMinBytes": 432406528,
-        "pssMaxBytes": 556702720,
-        "postCloseIdlePssBytes": [466746368, 466680832],
-        "postCloseIdleCpuPercentOfOneCore": [0.29741707274724544, 0.0],
-        "allCounterIntervalsComplete": true,
-        "allDocumentsUnchanged": true,
-        "observedHelperLifecycleConfirmed": true
-      }
-    ],
-    "startup": {
-      "metric": "launch-to-WebView-page-load, not first interactive paint",
-      "cacheState": "process cold; filesystem cache uncontrolled/warm",
-      "medianMs": 433.34164249972673,
-      "p95Ms": 446.5234539966332,
-      "helperScope": "Linux descendants observed at page load, pinned by PID/startTicks; other hosts and helpers launched outside the tree are not attributed"
-    },
-    "startupRuns": 20,
-    "startupObservedHelperLifecyclesConfirmed": true,
-    "revisionScope": "Measured normal binary before attribution-only build changes; historical hash retained. No current-binary performance extrapolation."
-  },
-  "microbenchmarks": {
-    "rangeExecutableSha256": "60bd3e48229d41b46ea32c9af9bb450fb46a9d98e97d1f772d1bd44bf1712c09",
-    "scope": "native file grant and first 64 KiB; DOM check is bounded JSDOM scaffolding, not native layout or paint",
-    "samplesPerSize": 5,
-    "ranges": [
-      {
-        "mib": 1,
-        "meanGrantMs": 2.2452016,
-        "meanFirstRangeMs": 0.1280938
-      },
-      {
-        "mib": 10,
-        "meanGrantMs": 16.530244,
-        "meanFirstRangeMs": 0.1290016
-      },
-      {
-        "mib": 100,
-        "meanGrantMs": 182.5052874,
-        "meanFirstRangeMs": 0.1545916
-      }
-    ],
-    "domScaffold": "pass; 64 KiB windows from 1/10/100 MiB fixtures"
-  },
-  "unreleasedWorkspaceUX": {
-    "status": "Prepared for review; not published",
-    "sourceCommit": "b68c3b102793728a5a0a400778f97a3b997c9e1b",
-    "frontend": {
-      "tests": 791,
-      "toolingTests": 51,
-      "typecheck": "pass; zero errors or warnings",
-      "lintAndFormatting": "pass"
-    },
-    "nativeRust": {
-      "tests": 161,
-      "ignored": 6,
-      "rustfmtAndStrictClippy": "pass"
-    },
-    "nativeWebView": {
-      "fullLinux": {
-        "passed": 57,
-        "sourceCommit": "c35ac647509365ed7c343a25fcc5521845c9b869"
-      },
-      "focusedWayland": {
-        "passed": 3,
-        "scope": "Actual GNOME Wayland/WebKitGTK; synthetic tab, divider, settings and guide interactions"
-      },
-      "readerControlFollowup": {
-        "passed": 3,
-        "scope": "Focused actual Linux WebView regression, including selected reader width and font size; final normal-app screenshots also verify selected values"
-      },
-      "qualification": "Synthetic native interactions do not certify physical input, IME or screen-reader speech/navigation"
-    },
-    "normalLinuxPackage": {
-      "releaseIsolation": "pass; no test hooks in normal frontend, ACL, executable or dependency graph",
-      "contents": "pass; executable correspondence, desktop entry, all icon sizes, complete guide and bundled image",
-      "debSha256": "f6660b3d3e7194720bd7607dc7a23f35ec2311073594aad539a4843fca4dafba",
-      "binarySha256": "8f200c30169ca546a32f8f7878ac9af755a2031084bd14b63f522b591d586417",
-      "unbundledBinarySha256": "c7902f8c1059a1254e960361800859bddcc344ef6e8edae56979887e6c57b462",
-      "resourcesSha256": {
-        "Marktub Guide.md": "2afef6f7922038e79f0a5e70618d35001f7cd79e12382b00e409cd63e8ab7ef5",
-        "marktub-example.png": "e1ca9eaf3250cd381a316ee315ddae8f541736c1f9a0ac1e678d3a7b17641b8b",
-        "licenses.txt": "58d6a65c3316b5f9bf1f3513f9d9e0e9aedb14a06c7249edc4a0e5c3146f20ed"
-      }
-    },
-    "hostedCI": {
-      "run": 43789422866,
-      "url": "https://github.com/MohamedElashri/marktub/actions/runs/43789422866",
-      "sourceCommit": "c35ac647509365ed7c343a25fcc5521845c9b869",
-      "linux": "pass; 57 actual WebView tests and installed normal-package UI/icon checks",
-      "advisories": "pass; zero JavaScript or Rust registry findings",
-      "macOS": "pass: 152 native Rust tests, 56 actual WKWebView tests, normal universal desktop MACOS app/DMG, strict ad-hoc signature, resources and process samples; runtime covers only the runner-native slice",
-      "followupScope": "Final reader selection values and labels were checked locally after this hosted source; no native command, permission or dependency changes",
-      "status": "pass"
-    }
-  },
-  "unreleasedNoteWorkflows": {
-    "status": "Ready for ordered merge; not merged or published",
-    "sourceCommit": "2135a85ec835a4fffc566a5ee40f055ef7ba61ef",
-    "qualifiedSourceTree": "69b48a70f27c87fc4afbf11f0e11f55a649f1d9e",
-    "equivalentStackCommit": "ef1c92507dd799f82d7bd241c3a94bc27fdf775a",
-    "sourceScope": "Owning-PR fixes were propagated without rewriting history; the resulting complete tracked tree exactly matches the qualified CI source. Final screenshot/evidence edits follow that source.",
-    "orderedPullRequests": [8, 9, 10, 11],
-    "basePullRequest": 7,
-    "frontend": {
-      "tests": 798,
-      "toolingTests": 51,
-      "typecheck": "pass; zero errors or warnings",
-      "lintAndFormatting": "pass",
-      "repositoryGuard": "pass; 353 publication files"
-    },
-    "nativeRust": {
-      "linux": 166,
-      "macOS": 157,
-      "ignoredPerPlatform": 6,
-      "rustfmtAndStrictClippy": "pass",
-      "scope": "Uninterrupted full hosted runs; existing subprocess-helper and separately selected environment fixtures retain their explicit ignore scope."
-    },
-    "nativeWebView": {
-      "hostedLinux": {
-        "passed": 61,
-        "seconds": 208.6,
-        "backend": "X11/WebKitGTK on Ubuntu amd64"
-      },
-      "hostedMacOS": {
-        "passed": 60,
-        "seconds": 322.7,
-        "backend": "WKWebView in the universal desktop app; runtime covers the runner-native slice"
-      },
-      "focusedWayland": {
-        "passed": 4,
-        "seconds": 7.7,
-        "sourceCommit": "2135a85ec835a4fffc566a5ee40f055ef7ba61ef",
-        "binarySha256": "bc54962b6053b3ba753dc12b7b822865b91eb8d96fb184d13edc2946cb79f0de",
-        "scope": "Actual GNOME Wayland/WebKitGTK: wikilinks/backlinks, drafts/templates, settings/divider and retained-recovery narrow layout"
-      },
-      "layout": "A real retained draft remains available through the collapsible recovery list. At 640px width and a maximum 555px pane height, writing space is 238.625px on Linux and 218.625px on macOS (actual Mac pane height 525px). Restore and Save As integrity also pass.",
-      "qualification": "Synthetic interactions and constrained panes do not certify physical input, OS IME, screen-reader speech/navigation or physical OS window resizing."
-    },
-    "advisories": {
-      "productionJavaScript": 0,
-      "allJavaScript": 0,
-      "rustVulnerabilities": 0,
-      "rustWarnings": {},
-      "rustAuditVersion": "0.23.0",
-      "rustAdvisoryDatabase": "02e2517f457a359fc6d3440ea4560c8ea188fee8",
-      "scope": "Live hosted registries; unsound and unmaintained warnings denied; no ignores"
-    },
-    "normalLinuxPackage": {
-      "releaseIsolation": "pass; normal frontend, ACL, executable and Rust dependency graph exclude test hooks",
-      "contents": "pass; executable correspondence, portable loader/libraries, desktop entry, all five icon sizes, guide and bundled image",
-      "debSha256": "290d5e037120390c7882c2da55e97494eb7f4e97fc4c630a067e6a30874124e7",
-      "binarySha256": "060e9a23a1b9079465662752f05242f9f3925aaa443613287cda4b6a4046cfde",
-      "unbundledBinarySha256": "7b26fcd2df3b7297478a6fd1949ffd73c8463d88cabd89d434e63daf8666c831",
-      "resourcesSha256": {
-        "Marktub Guide.md": "7010b67d9af35187cb6d9cb2476be796377ade39d1f2b4964971c91ca61a410d",
-        "marktub-example.png": "e1ca9eaf3250cd381a316ee315ddae8f541736c1f9a0ac1e678d3a7b17641b8b",
-        "licenses.txt": "58d6a65c3316b5f9bf1f3513f9d9e0e9aedb14a06c7249edc4a0e5c3146f20ed"
-      },
-      "scope": "Local normal package extraction; hosted installation and GUI/icon checks pass separately"
-    },
-    "hostedCI": {
-      "run": 43868957269,
-      "url": "https://github.com/MohamedElashri/marktub/actions/runs/43868957269",
-      "sourceCommit": "2135a85ec835a4fffc566a5ee40f055ef7ba61ef",
-      "status": "pass",
-      "linux": "pass; frontend/tooling, strict Rust, dependency backport regressions, 61 actual WebView tests, normal package/isolation, installed UI/icons and process checks",
-      "macOS": "pass; strict Rust, 60 actual WKWebView tests, normal universal desktop MACOS app/DMG, strict ad-hoc signature, resources and process checks",
-      "advisories": "pass; zero JavaScript/Rust registry findings",
-      "macOSScope": "One actual macOS runner; arm64 and x86_64 desktop slices validated. Runtime covers only the runner-native slice, with no Intel/minimum-system certification.",
-      "linuxDebSha256": "c2ef52fa8c551ba1cd6bc4edb0a3708aa4b4281de5e42b80fda54a2e76ad48f4",
-      "macOSDmgSha256": "d5e1a6125a15dbbc3a0d14c43c9aecc362353d963cfcd7d954271da79e0447fa",
-      "macOSBinarySha256": "2e051a37b0be08263475a24157023f9f0611e4effdcb8a03b20e718051a67e49"
-    }
-  }
+  "historicalEvidence": "Prior binary-bound measurements and release qualifications remain at https://github.com/MohamedElashri/marktub/blob/v0.1.1/docs/evidence/release-status.json; they are not relabeled as current-release performance."
 }
