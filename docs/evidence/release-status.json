@@ -180,19 +180,19 @@
       }
     },
     "readmeScreenshots": {
-      "scope": "normal Linux app; native AT-SPI actions and direct client-area captures; isolated X11 profile with a synthetic notebook; unreleased workspace UX",
-      "sourceCommit": "b68c3b102793728a5a0a400778f97a3b997c9e1b",
-      "binarySha256": "c7902f8c1059a1254e960361800859bddcc344ef6e8edae56979887e6c57b462",
+      "scope": "normal Linux app; native AT-SPI actions and direct client-area captures; isolated X11 profile with a synthetic notebook; unreleased note workflows",
+      "sourceCommit": "364139467b255fb0d674a0c71ebf510e53dcf385",
+      "binarySha256": "266dddc4352b79877e56c3357af87b44da12cf09e203c3902011c83f02bee6b8",
       "images": [
         {
           "path": "docs/assets/read.png",
-          "sha256": "97e18490b87fa5af71870195c037edc8b05d9fab015b0b5c312fca3f48b0f028",
+          "sha256": "96203a2e952ef5a8e068f9e02d0146c8e62762fc4e0738e1fcd7fb6bc61808a2",
           "width": 1080,
           "height": 760
         },
         {
           "path": "docs/assets/split.png",
-          "sha256": "4d4d3907a004f8a6b10517803cd8bb9d1943495bf9bb20dce619bf9422bfd7ec",
+          "sha256": "ce045c65fffffdd17e229a82fc61b93bf33e638e38dbe3c3aee28e782ee1a6b8",
           "width": 1080,
           "height": 760
         }
@@ -477,6 +477,72 @@
       "macOS": "pass: 152 native Rust tests, 56 actual WKWebView tests, normal universal desktop MACOS app/DMG, strict ad-hoc signature, resources and process samples; runtime covers only the runner-native slice",
       "followupScope": "Final reader selection values and labels were checked locally after this hosted source; no native command, permission or dependency changes",
       "status": "pass"
+    }
+  },
+  "unreleasedNoteWorkflows": {
+    "status": "Prepared for review; not merged or published",
+    "sourceCommit": "364139467b255fb0d674a0c71ebf510e53dcf385",
+    "orderedPullRequests": [8, 9, 10, 11],
+    "basePullRequest": 7,
+    "frontend": {
+      "tests": 798,
+      "toolingTests": 51,
+      "typecheck": "pass; zero errors or warnings",
+      "lintAndFormatting": "pass",
+      "repositoryGuard": "pass; 353 publication files"
+    },
+    "nativeRust": {
+      "rustfmtAndStrictClippy": "pass",
+      "testsCoveredAcrossRuns": 166,
+      "ignored": 6,
+      "scope": "Full run: 165 passed and one session-fixture permission failure. Fixture corrected to use private_store::directory; separate rerun passed. No claim of an uninterrupted 166-test local pass.",
+      "hostedLinuxFullSuite": "pass; complete cargo test --locked step on the recorded CI source"
+    },
+    "nativeWebView": {
+      "binarySha256": "3fb31890b5a09cf0f1831a85dfdef8557cc520199ccbd907746f014eb961706b",
+      "binaryBytes": 376611536,
+      "x11": {
+        "passed": 60,
+        "failed": 1,
+        "seconds": 519.3,
+        "scope": "Full suite on isolated X11/Xvfb/Openbox; all new workflows, 16 real notes, Save As at capacity and narrow panes passed. Preference Undo test clicked a disabled control before save completion."
+      },
+      "wayland": {
+        "passed": 6,
+        "seconds": 42.5,
+        "scope": "Actual GNOME Wayland/WebKitGTK: corrected Undo/save synchronization with exact-byte restoration, 16 real notes, tree/search keyboard navigation, wikilinks/backlinks, drafts/templates and settings/divider."
+      },
+      "qualification": "All 61 scenarios covered across runs; no uninterrupted 61-test local pass claimed. Synthetic events do not certify physical input, OS IME or screen-reader speech/navigation."
+    },
+    "advisories": {
+      "productionJavaScript": 0,
+      "allJavaScript": 0,
+      "rustVulnerabilities": 0,
+      "rustWarnings": {},
+      "rustAuditVersion": "0.23.0",
+      "rustAdvisoryDatabase": "02e2517f457a359fc6d3440ea4560c8ea188fee8",
+      "scope": "Live local registries; unsound and unmaintained warnings denied; no ignores"
+    },
+    "hostedCI": {
+      "run": 43859541010,
+      "url": "https://github.com/MohamedElashri/marktub/actions/runs/43859541010",
+      "sourceCommit": "364139467b255fb0d674a0c71ebf510e53dcf385",
+      "status": "in progress",
+      "scope": "Linux Rust suite passed; remaining Linux desktop/package checks and macOS universal desktop checks are in progress. No simulator or separate Intel build runner.",
+      "advisories": "pass; zero JavaScript/Rust registry findings"
+    },
+    "normalLinuxPackage": {
+      "releaseIsolation": "pass; normal frontend, ACL, executable and Rust dependency graph exclude test hooks",
+      "contents": "pass; executable correspondence, portable loader/libraries, desktop entry, all five icon sizes, guide and bundled image",
+      "debSha256": "7da0369bed80ecd337878f10a829399748a009c7f470f23b3428ebd24cb249aa",
+      "binarySha256": "1199d42a8da4bac7bdf21975e40a50f3b5f54b691b89c6e0376dafdaacf91ff5",
+      "unbundledBinarySha256": "266dddc4352b79877e56c3357af87b44da12cf09e203c3902011c83f02bee6b8",
+      "resourcesSha256": {
+        "Marktub Guide.md": "7010b67d9af35187cb6d9cb2476be796377ade39d1f2b4964971c91ca61a410d",
+        "marktub-example.png": "e1ca9eaf3250cd381a316ee315ddae8f541736c1f9a0ac1e678d3a7b17641b8b",
+        "licenses.txt": "58d6a65c3316b5f9bf1f3513f9d9e0e9aedb14a06c7249edc4a0e5c3146f20ed"
+      },
+      "scope": "Locally built/extracted package; not installed over the user app"
     }
   }
 }
