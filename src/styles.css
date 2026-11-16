@@ -2652,6 +2652,7 @@ textarea {
 }
 .document-actions {
   position: relative;
+  margin-inline-start: auto;
   flex-shrink: 0;
   font-size: inherit;
 }
