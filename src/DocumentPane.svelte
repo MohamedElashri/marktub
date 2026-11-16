@@ -128,6 +128,16 @@
       operationBusy = false;
     }
   }
+  async function saveRunnerCopy() {
+    const previous = realDocument();
+    if (!session) await switchMode("source");
+    if (!session || !editor || busy)
+      throw Error("The editor is not ready to save a copy.");
+    await save(true);
+    if (!realDocument() || realDocument() === previous || session.needsSaveAs)
+      return null;
+    return capturePower(false);
+  }
   async function openPower() {
     if (busy || !document) return;
     PowerComponent ??= (await import("./power/Panel.svelte")).default;
@@ -1189,6 +1199,7 @@
       bind:this={powerPanel}
       oncapture={capturePower}
       onsettle={settlePower}
+      oncopy={saveRunnerCopy}
       hasSaved={!!realDocument()}
       hasWorking={!!session}
     />{/if}

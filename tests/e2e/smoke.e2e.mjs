@@ -3434,6 +3434,59 @@ describe("Export and local jobs", () => {
         console.error("POWER FAILURE", (await panel().getText()).slice(-5000));
     }
   });
+  it("makes the guide shell runnable through explicit copy, enablement and setup", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    await closeTabs();
+    fixture = await call("e2e_fixture", {
+      action: "seed",
+      text: "# Destination fixture\n",
+    });
+    for (const kind of ["shell", "sqlite", "tex"])
+      await call("power_enable", { kind, on: false });
+    await call("power_clear");
+    await browser.$('button[aria-label="Open feature guide"]').click();
+    await pane().$("article").waitForDisplayed({ timeout: 60000 });
+    await open();
+    await panel().$("button=Document fences").click();
+    await select('select[aria-label="Captured fence"]', "shell");
+    const setup = panel().$('[aria-label="Shell setup required"]');
+    await expect(setup).toHaveText(
+      expect.stringContaining("Save your own copy"),
+    );
+    await expect(panel().$("button=Run captured fence…")).toBeDisabled();
+    await call("e2e_fixture", { action: "save-as", text: null });
+    await panel().$("button=Save a runnable copy…").click();
+    await panel()
+      .$("button=Close export and jobs")
+      .waitForEnabled({ timeout: 60000 });
+    const copy = path.join(path.dirname(fixture.path), "copy.txt");
+    expect(fs.readFileSync(copy, "utf8")).toBe(
+      fs.readFileSync("tests/fixtures/specimen.md", "utf8"),
+    );
+    await expect(setup).toHaveText(expect.stringContaining("Enable shell"));
+    await expect(setup).not.toHaveText(
+      expect.stringContaining("Save your own copy"),
+    );
+    await consent();
+    await panel().$("button=Enable shell").click();
+    await panel().$("button=Close export and jobs").waitForEnabled();
+    await expect(panel().$("button=Run captured fence…")).toBeDisabled();
+    await choose("root-shell", path.dirname(copy));
+    await consent();
+    await panel().$("button=Trust folder for shell…").click();
+    await tool("shell", "/bin/sh", "Choose shell…");
+    await panel().$("button=Run captured fence…").waitForEnabled();
+    await consent();
+    await panel().$("button=Run captured fence…").click();
+    expect(await finish()).toContain(
+      "A note can also be a reproducible notebook.",
+    );
+    expect(fs.readFileSync(copy, "utf8")).toBe(
+      fs.readFileSync("tests/fixtures/specimen.md", "utf8"),
+    );
+    await panel().$("button=Close export and jobs").click();
+  });
   it("keeps execution off, converts a selected saved revision with approved images/diagrams and exports an exclusive real PDF", async () => {
     const fs = await import("node:fs");
     const path = await import("node:path");
