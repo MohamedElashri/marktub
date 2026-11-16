@@ -83,6 +83,9 @@ write beside the preview, then **Save** your Markdown or **Export HTML** to shar
 a copy. Use **Git** for saved-file diffs and **Review** for feedback on saved
 revisions. Quick open is Cmd/Ctrl+P; open and save are Cmd/Ctrl+O and Cmd/Ctrl+S.
 
+Start a **New note** with Cmd/Ctrl+N, or choose a starter template from the empty
+tab or command palette. Drafts stay recoverable until you choose where to save.
+
 Drag tabs to arrange them, resize the Library with its divider, and use **Settings**
 to preview themes, fonts and layout changes before applying them. The built-in
 **Guide** demonstrates formatting, math, diagrams, images, review and local tools.

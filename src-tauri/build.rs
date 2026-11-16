@@ -87,6 +87,7 @@ fn main() {
         "document_status",
         "runtime_info",
         "execution_status",
+        "create_note",
         "begin_edit",
         "change_edit_window",
         "capture_edit_read",

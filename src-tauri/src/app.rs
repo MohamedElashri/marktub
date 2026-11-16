@@ -253,6 +253,14 @@ async fn change_edit_window(
     .await
 }
 #[tauri::command]
+async fn create_note(
+    app: tauri::AppHandle,
+    title: String,
+    template: String,
+) -> Result<EditDescriptor, FileError> {
+    editing(app, move |e, _| e.create_note(&title, &template)).await
+}
+#[tauri::command]
 async fn apply_edits(
     app: tauri::AppHandle,
     id: String,
@@ -303,7 +311,7 @@ async fn save_as_document(
     pending: Vec<Batch>,
 ) -> Result<Option<SaveAsResult>, FileError> {
     tauri::async_runtime::spawn_blocking(move || {
-        {
+        let suggested_name = {
             let host = app.state::<EditHost>();
             let guard = host
                 .0
@@ -312,8 +320,8 @@ async fn save_as_document(
             guard
                 .as_ref()
                 .map_err(|e| e.clone())?
-                .authorize(&id, &generation)?;
-        }
+                .suggested_name(&id, &generation)?
+        };
         #[cfg(feature = "e2e")]
         let injected = app.state::<crate::test_support::Fixtures>().take_save();
         #[cfg(not(feature = "e2e"))]
@@ -323,7 +331,7 @@ async fn save_as_document(
         } else {
             app.dialog()
                 .file()
-                .set_file_name("Untitled.md")
+                .set_file_name(suggested_name)
                 .blocking_save_file()
                 .map(|p| {
                     p.into_path()
@@ -573,7 +581,7 @@ async fn close_application(app: tauri::AppHandle) -> Result<(), FileError> {
 }
 
 macro_rules! commands {($($extra:ident),*)=>{tauri::generate_handler![take_os_open,power_state,power_enable,power_choose_tool,power_trust,power_choose_database,power_capture,power_release,power_image,power_diagram,power_math,power_prepare,power_run,power_poll,power_cancel,power_clear,power_save_pdf,power_open_pdf,review_begin,review_sync,review_displayed,review_end,review_update,review_compare,review_export,review_save,review_list,review_delete,review_archive_export,review_archive_save,git_badges,git_history_files,git_choose,git_refresh,git_revoke,git_compare,git_page,git_mutate,git_open,git_backups,git_export_backup,git_forget_backup,capture_edit_read,read_edit_snapshot,import_author_image,change_edit_window,preference_catalogue,list_fonts,preview_settings,library_location,library_session,library_remember_document,library_accept_drop,library_state,library_choose_root,library_page,library_open,library_preview,library_scan,library_job,library_prepare,library_commit,library_configure,library_pin,library_remove_root,open_document_link,choose_image,export_html,choose_document,open_example,read_range,release_document,document_status,runtime_info,execution_status,
-    begin_edit,apply_edits,flush_edits,save_document,save_as_document,editing_status,compare_document,reopen_document,release_editor,
+    create_note,begin_edit,apply_edits,flush_edits,save_document,save_as_document,editing_status,compare_document,reopen_document,release_editor,
     list_recoveries,restore_recovery,discard_recovery,get_settings,update_settings,import_settings,export_settings,document_position,remember_position,storage_warning,close_application,reset_settings,$($extra),*]};}
 
 pub fn run() {

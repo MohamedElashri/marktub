@@ -14,6 +14,7 @@
   } from "./commands";
   import BusyStatus from "./ui/BusyStatus.svelte";
   import Icon from "./ui/Icon.svelte";
+  import NewNote from "./NewNote.svelte";
   import TabBar from "./TabBar.svelte";
   import ResizeHandle from "./ui/ResizeHandle.svelte";
   import { libraryWidth, librarySize } from "./workspace";
@@ -171,6 +172,10 @@
           return showLibrary();
         case "example":
           return openTab(await bridge.openExample());
+        case "new_note":
+          return createNote("Untitled", "blank");
+        case "note_template":
+          return templatePanel.show();
         case "new_tab":
           return newTab();
         case "move_tab_left":
@@ -202,6 +207,31 @@
     if (tabs.length >= 4) return;
     tabs.push({ key: ++serial, name: "New tab", dirty: false, document: null });
     active = tabs.length - 1;
+  }
+  let templatePanel: NewNote;
+  async function createNote(title: string, template: string) {
+    let tab = tabs.find(
+      (tab) =>
+        !tab.document &&
+        closingTab !== tab.key &&
+        !openingTabs.has(tab.key) &&
+        !tab.pane?.commandState().busy,
+    );
+    if (!tab) {
+      if (tabs.length >= 4)
+        throw Error("Close a tab before creating another note.");
+      newTab();
+      tab = tabs[active];
+    }
+    openingTabs.add(tab.key);
+    active = tabs.indexOf(tab);
+    try {
+      await tick();
+      await tab.pane!.createNote(title, template);
+      await revealDocumentOnNarrowScreens();
+    } finally {
+      openingTabs.delete(tab.key);
+    }
   }
   let tabAnnouncement = $state("");
   function reorderTab(key: number, destination: number) {
@@ -615,6 +645,10 @@
           void runCommand("browser");
         }}><Icon name="folder" />Library</button
       >
+      <button
+        title="New note · Cmd/Ctrl+N"
+        onclick={() => runCommand("new_note")}>New note</button
+      >
       <div class="history-actions">
         <button
           aria-label="Back in file history"
@@ -717,6 +751,12 @@
         >
           <DocumentPane
             bind:this={tab.pane}
+            onnewnote={() => {
+              void runCommand("new_note");
+            }}
+            ontemplate={() => {
+              void runCommand("note_template");
+            }}
             ongit={showGit}
             onarchive={showReviewArchive}
             {recentFiles}
@@ -772,3 +812,13 @@
 {#if ReviewArchiveComponent}<ReviewArchiveComponent
     bind:this={reviewArchive}
   />{/if}
+
+<NewNote
+  bind:this={templatePanel}
+  oncreate={createNote}
+  oncreated={() => {
+    void tabs[active]?.pane?.sourceLineAt(1).catch((error) => {
+      message = bridge.errorMessage(error);
+    });
+  }}
+/>

@@ -54,6 +54,8 @@ import type {
   Recovery,
   Comparison,
 } from "./document/protocol";
+export const createNote = (title: string, template: string) =>
+  invoke<EditDescriptor>("create_note", { title, template });
 export const beginEdit = (id: string, start?: number) =>
   invoke<EditDescriptor>("begin_edit", { id, start: start ?? null });
 export const applyEdits = (
