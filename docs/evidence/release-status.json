@@ -180,18 +180,19 @@
       }
     },
     "readmeScreenshots": {
-      "scope": "Read and Split in the normal Linux release app; native accessibility actions, isolated X11 desktop/profile and synthetic notebook; captures show the app client area",
-      "binarySha256": "33ae3ec938a79b7e4033fa7065a5105d7496c5947ce22839d6b13da3f7563f04",
+      "scope": "normal Linux app; native AT-SPI actions and direct client-area captures; isolated X11 profile with a synthetic notebook; unreleased workspace UX",
+      "sourceCommit": "b68c3b102793728a5a0a400778f97a3b997c9e1b",
+      "binarySha256": "c7902f8c1059a1254e960361800859bddcc344ef6e8edae56979887e6c57b462",
       "images": [
         {
           "path": "docs/assets/read.png",
-          "sha256": "e30da222e09f6fea3d0fa0bd81928af308793499935f6e5e10eb2a4d78319dcc",
+          "sha256": "97e18490b87fa5af71870195c037edc8b05d9fab015b0b5c312fca3f48b0f028",
           "width": 1080,
           "height": 760
         },
         {
           "path": "docs/assets/split.png",
-          "sha256": "55ee2cd1b47a884295126cb4e6d33306baf6adbb258ff2907e37b0ccd9369e51",
+          "sha256": "4d4d3907a004f8a6b10517803cd8bb9d1943495bf9bb20dce619bf9422bfd7ec",
           "width": 1080,
           "height": 760
         }
@@ -425,5 +426,57 @@
       }
     ],
     "domScaffold": "pass; 64 KiB windows from 1/10/100 MiB fixtures"
+  },
+  "unreleasedWorkspaceUX": {
+    "status": "Prepared for review; not published",
+    "sourceCommit": "b68c3b102793728a5a0a400778f97a3b997c9e1b",
+    "frontend": {
+      "tests": 791,
+      "toolingTests": 51,
+      "typecheck": "pass; zero errors or warnings",
+      "lintAndFormatting": "pass"
+    },
+    "nativeRust": {
+      "tests": 161,
+      "ignored": 6,
+      "rustfmtAndStrictClippy": "pass"
+    },
+    "nativeWebView": {
+      "fullLinux": {
+        "passed": 57,
+        "sourceCommit": "c35ac647509365ed7c343a25fcc5521845c9b869"
+      },
+      "focusedWayland": {
+        "passed": 3,
+        "scope": "Actual GNOME Wayland/WebKitGTK; synthetic tab, divider, settings and guide interactions"
+      },
+      "readerControlFollowup": {
+        "passed": 3,
+        "scope": "Focused actual Linux WebView regression, including selected reader width and font size; final normal-app screenshots also verify selected values"
+      },
+      "qualification": "Synthetic native interactions do not certify physical input, IME or screen-reader speech/navigation"
+    },
+    "normalLinuxPackage": {
+      "releaseIsolation": "pass; no test hooks in normal frontend, ACL, executable or dependency graph",
+      "contents": "pass; executable correspondence, desktop entry, all icon sizes, complete guide and bundled image",
+      "debSha256": "f6660b3d3e7194720bd7607dc7a23f35ec2311073594aad539a4843fca4dafba",
+      "binarySha256": "8f200c30169ca546a32f8f7878ac9af755a2031084bd14b63f522b591d586417",
+      "unbundledBinarySha256": "c7902f8c1059a1254e960361800859bddcc344ef6e8edae56979887e6c57b462",
+      "resourcesSha256": {
+        "Marktub Guide.md": "2afef6f7922038e79f0a5e70618d35001f7cd79e12382b00e409cd63e8ab7ef5",
+        "marktub-example.png": "e1ca9eaf3250cd381a316ee315ddae8f541736c1f9a0ac1e678d3a7b17641b8b",
+        "licenses.txt": "58d6a65c3316b5f9bf1f3513f9d9e0e9aedb14a06c7249edc4a0e5c3146f20ed"
+      }
+    },
+    "hostedCI": {
+      "run": 43789422866,
+      "url": "https://github.com/MohamedElashri/marktub/actions/runs/43789422866",
+      "sourceCommit": "c35ac647509365ed7c343a25fcc5521845c9b869",
+      "linux": "pass; 57 actual WebView tests and installed normal-package UI/icon checks",
+      "advisories": "pass; zero JavaScript or Rust registry findings",
+      "macOS": "pass: 152 native Rust tests, 56 actual WKWebView tests, normal universal desktop MACOS app/DMG, strict ad-hoc signature, resources and process samples; runtime covers only the runner-native slice",
+      "followupScope": "Final reader selection values and labels were checked locally after this hosted source; no native command, permission or dependency changes",
+      "status": "pass"
+    }
   }
 }
