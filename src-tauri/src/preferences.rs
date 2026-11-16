@@ -61,6 +61,8 @@ pub const COMMANDS: &[(&str, &str, &str)] = &[
     ("example", "Open feature guide", "none"),
     ("move_tab_left", "Move tab left", "Alt+Shift+ArrowLeft"),
     ("move_tab_right", "Move tab right", "Alt+Shift+ArrowRight"),
+    ("new_note", "New note", "Mod+N"),
+    ("note_template", "New note from template", "Mod+Shift+N"),
     ("new_tab", "New tab", "Mod+T"),
     ("close_tab", "Close tab", "Mod+Shift+X"),
     ("next_tab", "Next tab", "Ctrl+Tab"),

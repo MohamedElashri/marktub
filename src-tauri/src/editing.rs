@@ -309,6 +309,22 @@ impl Editing {
         }
         Ok(self.store.recovery().join(id))
     }
+    pub fn suggested_name(&self, id: &str, generation: &str) -> Result<String, FileError> {
+        let name = &self.get(id, generation)?.name;
+        Ok(
+            if name.is_empty()
+                || name.len() > 240
+                || matches!(name.as_str(), "." | "..")
+                || name
+                    .chars()
+                    .any(|c| c.is_control() || matches!(c, '/' | '\\'))
+            {
+                "Untitled.md".into()
+            } else {
+                name.clone()
+            },
+        )
+    }
     pub fn authorize(&self, id: &str, generation: &str) -> Result<(), FileError> {
         self.get(id, generation).map(|_| ())
     }
@@ -1013,6 +1029,66 @@ impl Editing {
             .retain(|id, _| seen.contains(id));
         Ok(result)
     }
+    pub fn create_note(
+        &mut self,
+        title: &str,
+        template: &str,
+    ) -> Result<EditDescriptor, FileError> {
+        if self.library_mutation || self.live.len() >= 8 {
+            return Err(FileError::new(
+                "capacity",
+                "Wait for file operations or close an editor before creating a note.",
+            ));
+        }
+        let title = title.trim();
+        if title.is_empty()
+            || title.len() > 160
+            || title
+                .chars()
+                .any(|c| c.is_control() || matches!(c, '/' | '\\'))
+            || matches!(title, "." | "..")
+        {
+            return Err(FileError::new(
+                "title",
+                "Use a short note title without slashes or control characters.",
+            ));
+        }
+        let text = match template {
+            "blank" => String::new(),
+            "note" => format!("# {title}\n\n## Notes\n\n\n## Next steps\n\n- [ ] \n"),
+            "meeting" => format!(
+                "# {title}\n\n## Attendees\n\n- \n\n## Agenda\n\n- \n\n## Notes\n\n\n## Decisions\n\n- \n\n## Action items\n\n- [ ] \n"
+            ),
+            "journal" => {
+                format!("# {title}\n\n## Priorities\n\n- [ ] \n\n## Notes\n\n\n## Reflection\n\n")
+            }
+            _ => {
+                return Err(FileError::new(
+                    "template",
+                    "Choose a built-in note template.",
+                ));
+            }
+        };
+        self.store.reserve(text.len() as u64 * 3 + 65536)?;
+        let (id, session) =
+            Session::create(&self.store.recovery(), text.as_bytes()).map_err(error)?;
+        let marker = Marker {
+            schema: 1,
+            name: format!("{title}.md"),
+            saved_hash: format!("{:x}", Sha256::digest(text.as_bytes())),
+            saved_revision: 0,
+            saved_file: "base.bin".into(),
+            updated: now(),
+            pending: true,
+        };
+        private_store::atomic(
+            &self.folder(&id)?.join("marker.json"),
+            &serde_json::to_vec(&marker)
+                .map_err(|_| FileError::new("state", "Cannot encode note recovery metadata."))?,
+        )?;
+        drop(session);
+        self.restore(&id)
+    }
     pub fn restore(&mut self, id: &str) -> Result<EditDescriptor, FileError> {
         if self.library_mutation {
             return Err(FileError::new(
@@ -1335,6 +1411,44 @@ mod tests {
         let mut editing = Editing::open(&dir.path().join("private")).unwrap();
         let edit = editing.begin(&docs, &doc.id).unwrap();
         (dir, path, docs, doc, editing, edit)
+    }
+    #[test]
+    fn new_notes_are_durable_pathless_and_require_an_exclusive_save_as() {
+        let dir = tempfile::tempdir().unwrap();
+        let private = dir.path().join("private");
+        let mut service = Editing::open(&private).unwrap();
+        for template in ["blank", "note", "meeting", "journal"] {
+            let note = service.create_note("Project notes", template).unwrap();
+            assert!(note.needs_save_as && note.state.dirty);
+            assert_eq!(note.name, "Project notes.md");
+            assert_eq!(
+                service.suggested_name(&note.id, &note.generation).unwrap(),
+                "Project notes.md"
+            );
+            assert!(
+                service
+                    .save(&note.id, &note.generation, 0, None, vec![])
+                    .is_err()
+            );
+            service.release(&note.id, &note.generation, false).unwrap();
+            let restored = service.restore(&note.id).unwrap();
+            assert_eq!(restored.text, note.text);
+            assert!(restored.needs_save_as);
+            let target = dir.path().join(format!("{template}.md"));
+            service
+                .save(&restored.id, &restored.generation, 0, Some(&target), vec![])
+                .unwrap();
+            assert_eq!(fs::read_to_string(&target).unwrap(), note.text);
+            service
+                .release(&restored.id, &restored.generation, true)
+                .unwrap();
+        }
+        for title in ["", "../private", "a/b", "a\\b", "bad\nname"] {
+            assert!(service.create_note(title, "note").is_err());
+        }
+        assert!(service.create_note("Valid", "unknown").is_err());
+        service.library_reserve().unwrap();
+        assert!(service.create_note("Valid", "note").is_err());
     }
     fn retain_edited_history(service: &mut Editing, editor: &EditDescriptor) {
         let ack = service

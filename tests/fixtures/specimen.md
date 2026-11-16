@@ -216,3 +216,9 @@ button and command palette can reopen the original whenever you need it.
 [^files]: File permissions and expected-base checks help detect external changes.
     Recovery, saved backups and export copies have separate lifecycles; keep
     app-private recovery data if you might need unsaved work.
+
+## Start a new note
+
+Use **New note** or Cmd/Ctrl+N for a blank draft. Choose **From template** in an
+empty tab, or **New note from template** in Commands, for notes, meetings or a
+daily journal. The draft is kept in recovery; Save opens a native Save As dialog.

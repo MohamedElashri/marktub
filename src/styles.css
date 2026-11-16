@@ -2951,3 +2951,25 @@ textarea {
     display: none;
   }
 }
+
+.note-template {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  margin-block: 0.5rem;
+  cursor: pointer;
+}
+.note-template:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--surface);
+}
+.note-template span {
+  display: grid;
+  gap: 0.25rem;
+}
+.note-template small {
+  color: var(--quiet);
+}

@@ -24,6 +24,8 @@ export type CommandId =
   | "example"
   | "move_tab_left"
   | "move_tab_right"
+  | "new_note"
+  | "note_template"
   | "new_tab"
   | "close_tab"
   | "next_tab"
@@ -64,6 +66,8 @@ export const definitions: [CommandId, string, string, string][] = [
   ["example", "Open feature guide", "Help", "none"],
   ["move_tab_left", "Move tab left", "Tabs", "Alt+Shift+ArrowLeft"],
   ["move_tab_right", "Move tab right", "Tabs", "Alt+Shift+ArrowRight"],
+  ["new_note", "New note", "Files", "Mod+N"],
+  ["note_template", "New note from template", "Files", "Mod+Shift+N"],
   ["new_tab", "New tab", "Tabs", "Mod+T"],
   ["close_tab", "Close tab", "Tabs", "Mod+Shift+X"],
   ["next_tab", "Next tab", "Tabs", "Ctrl+Tab"],

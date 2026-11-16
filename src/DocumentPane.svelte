@@ -31,6 +31,8 @@
     folderBusy = false,
     onrecent,
     onfolder,
+    onnewnote,
+    ontemplate,
   }: {
     active?: boolean;
     ongit: () => void | Promise<void>;
@@ -40,6 +42,8 @@
     folderBusy?: boolean;
     onrecent: (hint: import("./library").Hint) => Promise<void>;
     onfolder: () => Promise<void>;
+    onnewnote: () => void;
+    ontemplate: () => void;
     previewSettings?: Values | null;
     onstate: (
       name: string,
@@ -899,6 +903,47 @@
       operationBusy = false;
     }
   }
+  export async function createNote(title: string, template: string) {
+    if (busy || document)
+      throw Error("Choose an empty tab before creating a note.");
+    operationBusy = true;
+    operation = "Creating note…";
+    let created: EditDescriptor | null = null;
+    try {
+      created = await bridge.createNote(title, template);
+      SourceComponent ??= (await import("./editor/SourceEditor.svelte"))
+        .default;
+      installDraft(created);
+      message = "Draft kept in recovery. Save to choose its file and folder.";
+      await tick();
+      editor?.revealLine(1, true);
+    } catch (error) {
+      if (created && created.id !== session?.id)
+        await bridge
+          .releaseEditor(created.id, created.generation, false)
+          .catch(() => {});
+      throw error;
+    } finally {
+      operationBusy = false;
+    }
+  }
+  function installDraft(draft: EditDescriptor) {
+    const { text, ...metadata } = draft;
+    session = metadata;
+    sourceText = text;
+    document = {
+      id: "recovery",
+      name: metadata.name,
+      byteLength: new TextEncoder().encode(text).length,
+      revision: "recovery",
+      watching: false,
+    };
+    page = { start: 0, end: 0, total: 0, text: "" };
+    mode = "source";
+    stale = false;
+    dirty = true;
+    durable = true;
+  }
   async function restore(id: string) {
     const choice = await askLeave();
     if (!choice) return;
@@ -911,21 +956,7 @@
         .default;
       await finishLeave(choice);
       if (realDocument()) await bridge.releaseDocument(document!.id);
-      const { text, ...metadata } = restored;
-      session = metadata;
-      sourceText = text;
-      document = {
-        id: "recovery",
-        name: metadata.name,
-        byteLength: new TextEncoder().encode(text).length,
-        revision: "recovery",
-        watching: false,
-      };
-      page = { start: 0, end: 0, total: 0, text: "" };
-      mode = "source";
-      stale = false;
-      dirty = true;
-      durable = true;
+      installDraft(restored);
       message =
         "Recovered text. Save As requires a new native destination; previous paths are not automatically reauthorized.";
       await refreshRecoveries();
@@ -1199,12 +1230,13 @@
   <main aria-busy={busy} class:has-document={!!document}>
     {#if !document}<section class="empty-state">
         <h1>A little room to read.</h1>
-        <p>
-          Open a file or folder to begin. Your words stay right where they are.
-        </p>
+        <p>Start a note, or open your Markdown files. Your words stay local.</p>
         <div class="empty-actions">
-          <button class="primary" onclick={() => open()} disabled={busy}
-            >Open file</button
+          <button class="primary" onclick={onnewnote} disabled={busy}
+            >New note</button
+          >
+          <button onclick={ontemplate} disabled={busy}>From template</button>
+          <button onclick={() => open()} disabled={busy}>Open file</button
           ><button
             class="folder-button"
             onclick={onfolder}

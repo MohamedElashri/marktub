@@ -3884,9 +3884,10 @@ describe("Everyday workflows", () => {
       .$('.window-shell[data-busy="false"]')
       .waitForExist({ timeout: 30000 });
     await pane()
-      .$(".empty-actions .primary")
+      .$(".empty-actions")
+      .$("button=Open file")
       .waitForEnabled({ timeout: 30000 });
-    await pane().$(".empty-actions .primary").click();
+    await pane().$(".empty-actions").$("button=Open file").click();
     await pane().$("article").waitForDisplayed({ timeout: 60000 });
     await ready();
   }
@@ -4091,6 +4092,56 @@ describe("Everyday workflows", () => {
       expect.stringContaining("unsaved"),
     );
     expect(await fs.readFile(fixture.path, "utf8")).toBe("# First\n");
+  });
+
+  it("creates recoverable new notes and templates and saves only to a native-selected destination", async () => {
+    await invoke("e2e_fixture", { action: "seed", text: "# Existing file\n" });
+    await browser.$(".workspace-actions").$("button=New note").click();
+    await pane().$(".cm-content").waitForDisplayed();
+    await ready();
+    await expect(selected()).toHaveText(
+      expect.stringContaining("Untitled.md *"),
+    );
+    await browser.tauri.execute(() => {
+      document.querySelector(".document-tab:not([hidden]) .cm-content").focus();
+      document.execCommand("insertText", false, "# A new thought\n");
+    });
+    await pane().$('button[aria-label="Undo"]').click();
+    await expect(pane().$(".cm-content")).toHaveText("");
+    await browser.tauri.execute(() => {
+      document.querySelector(".document-tab:not([hidden]) .cm-content").focus();
+      document.execCommand("insertText", false, "# A new thought\n");
+    });
+    await invoke("e2e_fixture", { action: "save-as", text: null });
+    await pane().$(".toolbar").$("button=Save").click();
+    await browser.waitUntil(
+      async () =>
+        (await invoke("e2e_fixture", { action: "read-copy" })).text ===
+        "# A new thought\n",
+    );
+    expect((await invoke("e2e_fixture", { action: "read" })).text).toBe(
+      "# Existing file\n",
+    );
+    await closeDocuments();
+    await pane().$("button=From template").click();
+    const chooser = browser.$('dialog[aria-label="New note from template"]');
+    await chooser.$("input[maxlength='160']").setValue("Team planning");
+    await chooser.$('input[value="meeting"]').click();
+    await chooser.$("button=Create note").click();
+    await pane().$(".cm-content").waitForDisplayed();
+    await expect(pane().$(".cm-content")).toHaveText(
+      expect.stringContaining("## Decisions"),
+    );
+    await expect(selected()).toHaveText(
+      expect.stringContaining("Team planning.md *"),
+    );
+    await expect(chooser).not.toBeDisplayed();
+    await browser.waitUntil(() =>
+      browser.tauri.execute(() =>
+        document.activeElement?.classList.contains("cm-content"),
+      ),
+    );
+    await browser.saveScreenshot("artifacts/native-note-template.png");
   });
 
   it("reorders tabs by pointer and keyboard without replacing Source or losing exact-byte undo", async () => {
