@@ -15,6 +15,8 @@ mod git_workbench;
 #[cfg(not(feature = "blank-baseline"))]
 mod library;
 #[cfg(not(feature = "blank-baseline"))]
+mod limits;
+#[cfg(not(feature = "blank-baseline"))]
 mod open_requests;
 #[cfg(not(feature = "blank-baseline"))]
 mod power;

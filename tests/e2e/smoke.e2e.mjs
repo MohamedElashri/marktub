@@ -113,7 +113,7 @@ async function documentAction(label) {
 
 describe("OS file open and accessibility", () => {
   async function closeDocuments() {
-    for (let count = 0; count < 5; count++) {
+    for (let count = 0; count < 17; count++) {
       const tabs = await browser.$$('.tabs button[aria-label^="Close "]');
       if (!tabs.length) break;
       const countBefore = tabs.length;
@@ -3870,7 +3870,7 @@ describe("Everyday workflows", () => {
       const modal = browser.$(`dialog[aria-label="${label}"][open]`);
       if (await modal.isExisting()) await modal.$(`button=${close}`).click();
     }
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 17; i++) {
       await ready();
       const tabs = await browser.$$(".tabs .tab");
       if (
@@ -4060,6 +4060,67 @@ describe("Everyday workflows", () => {
     expect(contexts.some((context) => context.endsWith("beta"))).toBe(true);
   });
 
+  it("opens sixteen real notes, reveals the selected menu entry and saves a copy at capacity", async () => {
+    const fs = await import("node:fs/promises");
+    const fixture = await invoke("e2e_fixture", {
+      action: "seed",
+      text: "# Capacity fixture\n",
+    });
+    const root = dirname(fixture.path);
+    const files = Array.from({ length: 16 }, (_, index) =>
+      join(root, `note-${String(index).padStart(2, "0")}-文.md`),
+    );
+    const original = "# Note 0\r\n\r\nKeep native bytes.\n";
+    await Promise.all(
+      files.map((path, index) =>
+        fs.writeFile(path, index ? `# Note ${index}\n` : original),
+      ),
+    );
+    const handed = spawnSync(desktopBinary("debug"), files, {
+      encoding: "utf8",
+      timeout: 15000,
+    });
+    expect(handed.status).toBe(0);
+    await readDocument("Note 15");
+    await browser.waitUntil(
+      async () => (await browser.$$(".tabs .tab")).length === 16,
+      { timeout: 60000 },
+    );
+    await expect(browser.$('button[aria-label="New tab"]')).toBeDisabled();
+    await expect(
+      browser.$(".workspace-actions").$("button=New note"),
+    ).toBeDisabled();
+    await browser.$('[aria-label="Tab actions"]').click();
+    await browser.waitUntil(() =>
+      browser.tauri.execute(() => {
+        const menu = document.querySelector(".tab-menu > div"),
+          selected = menu.querySelector('button[aria-pressed="true"]');
+        const outer = menu.getBoundingClientRect(),
+          item = selected.getBoundingClientRect();
+        return item.top >= outer.top - 1 && item.bottom <= outer.bottom + 1;
+      }),
+    );
+    await browser.$(".tab-menu").$("button=note-00-文.md").click();
+    await readDocument("Note 0");
+    await pane().$("button=Source").click();
+    await pane().$(".cm-content").waitForDisplayed({ timeout: 60000 });
+    await invoke("e2e_fixture", { action: "save-as", text: null });
+    await pane().$(".toolbar").$("button=Save As").click();
+    await browser.waitUntil(
+      async () =>
+        (await invoke("e2e_fixture", { action: "read-copy" })).text ===
+        original,
+      { timeout: 60000 },
+    );
+    await ready();
+    expect(await browser.$$(".tabs .tab").length).toBe(16);
+    for (let index = 0; index < files.length; index++)
+      expect(await fs.readFile(files[index], "utf8")).toBe(
+        index ? `# Note ${index}\n` : original,
+      );
+    await browser.saveScreenshot("artifacts/native-sixteen-tabs.png");
+  });
+
   it("reuses empty tabs at capacity and preserves active tabs across background close and cancellation", async () => {
     const fs = await import("node:fs/promises");
     const fixture = await invoke("e2e_fixture", {
@@ -4081,12 +4142,17 @@ describe("Everyday workflows", () => {
     await readDocument("Second");
     await ready();
     expect(await browser.$$(".tabs .tab").length).toBe(3);
-    await browser.$('button[aria-label="New tab"]').click();
+    for (let slot = 3; slot < 16; slot++)
+      await browser.$('button[aria-label="New tab"]').click();
+    await expect(browser.$('button[aria-label="New tab"]')).toBeDisabled();
+    await expect(
+      browser.$(".workspace-actions").$("button=New note"),
+    ).toBeEnabled();
     handoff(third);
     await ready();
     await readDocument("Third");
     await ready();
-    expect(await browser.$$(".tabs .tab").length).toBe(4);
+    expect(await browser.$$(".tabs .tab").length).toBe(16);
     await browser.$('.tabs button[aria-label="Close New tab"]').click();
     await ready();
     await readDocument("Third");
@@ -4309,6 +4375,22 @@ describe("Everyday workflows", () => {
       );
       expect(await browser.$$(".tabs .tab").length).toBe(2);
       await browser.saveScreenshot("artifacts/native-note-links.png");
+    } catch (error) {
+      await writeFile(
+        "artifacts/native-note-links-before-cleanup.json",
+        JSON.stringify(
+          await browser.tauri.execute(() => ({
+            text: document.body.innerText.slice(0, 12000),
+            errors: window.marktubTestErrors,
+          })),
+          null,
+          2,
+        ),
+      );
+      await browser.saveScreenshot(
+        "artifacts/native-note-links-before-cleanup.png",
+      );
+      throw error;
     } finally {
       if (await links().isExisting())
         await links().$("button=Close links").click();
@@ -4321,9 +4403,13 @@ describe("Everyday workflows", () => {
 
   it("creates recoverable new notes and templates and saves only to a native-selected destination", async () => {
     await invoke("e2e_fixture", { action: "seed", text: "# Existing file\n" });
+    await browser.$('button[aria-label="New tab"]').click();
+    await browser.$('button[aria-label="New tab"]').click();
+    const empty = await selected().getAttribute("id");
     await browser.$(".workspace-actions").$("button=New note").click();
     await pane().$(".cm-content").waitForDisplayed({ timeout: 60000 });
     await ready();
+    expect(await selected().getAttribute("id")).toBe(empty);
     await expect(selected()).toHaveText(
       expect.stringContaining("Untitled.md *"),
     );

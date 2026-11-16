@@ -1,3 +1,5 @@
+export const TAB_LIMIT = 16;
+
 // Session records contain real documents only. Keep selection tied to the
 // visible tab even when New tab or recovery tabs appear before it.
 export function sessionSelection(documents: (string | null)[], active: number) {

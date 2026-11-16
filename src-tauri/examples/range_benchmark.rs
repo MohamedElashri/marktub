@@ -2,6 +2,9 @@
 #[path = "../src/files.rs"]
 mod files;
 #[allow(dead_code)]
+#[path = "../src/limits.rs"]
+mod limits;
+#[allow(dead_code)]
 #[path = "../src/scoped_file.rs"]
 mod scoped_file;
 

@@ -344,7 +344,7 @@ impl Editing {
                 "A library mutation is running. Wait before starting Source.",
             ));
         }
-        if self.live.len() >= 8 {
+        if self.live.len() >= crate::limits::MAX_EDITORS {
             return Err(FileError::new(
                 "capacity",
                 "Close an editor before starting another.",
@@ -1034,7 +1034,7 @@ impl Editing {
         title: &str,
         template: &str,
     ) -> Result<EditDescriptor, FileError> {
-        if self.library_mutation || self.live.len() >= 8 {
+        if self.library_mutation || self.live.len() >= crate::limits::MAX_EDITORS {
             return Err(FileError::new(
                 "capacity",
                 "Wait for file operations or close an editor before creating a note.",
@@ -1098,6 +1098,12 @@ impl Editing {
         }
         if self.live.contains_key(id) {
             return Err(FileError::new("state", "This recovery is already open."));
+        }
+        if self.live.len() >= crate::limits::MAX_EDITORS {
+            return Err(FileError::new(
+                "capacity",
+                "Close an editor before restoring another.",
+            ));
         }
         let folder = self.folder(id)?;
         let session = Session::recover(&self.store.recovery(), id).map_err(error)?;
@@ -1411,6 +1417,46 @@ mod tests {
         let mut editing = Editing::open(&dir.path().join("private")).unwrap();
         let edit = editing.begin(&docs, &doc.id).unwrap();
         (dir, path, docs, doc, editing, edit)
+    }
+    #[test]
+    fn sixteen_source_sessions_keep_independent_recovery_and_capacity_can_be_reused() {
+        let (_dir, _path, _docs, _doc, mut service, first) = fixture();
+        let spare = service.create_note("Spare", "note").unwrap();
+        service
+            .release(&spare.id, &spare.generation, false)
+            .unwrap();
+        let mut notes = vec![];
+        for index in 1..crate::limits::MAX_EDITORS {
+            notes.push(
+                service
+                    .create_note(&format!("Note {index}"), "blank")
+                    .unwrap(),
+            );
+        }
+        assert_eq!(service.live.len(), 16);
+        assert_eq!(
+            service
+                .create_note("Overflow", "blank")
+                .err()
+                .map(|error| error.code),
+            Some("capacity")
+        );
+        assert_eq!(
+            service.restore(&spare.id).err().map(|error| error.code),
+            Some("capacity")
+        );
+        let last = notes.pop().unwrap();
+        service.release(&last.id, &last.generation, true).unwrap();
+        let restored = service.restore(&spare.id).unwrap();
+        assert!(restored.needs_save_as && restored.text.contains("# Spare"));
+        assert_eq!(service.live.len(), 16);
+        assert!(
+            !service
+                .get(&first.id, &first.generation)
+                .unwrap()
+                .state()
+                .dirty
+        );
     }
     #[test]
     fn new_notes_are_durable_pathless_and_require_an_exclusive_save_as() {

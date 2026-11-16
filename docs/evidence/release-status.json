@@ -180,19 +180,19 @@
       }
     },
     "readmeScreenshots": {
-      "scope": "normal Linux app; native AT-SPI actions and direct client-area captures; isolated X11 profile with a synthetic notebook; unreleased workspace UX",
-      "sourceCommit": "b68c3b102793728a5a0a400778f97a3b997c9e1b",
-      "binarySha256": "c7902f8c1059a1254e960361800859bddcc344ef6e8edae56979887e6c57b462",
+      "scope": "normal Linux app; native AT-SPI actions and direct client-area captures; isolated X11 profile with a synthetic notebook; unreleased note workflows",
+      "sourceCommit": "2135a85ec835a4fffc566a5ee40f055ef7ba61ef",
+      "binarySha256": "7b26fcd2df3b7297478a6fd1949ffd73c8463d88cabd89d434e63daf8666c831",
       "images": [
         {
           "path": "docs/assets/read.png",
-          "sha256": "97e18490b87fa5af71870195c037edc8b05d9fab015b0b5c312fca3f48b0f028",
+          "sha256": "96203a2e952ef5a8e068f9e02d0146c8e62762fc4e0738e1fcd7fb6bc61808a2",
           "width": 1080,
           "height": 760
         },
         {
           "path": "docs/assets/split.png",
-          "sha256": "4d4d3907a004f8a6b10517803cd8bb9d1943495bf9bb20dce619bf9422bfd7ec",
+          "sha256": "cd700d66cddc80c0f0226a78f084d06cf297e3a56c0f634389103eb66e3182cf",
           "width": 1080,
           "height": 760
         }
@@ -477,6 +477,85 @@
       "macOS": "pass: 152 native Rust tests, 56 actual WKWebView tests, normal universal desktop MACOS app/DMG, strict ad-hoc signature, resources and process samples; runtime covers only the runner-native slice",
       "followupScope": "Final reader selection values and labels were checked locally after this hosted source; no native command, permission or dependency changes",
       "status": "pass"
+    }
+  },
+  "unreleasedNoteWorkflows": {
+    "status": "Ready for ordered merge; not merged or published",
+    "sourceCommit": "2135a85ec835a4fffc566a5ee40f055ef7ba61ef",
+    "qualifiedSourceTree": "69b48a70f27c87fc4afbf11f0e11f55a649f1d9e",
+    "equivalentStackCommit": "ef1c92507dd799f82d7bd241c3a94bc27fdf775a",
+    "sourceScope": "Owning-PR fixes were propagated without rewriting history; the resulting complete tracked tree exactly matches the qualified CI source. Final screenshot/evidence edits follow that source.",
+    "orderedPullRequests": [8, 9, 10, 11],
+    "basePullRequest": 7,
+    "frontend": {
+      "tests": 798,
+      "toolingTests": 51,
+      "typecheck": "pass; zero errors or warnings",
+      "lintAndFormatting": "pass",
+      "repositoryGuard": "pass; 353 publication files"
+    },
+    "nativeRust": {
+      "linux": 166,
+      "macOS": 157,
+      "ignoredPerPlatform": 6,
+      "rustfmtAndStrictClippy": "pass",
+      "scope": "Uninterrupted full hosted runs; existing subprocess-helper and separately selected environment fixtures retain their explicit ignore scope."
+    },
+    "nativeWebView": {
+      "hostedLinux": {
+        "passed": 61,
+        "seconds": 208.6,
+        "backend": "X11/WebKitGTK on Ubuntu amd64"
+      },
+      "hostedMacOS": {
+        "passed": 60,
+        "seconds": 322.7,
+        "backend": "WKWebView in the universal desktop app; runtime covers the runner-native slice"
+      },
+      "focusedWayland": {
+        "passed": 4,
+        "seconds": 7.7,
+        "sourceCommit": "2135a85ec835a4fffc566a5ee40f055ef7ba61ef",
+        "binarySha256": "bc54962b6053b3ba753dc12b7b822865b91eb8d96fb184d13edc2946cb79f0de",
+        "scope": "Actual GNOME Wayland/WebKitGTK: wikilinks/backlinks, drafts/templates, settings/divider and retained-recovery narrow layout"
+      },
+      "layout": "A real retained draft remains available through the collapsible recovery list. At 640px width and a maximum 555px pane height, writing space is 238.625px on Linux and 218.625px on macOS (actual Mac pane height 525px). Restore and Save As integrity also pass.",
+      "qualification": "Synthetic interactions and constrained panes do not certify physical input, OS IME, screen-reader speech/navigation or physical OS window resizing."
+    },
+    "advisories": {
+      "productionJavaScript": 0,
+      "allJavaScript": 0,
+      "rustVulnerabilities": 0,
+      "rustWarnings": {},
+      "rustAuditVersion": "0.23.0",
+      "rustAdvisoryDatabase": "02e2517f457a359fc6d3440ea4560c8ea188fee8",
+      "scope": "Live hosted registries; unsound and unmaintained warnings denied; no ignores"
+    },
+    "normalLinuxPackage": {
+      "releaseIsolation": "pass; normal frontend, ACL, executable and Rust dependency graph exclude test hooks",
+      "contents": "pass; executable correspondence, portable loader/libraries, desktop entry, all five icon sizes, guide and bundled image",
+      "debSha256": "290d5e037120390c7882c2da55e97494eb7f4e97fc4c630a067e6a30874124e7",
+      "binarySha256": "060e9a23a1b9079465662752f05242f9f3925aaa443613287cda4b6a4046cfde",
+      "unbundledBinarySha256": "7b26fcd2df3b7297478a6fd1949ffd73c8463d88cabd89d434e63daf8666c831",
+      "resourcesSha256": {
+        "Marktub Guide.md": "7010b67d9af35187cb6d9cb2476be796377ade39d1f2b4964971c91ca61a410d",
+        "marktub-example.png": "e1ca9eaf3250cd381a316ee315ddae8f541736c1f9a0ac1e678d3a7b17641b8b",
+        "licenses.txt": "58d6a65c3316b5f9bf1f3513f9d9e0e9aedb14a06c7249edc4a0e5c3146f20ed"
+      },
+      "scope": "Local normal package extraction; hosted installation and GUI/icon checks pass separately"
+    },
+    "hostedCI": {
+      "run": 43868957269,
+      "url": "https://github.com/MohamedElashri/marktub/actions/runs/43868957269",
+      "sourceCommit": "2135a85ec835a4fffc566a5ee40f055ef7ba61ef",
+      "status": "pass",
+      "linux": "pass; frontend/tooling, strict Rust, dependency backport regressions, 61 actual WebView tests, normal package/isolation, installed UI/icons and process checks",
+      "macOS": "pass; strict Rust, 60 actual WKWebView tests, normal universal desktop MACOS app/DMG, strict ad-hoc signature, resources and process checks",
+      "advisories": "pass; zero JavaScript/Rust registry findings",
+      "macOSScope": "One actual macOS runner; arm64 and x86_64 desktop slices validated. Runtime covers only the runner-native slice, with no Intel/minimum-system certification.",
+      "linuxDebSha256": "c2ef52fa8c551ba1cd6bc4edb0a3708aa4b4281de5e42b80fda54a2e76ad48f4",
+      "macOSDmgSha256": "d5e1a6125a15dbbc3a0d14c43c9aecc362353d963cfcd7d954271da79e0447fa",
+      "macOSBinarySha256": "2e051a37b0be08263475a24157023f9f0611e4effdcb8a03b20e718051a67e49"
     }
   }
 }

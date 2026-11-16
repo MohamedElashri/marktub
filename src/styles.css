@@ -884,6 +884,8 @@ select {
   inset-block-start: calc(100% + 6px);
   inset-inline-end: 0;
   width: min(290px, 85vw);
+  max-height: min(480px, 70dvh);
+  overflow: auto;
   background: var(--paper);
   border: 1px solid var(--line);
   border-radius: 9px;
