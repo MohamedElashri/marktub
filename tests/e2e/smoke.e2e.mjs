@@ -1834,13 +1834,25 @@ describe("Preferences and commands", () => {
         (await invoke("e2e_fixture", { action: "read", text: null })).text ===
         original + "文",
     );
+    await pane()
+      .$('button[aria-label="Undo"]')
+      .waitForEnabled({ timeout: 60000 });
     await pane().$('button[aria-label="Undo"]').click();
-    await pane().$("header").$("button=Save").waitForEnabled();
+    await browser.waitUntil(
+      async () =>
+        (await pane().$(".window-shell").getAttribute("data-dirty")) === "true",
+      { timeout: 60000 },
+    );
+    await pane()
+      .$("header")
+      .$("button=Save")
+      .waitForEnabled({ timeout: 60000 });
     await pane().$("header").$("button=Save").click();
     await browser.waitUntil(
       async () =>
         (await invoke("e2e_fixture", { action: "read", text: null })).text ===
         original,
+      { timeout: 60000 },
     );
   });
   it("dispatches contextual fuzzy actions and rebound chords without firing during composition", async () => {
