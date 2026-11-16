@@ -30,7 +30,7 @@
     ondisplay?: () => void;
     onedit?: (byte: number) => void | Promise<void>;
     sourceLine?: (byte: number) => number;
-    onsource?: (line: number, clicked: boolean) => void;
+    onsource?: (line: number, clicked: boolean, fraction?: number) => void;
     start?: number;
     anchorId?: string | null;
     onposition: (byte: number, anchor: string | null) => void;
@@ -149,22 +149,28 @@
       break;
     }
   }
-  let syncUntil = 0,
-    scrollIntent = 0;
+  let syncUntil = 0;
+  let manualScroll = false;
+  let scrollGeneration = 0;
   function intent() {
-    scrollIntent = performance.now() + 800;
+    syncUntil = 0;
+    scrollGeneration++;
+    manualScroll = true;
   }
   export async function revealByte(byte: number) {
     const index = sections.findIndex((s) => byte >= s.start && byte < s.end);
     if (index >= 0) await show(index);
     else onerror("The saved section is not yet indexed.");
   }
-  export async function revealSource(byte: number, line: number) {
+  export async function revealSource(byte: number, line: number, fraction = 0) {
     const section = sections.findIndex((s) => byte >= s.start && byte < s.end);
     if (section < 0) return;
+    const request = ++scrollGeneration;
+    manualScroll = false;
     syncUntil = performance.now() + 200;
     if (section < at || section >= at + 3) await show(section);
     await tick();
+    if (request !== scrollGeneration) return;
     const local = line - sourceLine(sections[section].start);
     const block = host.querySelector(`[data-section="${section}"]`);
     const node = [
@@ -172,30 +178,54 @@
     ]
       .filter((n) => Number(n.dataset.sourceLine) <= local)
       .at(-1);
-    scrollWithin(node ?? block);
+    if (!node) {
+      scrollWithin(block);
+      return;
+    }
+    const start = Number(node.dataset.sourceLine);
+    const end = Number(node.dataset.sourceEndLine ?? start + 1);
+    const ratio = Math.max(
+      0,
+      Math.min(1, (local - start + fraction) / Math.max(1, end - start)),
+    );
+    host.scrollTop +=
+      node.getBoundingClientRect().top -
+      host.getBoundingClientRect().top +
+      ratio * node.getBoundingClientRect().height;
+    syncUntil = performance.now() + 200;
   }
-  function sourceAnchor(node: HTMLElement, clicked = false) {
+  function sourceAnchor(node: HTMLElement, clicked = false, ratio = 0) {
     const section = node.closest<HTMLElement>("[data-section]");
     if (!section) return;
     const index = Number(section.dataset.section);
     if (!sections[index]) return;
+    const start = Number(node.dataset.sourceLine ?? 0);
+    const end = Number(node.dataset.sourceEndLine ?? start + 1);
+    const position =
+      start + Math.max(0, Math.min(0.999999, ratio)) * Math.max(1, end - start);
     onsource(
-      sourceLine(sections[index].start) + Number(node.dataset.sourceLine ?? 0),
+      sourceLine(sections[index].start) + Math.floor(position),
       clicked,
+      position % 1,
     );
   }
   function authorScroll() {
-    if (
-      !embedded ||
-      performance.now() < syncUntil ||
-      performance.now() > scrollIntent
-    )
-      return;
+    if (!embedded || performance.now() < syncUntil || !manualScroll) return;
     const top = host.getBoundingClientRect().top;
-    const node = [
-      ...host.querySelectorAll<HTMLElement>("[data-source-line]"),
-    ].find((n) => n.getBoundingClientRect().bottom > top);
-    if (node) sourceAnchor(node);
+    const nodes = [...host.querySelectorAll<HTMLElement>("[data-source-line]")];
+    // Prefer the innermost mapped block at the viewport edge (for lists/tables),
+    // rather than an ancestor spanning several unrelated source lines.
+    const crossing = nodes.filter((node) => {
+      const r = node.getBoundingClientRect();
+      return r.top <= top && r.bottom > top;
+    });
+    const node =
+      crossing.at(-1) ??
+      nodes.find((node) => node.getBoundingClientRect().bottom > top);
+    if (node) {
+      const r = node.getBoundingClientRect();
+      sourceAnchor(node, false, (top - r.top) / Math.max(1, r.height));
+    }
   }
   async function copyShown() {
     try {

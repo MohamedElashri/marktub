@@ -365,8 +365,10 @@ export function renderText(
   const normalized = normalize(text, beginning);
   const tokens = md.parse(normalized, env);
   for (const token of tokens)
-    if (sourceMap && token.map && token.nesting !== -1)
+    if (sourceMap && token.map && token.nesting !== -1) {
       token.attrSet("data-source-line", String(token.map[0]));
+      token.attrSet("data-source-end-line", String(token.map[1]));
+    }
   const html = md.renderer.render(tokens, md.options, env);
   return { html, rich: env.rich ?? [] };
 }

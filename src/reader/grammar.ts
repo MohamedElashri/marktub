@@ -206,7 +206,7 @@ export function grammar() {
     html: string,
   ) =>
     token.attrGet("data-source-line") !== null
-      ? `<div data-source-line="${escape(String(token.attrGet("data-source-line")))}">${html}</div>`
+      ? `<div data-source-line="${escape(String(token.attrGet("data-source-line")))}" data-source-end-line="${escape(String(token.attrGet("data-source-end-line")))}">${html}</div>`
       : html;
   md.renderer.rules.math = (t, i, _o, e) =>
     mapped(t[i], placeholder("math", t[i].content, !!t[i].meta?.display, e));

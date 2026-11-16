@@ -2095,6 +2095,105 @@ describe("Author experience", () => {
       .$('.window-shell[data-busy="false"][data-dirty="false"]')
       .waitForExist({ timeout: 30000 });
   }
+  it("syncs actual viewport positions both ways without moving the editor selection", async () => {
+    const source = Array.from(
+      { length: 80 },
+      (_, i) =>
+        `## Section ${i}\n\n${"A wrapped paragraph for scroll mapping. ".repeat(8)}\n\n`,
+    ).join("");
+    await seed(source);
+    await pane().$("button=Split").click();
+    await pane().$(".reader-scroll").waitForDisplayed({ timeout: 60000 });
+    await view((v) =>
+      v.dispatch({ selection: { anchor: v.state.doc.line(5).from } }),
+    );
+    const selected = await view((v) => v.state.selection.main.anchor);
+    await view((v) => {
+      v.scrollDOM.dispatchEvent(
+        new WheelEvent("wheel", { bubbles: true, deltaY: 1 }),
+      );
+      v.scrollDOM.scrollTop +=
+        v.documentTop +
+        v.lineBlockAt(v.state.doc.line(123).from).top -
+        v.scrollDOM.getBoundingClientRect().top;
+    });
+    await browser.waitUntil(
+      () =>
+        browser.tauri.execute(() => {
+          const reader = document.querySelector(
+            ".document-tab:not([hidden]) .reader-scroll",
+          );
+          const node = reader.querySelector('[data-source-line="122"]');
+          return (
+            node &&
+            Math.abs(
+              node.getBoundingClientRect().top -
+                reader.getBoundingClientRect().top,
+            ) < 4
+          );
+        }),
+      { timeout: 10000 },
+    );
+    expect(await view((v) => v.state.selection.main.anchor)).toBe(selected);
+    await browser.tauri.execute(() => {
+      const reader = document.querySelector(
+        ".document-tab:not([hidden]) .reader-scroll",
+      );
+      const node = reader.querySelector('[data-source-line="242"]');
+      reader.dispatchEvent(
+        new WheelEvent("wheel", { bubbles: true, deltaY: 1 }),
+      );
+      reader.scrollTop +=
+        node.getBoundingClientRect().top -
+        reader.getBoundingClientRect().top +
+        node.getBoundingClientRect().height * 0.4;
+    });
+    await browser.waitUntil(
+      async () =>
+        (await view(
+          (v) =>
+            v.state.doc.lineAt(
+              v.lineBlockAtHeight(
+                Math.max(
+                  0,
+                  v.scrollDOM.getBoundingClientRect().top - v.documentTop,
+                ),
+              ).from,
+            ).number,
+        )) === 243,
+      { timeout: 10000 },
+    );
+    expect(await view((v) => v.state.selection.main.anchor)).toBe(selected);
+    // Reverse direction promptly: genuine input must override a pending sync.
+    await browser.tauri.execute(() => {
+      const reader = document.querySelector(
+        ".document-tab:not([hidden]) .reader-scroll",
+      );
+      const node = reader.querySelector('[data-source-line="162"]');
+      reader.dispatchEvent(
+        new WheelEvent("wheel", { bubbles: true, deltaY: -1 }),
+      );
+      reader.scrollTop +=
+        node.getBoundingClientRect().top - reader.getBoundingClientRect().top;
+    });
+    await browser.waitUntil(
+      async () =>
+        (await view(
+          (v) =>
+            v.state.doc.lineAt(
+              v.lineBlockAtHeight(
+                Math.max(
+                  0,
+                  v.scrollDOM.getBoundingClientRect().top - v.documentTop,
+                ),
+              ).from,
+            ).number,
+        )) === 163,
+      { timeout: 10000 },
+    );
+    expect(await view((v) => v.state.doc.toString())).toBe(source);
+    expect(await view((v) => v.state.selection.main.anchor)).toBe(selected);
+  });
   it("keeps the same editor, document, caret, folds and undo across Source/Split/Visual/Read", async () => {
     await seed();
     await select("alpha");
