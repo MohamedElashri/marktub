@@ -222,3 +222,11 @@ button and command palette can reopen the original whenever you need it.
 Use **New note** or Cmd/Ctrl+N for a blank draft. Choose **From template** in an
 empty tab, or **New note from template** in Commands, for notes, meetings or a
 daily journal. The draft is kept in recovery; Save opens a native Save As dialog.
+
+## Connect notes
+
+Use `[[Note]]`, `[[folder/Note]]` or `[[Note#Heading|label]]` to connect Markdown
+files. Open the containing folder in Library, then use **Links** for outgoing
+links and backlinks in saved files. Bare names prefer the same folder; otherwise
+only unique matches open automatically. Ambiguous or partial scans ask you to
+choose. Backlinks exclude hidden, ignored and symlinked files and report limits.

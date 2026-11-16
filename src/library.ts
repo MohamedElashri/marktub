@@ -134,3 +134,18 @@ export const location = (id: string, display: Display) =>
 
 export const gitBadges = (entries: string[]) =>
   invoke<Record<string, string>>("git_badges", { entries });
+
+export interface NoteCapture {
+  item: Item;
+  path: string;
+  text: string | null;
+}
+export interface NoteCatalogue {
+  root: Folder;
+  active: string;
+  notes: NoteCapture[];
+  complete: boolean;
+  skipped: number;
+}
+export const noteCatalogue = (id: string) =>
+  invoke<NoteCatalogue>("note_catalogue", { id });

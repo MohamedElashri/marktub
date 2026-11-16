@@ -1,4 +1,5 @@
 import MarkdownIt from "markdown-it";
+import { installWikiLinks } from "./wikilinks";
 import type Token from "markdown-it/lib/token.mjs";
 import type { Context, Rich } from "./model";
 export interface Environment extends Context {
@@ -29,6 +30,7 @@ export function grammar() {
     typographer: false,
     maxNesting: 32,
   });
+  installWikiLinks(md);
   // Pinned markdown-it rule instrumentation: definitions normally emit no
   // token. Give them zero-output spans so streaming retains a complete final
   // definition (including a continuation title/body), just like a paragraph.

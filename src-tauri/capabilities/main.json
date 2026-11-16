@@ -43,6 +43,7 @@
     "allow-library-choose-root",
     "allow-library-page",
     "allow-library-open",
+    "allow-note-catalogue",
     "allow-library-preview",
     "allow-library-scan",
     "allow-library-job",
