@@ -119,7 +119,9 @@ to preview themes, fonts and layout changes before applying them. The built-in
 
 See [development.md](development.md) for setup, checks and contribution guidance.
 
-For bugs, [open an issue](https://github.com/MohamedElashri/marktub/issues) with the OS, app revision, reproduction steps and and I welcome PR fix.
+For bugs, [open an issue](https://github.com/MohamedElashri/marktub/issues) with the
+OS, app revision, reproduction steps and a small redacted example. Pull requests
+are welcome.
 
 ## LICENCE
 
