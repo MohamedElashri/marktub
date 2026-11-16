@@ -41,4 +41,17 @@ jobs:
           /bin/bash -n scripts/install.sh
           python3 -m unittest discover -s tests/tooling -p test_installer.py -v
       - name: Download and verify the latest platform package
-        run: /bin/bash scripts/install.sh --download-only --directory "$RUNNER_TEMP/marktub-download"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Authenticate only metadata; package/CDN requests remain anonymous.
+          curl() {
+            local address=${!#}
+            if [[ "$address" == 'https://api.github.com/repos/MohamedElashri/marktub/releases/latest' ]]; then
+              command curl --header "Authorization: Bearer $GH_TOKEN" "$@"
+            else
+              command curl "$@"
+            fi
+          }
+          export -f curl
+          /bin/bash scripts/install.sh --download-only --directory "$RUNNER_TEMP/marktub-download"
