@@ -554,29 +554,53 @@ describe("Source integrity", () => {
     await seed();
     await browser.$(".cm-content").addValue("文");
     await browser
-      .$("header")
+      .$(".document-tab:not([hidden]) .toolbar")
       .$("button=Save")
       .waitForEnabled({ timeout: 60000 });
-    await browser.$("header").$("button=Save").click();
+    await browser
+      .$(".document-tab:not([hidden]) .toolbar")
+      .$("button=Save")
+      .click();
     await browser.waitUntil(
       async () => (await fixture("read")).text === original + "文",
     );
-    await browser.$("header").$("button=Save").waitForEnabled();
+    await browser
+      .$(".document-tab:not([hidden]) .toolbar")
+      .$("button=Save")
+      .waitForEnabled();
     await browser.$('button[aria-label="Undo"]').click();
-    await browser.$("header").$("button=Save").waitForEnabled();
-    await browser.$("header").$("button=Save").click();
+    await browser
+      .$(".document-tab:not([hidden]) .toolbar")
+      .$("button=Save")
+      .waitForEnabled();
+    await browser
+      .$(".document-tab:not([hidden]) .toolbar")
+      .$("button=Save")
+      .click();
     await browser.waitUntil(
       async () => (await fixture("read")).text === original,
     );
-    await browser.$("header").$("button=Save").waitForEnabled();
+    await browser
+      .$(".document-tab:not([hidden]) .toolbar")
+      .$("button=Save")
+      .waitForEnabled();
     await browser.$("button=Redo").click();
-    await browser.$("header").$("button=Save").waitForEnabled();
-    await browser.$("header").$("button=Save").click();
+    await browser
+      .$(".document-tab:not([hidden]) .toolbar")
+      .$("button=Save")
+      .waitForEnabled();
+    await browser
+      .$(".document-tab:not([hidden]) .toolbar")
+      .$("button=Save")
+      .click();
     await browser.waitUntil(
       async () => (await fixture("read")).text === original + "文",
     );
     await fixture("open");
-    await browser.$("header").$("button=Save").waitForEnabled();
+    await browser
+      .$(".document-tab:not([hidden]) .toolbar")
+      .$("button=Save")
+      .waitForEnabled();
     await browser.$("button.open-button").waitForEnabled({ timeout: 20000 });
     await browser.$("button.open-button").click();
     await browser.$(".cm-content").waitForExist({ reverse: true });
@@ -590,10 +614,13 @@ describe("Source integrity", () => {
     await seed();
     await browser.$(".cm-content").addValue("N");
     await browser
-      .$("header")
+      .$(".document-tab:not([hidden]) .toolbar")
       .$("button=Save")
       .waitForEnabled({ timeout: 60000 });
-    await browser.$("header").$("button=Save").click();
+    await browser
+      .$(".document-tab:not([hidden]) .toolbar")
+      .$("button=Save")
+      .click();
     await browser.$(".cm-content").addValue("X");
     await browser.waitUntil(
       async () => (await fixture("read")).text === original + "N",
@@ -602,10 +629,13 @@ describe("Source integrity", () => {
       browser.$(".document-tab:not([hidden]) .statusbar"),
     ).toHaveText(expect.stringContaining("Unsaved changes"));
     await browser
-      .$("header")
+      .$(".document-tab:not([hidden]) .toolbar")
       .$("button=Save")
       .waitForEnabled({ timeout: 60000 });
-    await browser.$("header").$("button=Save").click();
+    await browser
+      .$(".document-tab:not([hidden]) .toolbar")
+      .$("button=Save")
+      .click();
     await browser.waitUntil(
       async () => (await fixture("read")).text === original + "NX",
     );
@@ -616,10 +646,13 @@ describe("Source integrity", () => {
     await fixture("external", "external\n");
     await browser.tauri.execute(() => window.dispatchEvent(new Event("focus")));
     await browser
-      .$("header")
+      .$(".document-tab:not([hidden]) .toolbar")
       .$("button=Save")
       .waitForEnabled({ timeout: 60000 });
-    await browser.$("header").$("button=Save").click();
+    await browser
+      .$(".document-tab:not([hidden]) .toolbar")
+      .$("button=Save")
+      .click();
     await browser.waitUntil(
       async () =>
         (await browser.$(".window-shell").getText()).includes(
@@ -628,7 +661,10 @@ describe("Source integrity", () => {
         (await browser.$(".window-shell").getText()).includes("file changed"),
     );
     expect((await fixture("read")).text).toBe("external\n");
-    await browser.$("header").$("button=Save").waitForEnabled();
+    await browser
+      .$(".document-tab:not([hidden]) .toolbar")
+      .$("button=Save")
+      .waitForEnabled();
     await browser.$("button=Compare").click();
     await expect(browser.$("dialog.compare-dialog")).toBeDisplayed();
     await expect(browser.$("dialog.compare-dialog")).toHaveText(
@@ -636,7 +672,10 @@ describe("Source integrity", () => {
     );
     await browser.$("dialog.compare-dialog").$("button=Keep local").click();
     await fixture("save-as");
-    await browser.$("header").$("button=Save As").click();
+    await browser
+      .$(".document-tab:not([hidden]) .toolbar")
+      .$("button=Save As")
+      .click();
     await browser.waitUntil(
       async () => (await fixture("read-copy")).text === original + "local",
     );
@@ -671,7 +710,9 @@ describe("Source integrity", () => {
       await browser.$("button=Exit focus").click();
     await documentAction("Settings");
     await expect(browser.$("#settings-title")).toBeDisplayed();
-    await browser.$("dialog select").selectByAttribute("value", "session");
+    await browser
+      .$('dialog[aria-label="Preferences"] select[aria-label="Settings scope"]')
+      .selectByAttribute("value", "session");
     await browser.$("button=Advanced").click();
     await browser.$('textarea[aria-label="Settings text"]').waitForEnabled();
     await browser
@@ -680,14 +721,18 @@ describe("Source integrity", () => {
     await expect(browser.$('textarea[aria-label="Settings text"]')).toHaveValue(
       "$reader.width=900\n$security.execution=true",
     );
-    await browser.$("button=Apply settings").click();
+    await expect(browser.$("button=Apply settings")).toBeDisabled();
     await expect(browser.$('dialog ul[role="alert"]')).toHaveText(
       expect.stringContaining("Line 2"),
     );
     await browser
       .$('textarea[aria-label="Settings text"]')
       .setValue("$theme=dark\n$reader.width=900");
+    await browser.$("button=Apply settings").waitForEnabled();
     await browser.$("button=Apply settings").click();
+    await browser
+      .$('dialog[aria-label="Preferences"]')
+      .waitForDisplayed({ reverse: true });
     await expect(browser.$(".window-shell")).toHaveAttribute(
       "data-theme",
       "dark",
@@ -4312,6 +4357,10 @@ describe("Everyday workflows", () => {
       }),
     ).toBe(true);
     await browser.saveScreenshot("artifacts/native-ux-guide.png");
+    await pane().$("button=Split").waitForEnabled();
+    await pane().$("button=Split").click();
+    await pane().$(".cm-content").waitForDisplayed();
+    await expect(pane().$(".toolbar .save-button")).toBeDisplayed();
   });
 
   it("keeps Source view and exact-byte undo across More, Escape and preference dialog focus", async () => {

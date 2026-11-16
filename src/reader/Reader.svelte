@@ -71,6 +71,7 @@
       .slice(0, 200),
   );
   $effect(() => {
+    if (embedded) return;
     document.documentElement.dataset.readingFocus = String(focus);
     return () => {
       delete document.documentElement.dataset.readingFocus;
