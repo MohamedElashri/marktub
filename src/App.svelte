@@ -25,7 +25,7 @@
   import type Library from "./Library.svelte";
   import * as bridge from "./bridge";
   import * as library from "./library";
-  import { sessionSelection, moveTab } from "./tabs";
+  import { sessionSelection, moveTab, TAB_LIMIT } from "./tabs";
   type Tab = {
     key: number;
     name: string;
@@ -60,6 +60,20 @@
     palettePanel = $state<CommandPalette>();
   let previewValues = $state<Values | null>(null);
   const currentValues = $derived(tabs[active]?.pane?.preferences() ?? {});
+  function emptyTabAvailable(tab: Tab) {
+    return (
+      !tab.document &&
+      closingTab !== tab.key &&
+      !openingTabs.has(tab.key) &&
+      !tab.pane?.commandState().busy
+    );
+  }
+  const canCreateNote = $derived(
+    tabs.length < TAB_LIMIT || tabs.some(emptyTabAvailable),
+  );
+  const newNoteShortcut = $derived(
+    shortcutLabel(String(currentValues["shortcut.new_note"]?.value ?? "Mod+N")),
+  );
   const commands = $derived.by(() => {
     const state = tabs[active]?.pane?.commandState();
     return definitions.map(([id, label, group, defaultBinding]) => {
@@ -98,9 +112,13 @@
         enabled = false;
         reason = "Split and Visual admit ordinary documents up to 2 MiB";
       }
-      if (id === "new_tab" && tabs.length >= 4) {
+      if (id === "new_tab" && tabs.length >= TAB_LIMIT) {
         enabled = false;
-        reason = "Four-tab limit reached";
+        reason = `${TAB_LIMIT}-tab limit reached`;
+      }
+      if (["new_note", "note_template"].includes(id) && !canCreateNote) {
+        enabled = false;
+        reason = `All ${TAB_LIMIT} tabs are in use. Close a tab first.`;
       }
       if (
         ["move_tab_left", "move_tab_right"].includes(id) &&
@@ -205,21 +223,17 @@
     }
   }
   function newTab() {
-    if (tabs.length >= 4) return;
+    if (tabs.length >= TAB_LIMIT) return;
     tabs.push({ key: ++serial, name: "New tab", dirty: false, document: null });
     active = tabs.length - 1;
   }
   let templatePanel: NewNote;
   async function createNote(title: string, template: string) {
-    let tab = tabs.find(
-      (tab) =>
-        !tab.document &&
-        closingTab !== tab.key &&
-        !openingTabs.has(tab.key) &&
-        !tab.pane?.commandState().busy,
-    );
+    let tab = emptyTabAvailable(tabs[active])
+      ? tabs[active]
+      : tabs.find(emptyTabAvailable);
     if (!tab) {
-      if (tabs.length >= 4)
+      if (tabs.length >= TAB_LIMIT)
         throw Error("Close a tab before creating another note.");
       newTab();
       tab = tabs[active];
@@ -364,18 +378,13 @@
       await revealDocumentOnNarrowScreens();
       return;
     }
-    const available = (tab: Tab) =>
-      !tab.document &&
-      closingTab !== tab.key &&
-      !openingTabs.has(tab.key) &&
-      !tab.pane?.commandState().busy;
-    let tab = available(tabs[active])
+    let tab = emptyTabAvailable(tabs[active])
       ? tabs[active]
-      : (tabs.find(available) ?? null);
+      : (tabs.find(emptyTabAvailable) ?? null);
     if (!tab) {
-      if (tabs.length >= 4) {
+      if (tabs.length >= TAB_LIMIT) {
         await bridge.releaseDocument(descriptor.id);
-        message = "Four tabs are open. Close one before opening another.";
+        message = `${TAB_LIMIT} tabs are open. Close one before opening another.`;
         return;
       }
       tab = {
@@ -418,6 +427,10 @@
     if (tabs.some((t) => t.document)) {
       message =
         "Close current document tabs before restoring the previous session.";
+      return;
+    }
+    if (hints.length > TAB_LIMIT) {
+      message = `Restore up to ${TAB_LIMIT} tabs at a time.`;
       return;
     }
     if (hints.some((h) => !h.authorized)) {
@@ -648,7 +661,10 @@
         }}><Icon name="folder" />Library</button
       >
       <button
-        title="New note · Cmd/Ctrl+N"
+        disabled={!canCreateNote}
+        title={canCreateNote
+          ? `New note${newNoteShortcut.visual ? ` · ${newNoteShortcut.visual}` : ""}`
+          : "Close a tab before creating another note."}
         onclick={() => runCommand("new_note")}>New note</button
       >
       <div class="history-actions">

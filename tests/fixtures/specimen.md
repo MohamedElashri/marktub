@@ -47,7 +47,7 @@ it does not replace saving. This app-owned guide and recovered documents require
 - Use the back/forward arrows for recently visited files. After restarting,
   reselect a folder to authorize it, then restore its saved tabs.
 
-Four documents can be open at a time. Settings and the guide are available from
+Use the tab menu to find a document when many tabs are open. Settings and the guide are available from
 the top bar, and **Commands** lists actions with your current shortcuts.
 
 ## Make the workspace yours

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { tick } from "svelte";
+  import { TAB_LIMIT } from "./tabs";
   import Icon from "./ui/Icon.svelte";
   type Tab = { key: number; name: string; dirty: boolean; busy: boolean };
   let {
@@ -51,6 +52,23 @@
         strip.scrollLeft -= viewport.left - rect.left;
       else if (rect.right > viewport.right)
         strip.scrollLeft += rect.right - viewport.right;
+    });
+  });
+  $effect(() => {
+    if (!menu) return;
+    const key = tabs[active]?.key;
+    void tick().then(() => {
+      if (!menu || tabs[active]?.key !== key) return;
+      const panel = menuElement?.querySelector("div"),
+        selected = panel?.querySelector<HTMLButtonElement>(
+          'button[aria-pressed="true"]',
+        );
+      if (!panel || !selected) return;
+      const item = selected.getBoundingClientRect(),
+        viewport = panel.getBoundingClientRect();
+      if (item.top < viewport.top) panel.scrollTop -= viewport.top - item.top;
+      else if (item.bottom > viewport.bottom)
+        panel.scrollTop += item.bottom - viewport.bottom;
     });
   });
   async function select(index: number, focus = false) {
@@ -215,10 +233,10 @@
   <button
     class="new-tab-button"
     aria-label="New tab"
-    title={tabs.length >= 4
-      ? "Four tabs are open. Close one to open another."
+    title={tabs.length >= TAB_LIMIT
+      ? `${TAB_LIMIT} tabs are open. Close one to open another.`
       : "New tab"}
-    disabled={tabs.length >= 4}
+    disabled={tabs.length >= TAB_LIMIT}
     onclick={onnew}>+</button
   >
   <details class="tab-menu" bind:this={menuElement} bind:open={menu}>

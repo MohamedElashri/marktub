@@ -367,7 +367,7 @@ impl Library {
                 d.schema == 1
                     && d.roots.len() <= 32
                     && d.recent.len() <= 200
-                    && d.tabs.len() <= 4
+                    && d.tabs.len() <= crate::limits::MAX_TABS
                     && d.last_operation.len() <= 128
                     && d.roots
                         .iter()
@@ -1050,7 +1050,7 @@ impl Library {
         self.persist()
     }
     pub fn session(&mut self, paths: Vec<PathBuf>, active: usize) -> Result<(), FileError> {
-        if paths.len() > 4 {
+        if paths.len() > crate::limits::MAX_TABS {
             return Err(stale());
         }
         self.data.tabs = paths
@@ -2635,6 +2635,34 @@ mod tests {
         assert!(l.progress(&review.id, false).unwrap().canceled);
         assert!(t.path().join("root/A.txt").exists());
         assert!(!t.path().join("root/c.txt").exists());
+    }
+    #[test]
+    fn sixteen_session_hints_survive_restart_without_restoring_root_authority() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("notes");
+        fs::create_dir(&root).unwrap();
+        let private = dir.path().join("private");
+        private_store::directory(&private).unwrap();
+        let paths = (0..16)
+            .map(|index| {
+                let path = root.join(format!("note-{index}.md"));
+                fs::write(&path, "# Note").unwrap();
+                path
+            })
+            .collect::<Vec<_>>();
+        let mut library = Library::new(private.clone(), vec![]);
+        library.select(&root).unwrap();
+        library.session(paths.clone(), 15).unwrap();
+        let mut overflow = paths;
+        overflow.push(root.join("overflow.md"));
+        assert!(library.session(overflow, 16).is_err());
+        drop(library);
+        let mut restored = Library::new(private, vec![]);
+        assert_eq!(restored.state().session.len(), 16);
+        assert_eq!(restored.state().active, 15);
+        assert!(restored.state().session.iter().all(|hint| !hint.authorized));
+        restored.select(&root).unwrap();
+        assert!(restored.state().session.iter().all(|hint| hint.authorized));
     }
     #[test]
     fn note_catalogue_reads_only_selected_visible_markdown_and_bounds_captures() {

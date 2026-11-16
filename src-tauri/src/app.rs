@@ -1367,7 +1367,7 @@ async fn library_session(
     ids: Vec<String>,
     active: usize,
 ) -> Result<(), FileError> {
-    if ids.len() > 4 {
+    if ids.len() > crate::limits::MAX_TABS {
         return Err(FileError::new("capacity", "Too many tabs."));
     }
     tauri::async_runtime::spawn_blocking(move || {

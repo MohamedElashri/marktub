@@ -1,4 +1,7 @@
-use crate::scoped_file::{ScopedFile, fingerprint};
+use crate::{
+    limits::MAX_DOCUMENTS,
+    scoped_file::{ScopedFile, fingerprint},
+};
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use serde::Serialize;
 use std::{
@@ -13,7 +16,6 @@ use uuid::Uuid;
 
 pub const REVIEW_CAPTURE_LIMIT: u64 = 2 * 1024 * 1024;
 pub const MAX_RANGE: usize = 64 * 1024;
-const MAX_DOCUMENTS: usize = 8;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -402,6 +404,30 @@ mod tests {
     use super::*;
     use std::io::Write;
 
+    #[test]
+    fn sixteen_reading_tabs_have_bounded_replacement_headroom() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("note.md");
+        fs::write(&path, "# Kept").unwrap();
+        let docs = Documents::default();
+        let mut handles = vec![];
+        for _ in 0..MAX_DOCUMENTS {
+            handles.push(docs.grant(&path, |_| {}).unwrap());
+        }
+        assert!(handles.len() > crate::limits::MAX_TABS);
+        assert_eq!(docs.grant(&path, |_| {}).unwrap_err().code, "capacity");
+        let replaced = handles.pop().unwrap();
+        docs.release(&replaced.id).unwrap();
+        let replacement = docs.grant(&path, |_| {}).unwrap();
+        assert_eq!(
+            docs.read_range(&replacement.id, 0, 64).unwrap().text,
+            "# Kept"
+        );
+        assert_eq!(
+            docs.read_range(&handles[0].id, 0, 64).unwrap().text,
+            "# Kept"
+        );
+    }
     #[test]
     fn unauthorized_paths_and_handles_never_read() {
         let docs = Documents::default();
