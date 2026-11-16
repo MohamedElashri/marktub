@@ -41,6 +41,10 @@ assert digest(binary) == digest(original), "DMG executable differs from normal a
 for source, bundled in [(Path("artifacts/licenses/licenses.txt"),"licenses.txt"),(Path("tests/fixtures/specimen.md"),"fixtures/specimen.md")]:
     assert digest(source) == digest(installed/"Contents/Resources"/bundled), f"Bundled resource differs: {bundled}"
 info = plistlib.loads((installed/"Contents/Info.plist").read_bytes())
+icon = info.get("CFBundleIconFile", "")
+assert icon and Path(icon).name == icon, "App icon is not registered in Info.plist"
+icon_path = installed / "Contents/Resources" / (icon if icon.endswith(".icns") else icon + ".icns")
+assert icon_path.is_file() and digest(icon_path) == digest(Path("src-tauri/icons/icon.icns")), "Bundled macOS icon differs from the app logo"
 types = info.get("CFBundleDocumentTypes", [])
 assert any(set(t.get("CFBundleTypeExtensions", [])) >= {"md","markdown"} and t.get("CFBundleTypeRole") == "Editor" for t in types), "Markdown editor association missing"
 result = {"kind":"local ad-hoc macOS DMG verification, not public notarized/clean-machine/Gatekeeper certification", "dmg":str(a.dmg),"dmgSha256":digest(a.dmg),"dmgBytes":a.dmg.stat().st_size,"installedApp":str(installed.resolve()),"binarySha256":digest(binary),"binaryBytes":binary.stat().st_size,"bundleBytes":sum(f.stat().st_size for f in installed.rglob("*") if f.is_file()),"architectures":architectures,"platform":"MACOS","minimumSystemVersion":info.get("LSMinimumSystemVersion"),"documentTypes":types,"resourcesByteIdentical":True,"strictAdHocSignature":"pass","volumeDetached":True}
