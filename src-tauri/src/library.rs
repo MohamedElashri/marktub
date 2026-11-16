@@ -2639,7 +2639,7 @@ mod tests {
     #[test]
     fn sixteen_session_hints_survive_restart_without_restoring_root_authority() {
         let dir = tempfile::tempdir().unwrap();
-        let root = dir.path().join("notes");
+        let root = dir.path().canonicalize().unwrap().join("notes");
         fs::create_dir(&root).unwrap();
         let private = dir.path().join("private");
         private_store::directory(&private).unwrap();
