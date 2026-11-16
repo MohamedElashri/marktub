@@ -454,10 +454,14 @@ dialog p {
   font-family: var(--reader-font, Palatino), Georgia, serif;
 }
 .recovery-list {
-  padding: 12px 24px;
+  padding: 6px 16px;
   border-bottom: 1px solid var(--line);
   max-height: 180px;
   overflow: auto;
+}
+.recovery-list summary {
+  cursor: pointer;
+  font-weight: 600;
 }
 .recovery-list div {
   display: flex;
