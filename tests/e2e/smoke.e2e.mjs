@@ -5037,3 +5037,122 @@ describe("Math context policy", () => {
     await writeFile("artifacts/math-context-export.html", html);
   });
 });
+
+describe("Manual application updates", () => {
+  const invoke = (command, args = {}) =>
+    browser.tauri.execute(({ core }, c, a) => core.invoke(c, a), command, args);
+  it("opens from preferences without checking, and refuses installation without a verified download", async () => {
+    const before = await invoke("application_update_status");
+    expect(before.phase).toBe("idle");
+    await browser.$('button[aria-label="Settings"]').click();
+    const prefs = browser.$('dialog[aria-label="Preferences"]');
+    await prefs.$("button=Application updates…").waitForEnabled();
+    await prefs.$("button=Application updates…").click();
+    const dialog = browser.$('dialog[aria-label="Application updates"]');
+    await dialog.waitForDisplayed();
+    expect((await invoke("application_update_status")).phase).toBe("idle");
+    await expect(dialog.$("button=Check for updates")).toBeDisplayed();
+    await expect(dialog.$("button=Download update")).not.toBeExisting();
+    await expect(invoke("prepare_application_update")).rejects.toBeDefined();
+    await expect(invoke("download_application_update")).rejects.toBeDefined();
+    await expect(invoke("open_application_installer")).rejects.toBeDefined();
+    await expect(invoke("install_application_update")).rejects.toBeDefined();
+    await dialog.$("button=Close").click();
+    expect((await invoke("application_update_status")).phase).toBe("idle");
+  });
+  it("cancels an explicit check without downloading or starting another request", async () => {
+    const result = await browser.tauri.execute(async ({ core }) => {
+      const checking = core.invoke("check_application_update");
+      await new Promise((resolve) => setTimeout(resolve, 25));
+      await core.invoke("cancel_application_update");
+      await checking;
+      return core.invoke("application_update_status");
+    });
+    expect(result.phase).toBe("idle");
+    expect(result.received).toBe(0);
+    await browser.pause(150);
+    expect((await invoke("application_update_status")).phase).toBe("idle");
+  });
+  it("verifies real version-bound signatures and rejects corruption, replay and a wrong key without installing", async () => {
+    const { mkdtemp, readFile, rm } = await import("node:fs/promises");
+    const { tmpdir } = await import("node:os");
+    const directory = await mkdtemp(join(tmpdir(), "marktub-signature-e2e-"));
+    const cli = ["node_modules/@tauri-apps/cli/tauri.js", "signer"];
+    const key = join(directory, "test.key");
+    const run = (args, env = {}) => {
+      const result = spawnSync("node", [...cli, ...args], {
+        stdio: "ignore",
+        env: { ...process.env, ...env },
+      });
+      expect(result.status).toBe(0);
+    };
+    try {
+      run(["generate", "--ci", "--password", "", "--write-keys", key]);
+      const payload = Buffer.from("Disposable update verification fixture");
+      const packagePath = join(directory, "fixture.bin");
+      await writeFile(packagePath, payload);
+      const signing = {
+        TAURI_SIGNING_PRIVATE_KEY: await readFile(key, "utf8"),
+        TAURI_SIGNING_PRIVATE_KEY_PASSWORD: "",
+      };
+      run(["sign", "--app-version", "9.0.0", packagePath], signing);
+      const signature = (await readFile(`${packagePath}.sig`, "utf8")).trim();
+      const publicKey = (await readFile(`${key}.pub`, "utf8")).trim();
+      const platform =
+        process.platform === "darwin" ? "darwin-universal" : "linux-x86_64-deb";
+      const manifest = {
+        version: "9.0.0",
+        platforms: {
+          [platform]: {
+            url: "https://github.com/MohamedElashri/marktub/releases/download/v9.0.0/fixture.bin",
+            signature,
+          },
+        },
+      };
+      const verify = (changes = {}) =>
+        invoke("e2e_fixture", {
+          action: "update-verify",
+          text: JSON.stringify({
+            publicKey,
+            manifest,
+            payload: payload.toString("base64"),
+            ...changes,
+          }),
+        });
+      expect((await verify()).text).toBe("verified");
+      await expect(
+        verify({ payload: Buffer.from("Corrupt package").toString("base64") }),
+      ).rejects.toBeDefined();
+      await expect(
+        verify({ manifest: { ...manifest, version: "10.0.0" } }),
+      ).rejects.toBeDefined();
+      await expect(
+        verify({
+          publicKey: (
+            await readFile("src-tauri/update-public-key.txt", "utf8")
+          ).trim(),
+        }),
+      ).rejects.toBeDefined();
+      run(["sign", packagePath], signing);
+      const unsignedVersion = (
+        await readFile(`${packagePath}.sig`, "utf8")
+      ).trim();
+      await expect(
+        verify({
+          manifest: {
+            ...manifest,
+            platforms: {
+              [platform]: {
+                ...manifest.platforms[platform],
+                signature: unsignedVersion,
+              },
+            },
+          },
+        }),
+      ).rejects.toBeDefined();
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+    expect((await invoke("application_update_status")).phase).toBe("idle");
+  });
+});

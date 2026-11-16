@@ -130,6 +130,23 @@ jobs:
         run: |
           mkdir -p artifacts
           tar -czf artifacts/Marktub.app.tar.gz -C src-tauri/target/universal-apple-darwin/release/bundle/macos Marktub.app
+      - name: Sign checked update packages
+        if: github.event_name != 'pull_request'
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
+        shell: bash
+        run: |
+          version=$(node -p 'require("./package.json").version')
+          if [ "$RUNNER_OS" = macOS ]; then
+            platform=darwin-universal
+            package="artifacts/Marktub_${version}_universal.app.tar.gz"
+            cp artifacts/Marktub.app.tar.gz "$package"
+          else
+            platform=linux-x86_64-deb
+            package="src-tauri/target/release/bundle/deb/Marktub_${version}_amd64.deb"
+          fi
+          python3 scripts/update-manifest.py sign --platform "$platform" --package "$package" --output "artifacts/update-${platform}.json"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
         with:
@@ -141,6 +158,8 @@ jobs:
             artifacts/wdio/*.log
             artifacts/*.pdf
             artifacts/*.tar.gz
+            artifacts/*.sig
+            src-tauri/target/release/bundle/deb/*.sig
             src-tauri/target/release/bundle/deb/*.deb
             src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
           if-no-files-found: warn

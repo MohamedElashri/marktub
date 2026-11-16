@@ -103,6 +103,13 @@
     "allow-power-cancel",
     "allow-power-clear",
     "allow-power-save-pdf",
-    "allow-power-open-pdf"
+    "allow-power-open-pdf",
+    "allow-application-update-status",
+    "allow-cancel-application-update",
+    "allow-check-application-update",
+    "allow-download-application-update",
+    "allow-open-application-installer",
+    "allow-install-application-update",
+    "allow-prepare-application-update"
   ]
 }

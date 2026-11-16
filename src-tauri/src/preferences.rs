@@ -44,6 +44,7 @@ pub const COMMANDS: &[(&str, &str, &str)] = &[
     ("open", "Open file", "Mod+O"),
     ("save", "Save", "Mod+S"),
     ("save_as", "Save As", "Mod+Shift+S"),
+    ("updates", "Check for application updates", "none"),
     ("preferences", "Preferences", "Mod+Comma"),
     ("palette", "Command palette", "Mod+Shift+P"),
     ("quick_open", "Quick open", "Mod+P"),

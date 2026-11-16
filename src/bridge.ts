@@ -193,3 +193,9 @@ export const readEditSnapshot = (
   start: number,
 ) =>
   invoke<SourceRange>("read_edit_snapshot", { id, generation, token, start });
+
+export const installApplicationUpdate = () =>
+  invoke<void>("install_application_update");
+
+export const prepareApplicationUpdate = () =>
+  invoke<void>("prepare_application_update");

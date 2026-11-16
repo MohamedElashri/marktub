@@ -115,6 +115,18 @@ to preview themes, fonts and layout changes before applying them. The built-in
 
 </details>
 
+### Updates
+
+Open **Settings → Application updates** to check for a newer stable release.
+Checking, downloading and installing are separate actions; nothing runs
+automatically. Reading and editing stay offline; only an explicit update action
+contacts GitHub. Downloads are verified with Marktub’s pinned signing key.
+
+On macOS, choose **Install and restart** after downloading. On Ubuntu/Zorin,
+choose **Open system installer**, approve the DEB installation there, then choose
+**Restart after installation**. Marktub asks how to handle unsaved work before
+restarting. You can also use the installer above to get the latest release.
+
 ## Contributing
 
 See [development.md](development.md) for setup, checks and contribution guidance.

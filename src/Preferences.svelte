@@ -18,8 +18,12 @@
   let {
     onpreview,
     oncommit,
-  }: { onpreview: (v: Values | null) => void; oncommit: () => Promise<void> } =
-    $props();
+    onupdates,
+  }: {
+    onpreview: (v: Values | null) => void;
+    oncommit: () => Promise<void>;
+    onupdates: () => Promise<void>;
+  } = $props();
   let dialog: HTMLDialogElement;
   let body: HTMLDivElement;
   let specs = $state<Spec[]>([]),
@@ -376,6 +380,16 @@
     >
   </header>
   <div class="preferences-top">
+    <button
+      disabled={busy || committing || dirty}
+      title={dirty
+        ? "Apply or cancel preference changes first"
+        : "Manage manual application updates"}
+      onclick={() => {
+        cancel();
+        void onupdates();
+      }}>Application updates…</button
+    >
     <input
       aria-label="Search preferences"
       placeholder="Search preferences…"
