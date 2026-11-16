@@ -131,6 +131,24 @@
         ]
       : [],
   );
+  const sqlSteps = $derived(
+    block?.kind === "sqlite"
+      ? [
+          ...(!capture?.executable
+            ? ["Save your own copy of this example before running it."]
+            : []),
+          ...(!data?.sqlite ? ["Enable SQLite for this session."] : []),
+          ...(!rootId("sqlite")
+            ? ["Trust the folder containing your saved document for SQLite."]
+            : []),
+          ...(!data?.databases.length
+            ? [
+                "Choose a local SQLite database. Read-only queries do not need a separate SQL tool.",
+              ]
+            : []),
+        ]
+      : [],
+  );
   async function saveCopy() {
     await action(async () => {
       const previous = block;
@@ -194,9 +212,12 @@
         block: block?.id ?? null,
         root: kind ? rootId(kind) : null,
         database: data?.databases.at(-1)?.id ?? null,
-        tool: toolId(
-          mode === "pdf" ? "typst" : kind === "shell" ? "shell" : "tex",
-        ),
+        tool:
+          kind === "sqlite"
+            ? null
+            : toolId(
+                mode === "pdf" ? "typst" : kind === "shell" ? "shell" : "tex",
+              ),
         pandoc: toolId("pandoc"),
         mode,
         toc,
@@ -439,6 +460,18 @@
             >{/if}
         </div>
       {/if}
+      {#if block?.kind === "sqlite" && sqlSteps.length}
+        <div aria-label="SQLite setup required" role="status">
+          <p>Before running this SQL block:</p>
+          <ul>
+            {#each sqlSteps as step (step)}<li>{step}</li>{/each}
+          </ul>
+          {#if !capture?.executable}<button
+              disabled={busy || running}
+              onclick={saveCopy}>Save a runnable copy…</button
+            >{/if}
+        </div>
+      {/if}
       {#if block}<textarea
           aria-label="Captured code"
           readonly
@@ -463,7 +496,8 @@
             running ||
             !capture?.executable ||
             !data?.[block.kind] ||
-            (block.kind === "shell" && shellSteps.length > 0)}
+            (block.kind === "shell" && shellSteps.length > 0) ||
+            (block.kind === "sqlite" && sqlSteps.length > 0)}
           onclick={() =>
             start(
               block!.kind === "sqlite"

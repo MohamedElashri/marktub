@@ -3487,6 +3487,61 @@ describe("Export and local jobs", () => {
     );
     await panel().$("button=Close export and jobs").click();
   });
+  it("makes the guide SQL runnable through explicit copy, enablement and setup", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    await closeTabs();
+    fixture = await call("e2e_fixture", {
+      action: "seed",
+      text: "# Destination fixture\n",
+    });
+    for (const kind of ["shell", "sqlite", "tex"])
+      await call("power_enable", { kind, on: false });
+    await call("power_clear");
+    await browser.$('button[aria-label="Open feature guide"]').click();
+    await pane().$("article").waitForDisplayed({ timeout: 60000 });
+    await open();
+    await panel().$("button=Document fences").click();
+    await select('select[aria-label="Captured fence"]', "sqlite");
+    const setup = panel().$('[aria-label="SQLite setup required"]');
+    await expect(setup).toHaveText(
+      expect.stringContaining("Save your own copy"),
+    );
+    await expect(panel().$("button=Run captured fence…")).toBeDisabled();
+    await call("e2e_fixture", { action: "save-as", text: null });
+    await panel().$("button=Save a runnable copy…").click();
+    await panel()
+      .$("button=Close export and jobs")
+      .waitForEnabled({ timeout: 60000 });
+    const copy = path.join(path.dirname(fixture.path), "copy.txt");
+    expect(fs.readFileSync(copy, "utf8")).toBe(
+      fs.readFileSync("tests/fixtures/specimen.md", "utf8"),
+    );
+    await expect(setup).toHaveText(expect.stringContaining("Enable SQLite"));
+    await expect(setup).not.toHaveText(
+      expect.stringContaining("Save your own copy"),
+    );
+    await consent();
+    await panel().$("button=Enable sqlite").click();
+    await panel().$("button=Close export and jobs").waitForEnabled();
+    await expect(panel().$("button=Run captured fence…")).toBeDisabled();
+    await choose("root-sqlite", path.dirname(copy));
+    await consent();
+    await panel().$("button=Trust folder for sqlite…").click();
+    const db = path.join(path.dirname(copy), "guide.sqlite");
+    const { execFileSync } = await import("node:child_process");
+    execFileSync("sqlite3", [db, "CREATE TABLE fixture (value TEXT);"]);
+    await choose("database", db);
+    await panel().$("button=Choose SQLite database…").click();
+    await panel().$("button=Run captured fence…").waitForEnabled();
+    await consent();
+    await panel().$("button=Run captured fence…").click();
+    expect(await finish()).toContain("A local query");
+    expect(fs.readFileSync(copy, "utf8")).toBe(
+      fs.readFileSync("tests/fixtures/specimen.md", "utf8"),
+    );
+    await panel().$("button=Close export and jobs").click();
+  });
   it("keeps execution off, converts a selected saved revision with approved images/diagrams and exports an exclusive real PDF", async () => {
     const fs = await import("node:fs");
     const path = await import("node:path");
