@@ -682,6 +682,7 @@ describe("Source integrity", () => {
     expect((await fixture("read")).text).toBe("external\n");
   });
   it("restores a durable recovery and requires Save As authorization", async () => {
+    await seed();
     await browser.$(".cm-content").addValue("recover");
     await browser.$("button=Read").waitForEnabled({ timeout: 60000 });
     await browser.$("button=Read").click();
@@ -695,6 +696,7 @@ describe("Source integrity", () => {
     ).toBeDisplayed();
     await browser.$("button=Keep recovery").click();
     await expect(browser.$(".recovery-list")).toBeDisplayed();
+    await browser.$(".recovery-list summary").click();
     await browser.$(".recovery-list").$("button=Restore").click();
     await expect(browser.$(".cm-content")).toHaveText(
       expect.stringContaining("recover"),
@@ -1856,13 +1858,25 @@ describe("Preferences and commands", () => {
         (await invoke("e2e_fixture", { action: "read", text: null })).text ===
         original + "文",
     );
+    await pane()
+      .$('button[aria-label="Undo"]')
+      .waitForEnabled({ timeout: 60000 });
     await pane().$('button[aria-label="Undo"]').click();
-    await pane().$("header").$("button=Save").waitForEnabled();
+    await browser.waitUntil(
+      async () =>
+        (await pane().$(".window-shell").getAttribute("data-dirty")) === "true",
+      { timeout: 60000 },
+    );
+    await pane()
+      .$("header")
+      .$("button=Save")
+      .waitForEnabled({ timeout: 60000 });
     await pane().$("header").$("button=Save").click();
     await browser.waitUntil(
       async () =>
         (await invoke("e2e_fixture", { action: "read", text: null })).text ===
         original,
+      { timeout: 60000 },
     );
   });
   it("dispatches contextual fuzzy actions and rebound chords without firing during composition", async () => {
@@ -4734,6 +4748,12 @@ describe("Everyday workflows", () => {
   });
 
   it("keeps narrow panes and secondary actions reachable in the actual WebView", async () => {
+    await browser.$(".workspace-actions").$("button=New note").click();
+    await pane().$(".cm-content").waitForDisplayed({ timeout: 60000 });
+    await ready();
+    await browser.$('.tabs button[aria-label^="Close "]').click();
+    await pane().$("button=Keep recovery").click();
+    await ready();
     const fixture = await invoke("e2e_fixture", {
       action: "seed",
       text: "# Layout\n\nA document leaves room to write.\n",
@@ -4744,12 +4764,19 @@ describe("Everyday workflows", () => {
     await pane().$("button=Source").click();
     await pane().$(".cm-content").waitForDisplayed({ timeout: 60000 });
     await ready();
+    const recoveries = pane().$(".recovery-list");
+    await recoveries.waitForDisplayed({ timeout: 60000 });
+    expect(await recoveries.getProperty("open")).toBe(false);
+    await recoveries.$("summary").click();
+    await expect(recoveries.$("button=Restore")).toBeDisplayed();
+    await recoveries.$("summary").click();
     const observations = [];
     try {
       for (const width of [960, 640]) {
         await browser.tauri.execute((_api, width) => {
-          document.querySelector(".document-host").style.maxWidth =
-            `${width}px`;
+          const host = document.querySelector(".document-host");
+          host.style.maxWidth = `${width}px`;
+          host.style.maxHeight = "555px";
         }, width);
         await pane().$(".document-actions summary").click();
         const geometry = await browser.tauri.execute(() => {
@@ -4766,6 +4793,8 @@ describe("Everyday workflows", () => {
             .getBoundingClientRect();
           return {
             width: rect.width,
+            height: rect.height,
+            recoveryCollapsed: !pane.querySelector(".recovery-list").open,
             toolbarHeight: toolbar.height,
             popupWithinPane:
               popup.left >= rect.left && popup.right <= rect.right,
@@ -4788,6 +4817,7 @@ describe("Everyday workflows", () => {
               pane.querySelector(".author-controls").clientWidth,
           };
         });
+        expect(geometry.recoveryCollapsed).toBe(true);
         expect(geometry.popupWithinPane).toBe(true);
         expect(geometry.toolsWithinPane).toBe(true);
         expect(geometry.toolsOverflow).toBe(false);
@@ -4799,7 +4829,9 @@ describe("Everyday workflows", () => {
       }
     } finally {
       await browser.tauri.execute(() => {
-        document.querySelector(".document-host").style.maxWidth = "";
+        const host = document.querySelector(".document-host");
+        host.style.maxWidth = "";
+        host.style.maxHeight = "";
       });
     }
     if (!(await browser.$(".library-host").isDisplayed()))
@@ -4820,7 +4852,7 @@ describe("Everyday workflows", () => {
       "artifacts/workflow-layout.json",
       JSON.stringify(
         {
-          method: `actual ${nativeWebView}; programmatically constrained pane widths, not physical monitor/OS resize certification`,
+          method: `actual ${nativeWebView}; programmatically constrained pane widths and 555px height with retained recovery, not physical monitor/OS resize certification`,
           observations,
         },
         null,

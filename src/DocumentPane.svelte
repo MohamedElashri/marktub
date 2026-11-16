@@ -1237,11 +1237,13 @@
           >Save As</button
         >{/if}
     </div>{/if}
-  {#if recoveries.length || showSavedBackups}<aside
+  {#if recoveries.length || showSavedBackups}<details
       class="recovery-list"
       aria-label="Unsaved recovery records"
+      open={!document || showSavedBackups}
     >
-      <strong>Recover documents and saved backups</strong
+      <summary
+        >Recover documents and saved backups ({recoveries.length})</summary
       >{#each recoveries as recovery (recovery.id)}<div>
           <span
             >{recovery.name} · {recovery.clean ? "saved backup" : "unsaved"} · revision
@@ -1253,7 +1255,7 @@
             >Discard recovery</button
           >
         </div>{/each}
-    </aside>{/if}
+    </details>{/if}
   <main aria-busy={busy} class:has-document={!!document}>
     {#if !document}<section class="empty-state">
         <h1>A little room to read.</h1>
