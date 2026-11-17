@@ -253,6 +253,7 @@ export function grammar() {
       if (
         block.type === "inline" &&
         state.tokens[i - 2].type === "list_item_open" &&
+        state.tokens[i - 1].type === "paragraph_open" &&
         first?.type === "text" &&
         /^\[[ xX]\]\s/.test(block.content)
       )

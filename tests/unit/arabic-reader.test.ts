@@ -82,15 +82,15 @@ describe("Arabic reading documents", () => {
 
   it("renders checked and unchecked task text without interpreting ordinary prose or code as tasks", () => {
     const html = renderText(
-      "- [x] مهمة عربية مكتملة\n- [ ] مهمة عربية قادمة\n\n[x] يبقى نصًا عاديًا.\n\n```text\n- [x] شيفرة حرفية\n```",
+      "- [x] مهمة عربية مكتملة\n- [ ] مهمة عربية قادمة\n\n[x] يبقى نصًا عاديًا.\n\n```text\n- [x] شيفرة حرفية\n```\n\n- # [x] عنوان حرفي",
       emptyContext(),
     ).html;
     const host = document.createElement("div");
     host.innerHTML = sanitizeReader(html);
-    expect([...host.querySelectorAll("li")].map((n) => n.textContent)).toEqual([
-      "☑ مهمة عربية مكتملة",
-      "☐ مهمة عربية قادمة",
-    ]);
+    expect(
+      [...host.querySelectorAll("li")].map((n) => n.textContent?.trim()),
+    ).toEqual(["☑ مهمة عربية مكتملة", "☐ مهمة عربية قادمة", "[x] عنوان حرفي"]);
+    expect(host.querySelector("h1")?.textContent).toBe("[x] عنوان حرفي");
     expect(host.querySelector("p")?.textContent).toBe("[x] يبقى نصًا عاديًا.");
     expect(host.querySelector("code")?.textContent).toContain(
       "- [x] شيفرة حرفية",
