@@ -24,15 +24,17 @@ export const fontFaces = [
   { family: "Cousine", file: "Cousine-Bold.ttf", weight: "700" },
 ];
 
+const alternatives: Record<string, string> = {
+  "thmanyah serif text": "Noto Naskh Arabic",
+  "thmanyah serif display": "Amiri",
+  "thmanyah sans": "Noto Sans Arabic",
+};
 export function portableFamily(name: string) {
+  const folded = name.toLowerCase();
   return (
-    (
-      {
-        "Thmanyah Serif Text": "Noto Naskh Arabic",
-        "Thmanyah Serif Display": "Amiri",
-        "Thmanyah Sans": "Noto Sans Arabic",
-      } as Record<string, string>
-    )[name] ?? name
+    alternatives[folded] ??
+    bundledFamilies.find((family) => family.toLowerCase() === folded) ??
+    name
   );
 }
 
@@ -40,11 +42,17 @@ export function portableFamily(name: string) {
 // Native installed fonts remain native; no font path or download is accepted.
 export async function readyFontChoices(values: Values) {
   if (!document.fonts) return;
-  const names = ["reader.font", "reader.heading_font", "ui.font", "editor.font"]
-    .map((key) => String(values[key]?.value ?? ""))
-    .filter((name) => bundledFamilies.includes(name));
+  const choices = [
+    "reader.font",
+    "reader.heading_font",
+    "ui.font",
+    "editor.font",
+  ].map((key) => String(values[key]?.value ?? "").toLowerCase());
+  const names = bundledFamilies.filter((family) =>
+    choices.includes(family.toLowerCase()),
+  );
   await Promise.all(
-    [...new Set(names)].flatMap((name) =>
+    names.flatMap((name) =>
       [400, 700].map((weight) =>
         document.fonts.load(
           `${weight} 18px ${JSON.stringify(name)}`,

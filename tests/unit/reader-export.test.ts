@@ -17,9 +17,9 @@ vi.mock("virtual:marktub-notices", () => ({
 
 const settings: Values = {
   theme: { type: "enum", value: "riwaq_night" },
-  "reader.font": { type: "text", value: "Noto Naskh Arabic" },
-  "reader.heading_font": { type: "text", value: "Amiri" },
-  "editor.font": { type: "text", value: "Cousine" },
+  "reader.font": { type: "text", value: "noto naskh arabic" },
+  "reader.heading_font": { type: "text", value: "amiri" },
+  "editor.font": { type: "text", value: "cousine" },
 };
 
 it("exports captured Riwaq appearance and approved fonts without external resources or active content", async () => {
@@ -66,7 +66,7 @@ it("exports captured Riwaq appearance and approved fonts without external resour
 
 it("embeds open fallback faces for installed Thmanyah without copying restricted font files", async () => {
   const css = await exportFontCSS({
-    "reader.font": { type: "text", value: "Thmanyah Serif Text" },
+    "reader.font": { type: "text", value: "thmanyah serif text" },
     "reader.heading_font": { type: "text", value: "Thmanyah Serif Display" },
   });
   expect(css).toContain('font-family:"Noto Naskh Arabic"');
@@ -92,4 +92,26 @@ it("cannot end the exported style element through a literal font name", async ()
   expect(doc.querySelector("script")).toBeNull();
   expect(doc.querySelectorAll("style")).toHaveLength(1);
   expect(doc.querySelector("style")!.textContent).toContain("\\3c /style>");
+});
+
+it("keeps font assets consistent with the appearance captured before page assembly", async () => {
+  const changing: Values = {
+    theme: { type: "enum", value: "riwaq_night" },
+    "reader.heading_font": { type: "text", value: "Amiri" },
+  };
+  const client = {
+    complete: true,
+    sections: [{}],
+    approvedImages: new Map(),
+    page: async () => {
+      changing.theme.value = "riwaq_day";
+      changing["reader.heading_font"].value = "Cousine";
+      return { html: "<h1>عنوان</h1>", rich: [] };
+    },
+  } as unknown as ReaderClient;
+  await exportStandalone(client, "Title", "Saved", changing);
+  const content = invoke.mock.lastCall![1].content;
+  expect(content).toContain("--paper:#1a1a2e");
+  expect(content).toContain('font-family:"Amiri"');
+  expect(content).not.toContain('font-family:"Cousine"');
 });

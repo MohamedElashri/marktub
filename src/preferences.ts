@@ -214,17 +214,17 @@ export function fontStack(name: string, mono = false) {
     ? '"SFMono-Regular", Menlo, "DejaVu Sans Mono", "Noto Sans Mono", monospace'
     : ui;
   const special: Record<string, string> = {
-    "System UI": ui,
-    "System Mono": '"SFMono-Regular", Menlo, "DejaVu Sans Mono", monospace',
-    Serif: "serif",
-    "Sans Serif": "sans-serif",
+    "system ui": ui,
+    "system mono": '"SFMono-Regular", Menlo, "DejaVu Sans Mono", monospace',
+    serif: "serif",
+    "sans serif": "sans-serif",
   };
   const family = portableFamily(name);
   const face =
-    family !== name
+    family.toLowerCase() !== name.toLowerCase()
       ? `${JSON.stringify(name)}, ${JSON.stringify(family)}`
-      : JSON.stringify(name);
-  return `${special[name] ?? face}, "Marktub Arabic", "Geeza Pro", "Noto Sans Hebrew", "Arial Hebrew", "Noto Sans CJK SC", "Hiragino Sans", "PingFang SC", "Apple Color Emoji", "Noto Color Emoji", ${mono ? "monospace" : fallback}`;
+      : JSON.stringify(family);
+  return `${special[name.toLowerCase()] ?? face}, "Marktub Arabic", "Geeza Pro", "Noto Sans Hebrew", "Arial Hebrew", "Noto Sans CJK SC", "Hiragino Sans", "PingFang SC", "Apple Color Emoji", "Noto Color Emoji", ${mono ? "monospace" : fallback}`;
 }
 export function appearance(values: Values, dark = false) {
   const p = currentPalette(values, dark);
@@ -237,7 +237,7 @@ export function appearance(values: Values, dark = false) {
   const css = keys
     .map((key) => `--${key.replaceAll("_", "-")}:${color(key)}`)
     .join(";");
-  return `${css};color-scheme:${p.mode};--reader-font:${fontStack(body)};--reader-heading-font:${fontStack(heading === "Same as body" ? body : heading)};--ui-font:${fontStack(String(value(values, "ui.font", "System UI")))};--source-font:${fontStack(String(value(values, "editor.font", "System Mono")), true)};--reader-size:${number("reader.font_size", 18, 12, 40)}px;--reader-width:${number("reader.width", 760, 400, 1600)}px;--reader-line-height:${number("reader.line_height", 175, 120, 240) / 100};--source-size:${number("editor.font_size", 14, 11, 32)}px;--source-line-height:${number("editor.line_height", 165, 120, 220) / 100};--ui-factor:${number("ui.scale", 100, 80, 150) / 100};font-family:var(--ui-font);`;
+  return `${css};color-scheme:${p.mode};--reader-font:${fontStack(body)};--reader-heading-font:${fontStack(heading.toLowerCase() === "same as body" ? body : heading)};--ui-font:${fontStack(String(value(values, "ui.font", "System UI")))};--source-font:${fontStack(String(value(values, "editor.font", "System Mono")), true)};--reader-size:${number("reader.font_size", 18, 12, 40)}px;--reader-width:${number("reader.width", 760, 400, 1600)}px;--reader-line-height:${number("reader.line_height", 175, 120, 240) / 100};--source-size:${number("editor.font_size", 14, 11, 32)}px;--source-line-height:${number("editor.line_height", 165, 120, 220) / 100};--ui-factor:${number("ui.scale", 100, 80, 150) / 100};font-family:var(--ui-font);`;
 }
 // Keep unknown/duplicate literal lines visible for native diagnostics; never evaluate text.
 export function put(text: string, key: string, literal: string | null) {

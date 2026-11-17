@@ -68,6 +68,8 @@ describe("presentation and command contracts", () => {
     expect(fontStack("System Mono", true)).toContain("Noto Color Emoji");
     expect(fontStack("System UI", true)).toMatch(/^-apple-system/);
     expect(fontStack("Serif")).toContain("Noto Sans Hebrew");
+    expect(fontStack("serif")).toBe(fontStack("Serif"));
+    expect(fontStack("system ui")).toBe(fontStack("System UI"));
   });
   it("edits one literal override without hiding duplicate/invalid diagnostics", () => {
     const text = '# original\n$reader.width=760\n$unknown="keep"';
