@@ -187,35 +187,6 @@
       onerror(errorMessage(e));
     }
   }
-  let byteMapDoc: unknown,
-    byteMap: number[] = [];
-  function mapLines() {
-    if (!view) return;
-    if (byteMapDoc === view.state.doc) return;
-    byteMapDoc = view.state.doc;
-    byteMap = [0];
-    let bytes = 0;
-    const encoder = new TextEncoder();
-    for (const line of view.state.doc.iterLines()) {
-      bytes += encoder.encode(line).length + 1;
-      byteMap.push(bytes);
-    }
-  }
-  export function byteAtLine(line: number) {
-    mapLines();
-    return byteMap[Math.max(0, line - 1)] ?? 0;
-  }
-  export function lineAtByte(byte: number) {
-    mapLines();
-    let low = 0,
-      high = byteMap.length - 1;
-    while (low < high) {
-      const mid = Math.ceil((low + high) / 2);
-      if (byteMap[mid] <= byte) low = mid;
-      else high = mid - 1;
-    }
-    return low + 1;
-  }
   export function viewportAnchor() {
     if (!view) return null;
     const height =

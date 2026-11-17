@@ -2096,12 +2096,18 @@ describe("Author experience", () => {
       .waitForExist({ timeout: 30000 });
   }
   it("syncs actual viewport positions both ways without moving the editor selection", async () => {
-    const source = Array.from(
-      { length: 80 },
-      (_, i) =>
-        `## Section ${i}\n\n${"A wrapped paragraph for scroll mapping. ".repeat(8)}\n\n`,
-    ).join("");
+    let ending = 0;
+    const source =
+      "\uFEFF" +
+      Array.from(
+        { length: 80 },
+        (_, i) =>
+          `## Section ${i}\n\n${"A wrapped paragraph العربية 日本語 🦀 for scroll mapping. ".repeat(8)}\n\n`,
+      )
+        .join("")
+        .replace(/\n/g, () => ["\r\n", "\n", "\r"][ending++ % 3]);
     await seed(source);
+    const initialText = await view((v) => v.state.doc.toString());
     await pane().$("button=Split").click();
     await pane().$(".reader-scroll").waitForDisplayed({ timeout: 60000 });
     await view((v) =>
@@ -2120,17 +2126,25 @@ describe("Author experience", () => {
     await browser.waitUntil(
       () =>
         browser.tauri.execute(() => {
-          const reader = document.querySelector(
-            ".document-tab:not([hidden]) .reader-scroll",
-          );
+          const pane = document.querySelector(".document-tab:not([hidden])");
+          const reader = pane.querySelector(".reader-scroll");
           const node =
             reader.querySelector("#h-section-30")?.nextElementSibling;
+          const v = pane.querySelector(".cm-content")?.cmTile?.root?.view;
+          if (!node || !v) return false;
+          const y = Math.max(
+            0,
+            v.scrollDOM.getBoundingClientRect().top - v.documentTop + 1,
+          );
+          const block = v.lineBlockAtHeight(y);
+          const fraction = (y - block.top) / Math.max(1, block.height);
+          const renderedFraction =
+            (reader.getBoundingClientRect().top -
+              node.getBoundingClientRect().top) /
+            Math.max(1, node.getBoundingClientRect().height);
           return (
-            node &&
-            Math.abs(
-              node.getBoundingClientRect().top -
-                reader.getBoundingClientRect().top,
-            ) < 8
+            v.state.doc.lineAt(block.from).number === 123 &&
+            Math.abs(fraction - renderedFraction) < 0.03
           );
         }),
       { timeout: 10000 },
@@ -2140,7 +2154,7 @@ describe("Author experience", () => {
       const reader = document.querySelector(
         ".document-tab:not([hidden]) .reader-scroll",
       );
-      const node = reader.querySelector("#h-section-25")?.nextElementSibling;
+      const node = reader.querySelector("#h-section-31")?.nextElementSibling;
       reader.dispatchEvent(
         new WheelEvent("wheel", { bubbles: true, deltaY: 1 }),
       );
@@ -2161,7 +2175,7 @@ describe("Author experience", () => {
                 ),
               ).from,
             ).number,
-        )) === 103,
+        )) === 127,
       { timeout: 10000 },
     );
     expect(await view((v) => v.state.selection.main.anchor)).toBe(selected);
@@ -2225,10 +2239,11 @@ describe("Author experience", () => {
     await undo.waitForEnabled();
     await undo.click();
     await browser.waitUntil(
-      async () => (await view((v) => v.state.doc.toString())) === source,
+      async () => (await view((v) => v.state.doc.toString())) === initialText,
     );
-    expect(await view((v) => v.state.doc.toString())).toBe(source);
+    expect(await view((v) => v.state.doc.toString())).toBe(initialText);
     expect(await view((v) => v.state.selection.main.anchor)).toBe(selected);
+    await saved(source);
   });
   it("keeps the same editor, document, caret, folds and undo across Source/Split/Visual/Read", async () => {
     await seed();

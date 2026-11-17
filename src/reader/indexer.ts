@@ -61,6 +61,8 @@ export async function buildIndex(
     scanned: 0,
     total: 0,
   };
+  let sourceLine = 1;
+  let previousCR = false;
   let pending = "",
     base = 0,
     cursor = 0;
@@ -102,6 +104,12 @@ export async function buildIndex(
     }
     const end = start + encoder.encode(text).length;
     if (!text) return;
+    const line = sourceLine;
+    for (const character of text) {
+      if (character === "\r" || (character === "\n" && !previousCR))
+        sourceLine++;
+      previousCR = character === "\r";
+    }
     if (
       group &&
       !fallback &&
@@ -109,8 +117,15 @@ export async function buildIndex(
       end - group.start <= SECTION_TARGET
     ) {
       group.end = end;
+      group.endLine = sourceLine;
     } else {
-      group = { start, end, ...(fallback ? { fallback } : {}) };
+      group = {
+        start,
+        end,
+        line,
+        endLine: sourceLine,
+        ...(fallback ? { fallback } : {}),
+      };
       index.sections.push(group);
     }
     if (index.sections.length > 100000)

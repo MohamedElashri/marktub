@@ -469,7 +469,7 @@
   }
   function sourceAnchor(line: number, fraction = 0) {
     if (mode !== "split" || !editor) return;
-    void reader?.revealSource(editor.byteAtLine(line), line, fraction);
+    void reader?.revealSource(line, fraction);
   }
   function previewAnchor(line: number, clicked: boolean, fraction = 0) {
     if (mode !== "split") return;
@@ -1472,7 +1472,6 @@
                       await switchMode("source");
                     }
                   : undefined}
-                sourceLine={(byte) => editor?.lineAtByte(byte) ?? 1}
                 onsource={previewAnchor}
                 operationBusy={busy}
                 start={readerStart}

@@ -10,7 +10,6 @@
     embedded = false,
     onedit,
     ondisplay = () => {},
-    sourceLine = () => 1,
     onsource = () => {},
     start = 0,
     anchorId = null,
@@ -29,7 +28,6 @@
     embedded?: boolean;
     ondisplay?: () => void;
     onedit?: (byte: number) => void | Promise<void>;
-    sourceLine?: (byte: number) => number;
     onsource?: (line: number, clicked: boolean, fraction?: number) => void;
     start?: number;
     anchorId?: string | null;
@@ -160,8 +158,7 @@
   }
   let syncUntil = 0;
   let manualScroll = false;
-  let sourceTarget: { byte: number; line: number; fraction: number } | null =
-    null;
+  let sourceTarget: { line: number; fraction: number } | null = null;
   function intent() {
     syncUntil = 0;
     sourceTarget = null;
@@ -172,8 +169,8 @@
     if (index >= 0) await show(index);
     else onerror("The saved section is not yet indexed.");
   }
-  export async function revealSource(byte: number, line: number, fraction = 0) {
-    sourceTarget = { byte, line, fraction };
+  export async function revealSource(line: number, fraction = 0) {
+    sourceTarget = { line, fraction };
     manualScroll = false;
     syncUntil = performance.now() + 200;
     await alignSource();
@@ -181,8 +178,19 @@
   async function alignSource(load = true) {
     const target = sourceTarget;
     if (!target || !client) return;
-    const { byte, line, fraction } = target;
-    const section = sections.findIndex((s) => byte >= s.start && byte < s.end);
+    const { line, fraction } = target;
+    let section = -1;
+    for (let i = sections.length - 1; i >= 0; i--) {
+      const s = sections[i];
+      if (
+        s.line !== undefined &&
+        line >= s.line &&
+        line <= Math.max(s.line, s.endLine ?? s.line)
+      ) {
+        section = i;
+        break;
+      }
+    }
     if (section < 0) return;
     if (
       load &&
@@ -202,7 +210,7 @@
     }
     await tick();
     if (sourceTarget !== target) return;
-    const local = line - sourceLine(sections[section].start);
+    const local = line - sections[section].line!;
     const block = host.querySelector(`[data-section="${section}"]`);
     const node = [
       ...(block?.querySelectorAll<HTMLElement>("[data-source-line]") ?? []),
@@ -229,18 +237,13 @@
     const section = node.closest<HTMLElement>("[data-section]");
     if (!section) return;
     const index = Number(section.dataset.section);
-    if (!sections[index]) return;
+    if (sections[index]?.line === undefined) return;
     const start = Number(node.dataset.sourceLine ?? 0);
     const end = Number(node.dataset.sourceEndLine ?? start + 1);
     const position =
       start + Math.max(0, Math.min(0.999999, ratio)) * Math.max(1, end - start);
-    const line = sourceLine(sections[index].start) + Math.floor(position);
-    if (embedded)
-      sourceTarget = {
-        byte: sections[index].start,
-        line,
-        fraction: position % 1,
-      };
+    const line = sections[index].line! + Math.floor(position);
+    if (embedded) sourceTarget = { line, fraction: position % 1 };
     onsource(line, clicked, position % 1);
   }
   function authorScroll() {
