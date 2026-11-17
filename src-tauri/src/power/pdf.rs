@@ -40,8 +40,12 @@ fn typst_template(fonts: PdfFonts, dir: &Path) -> Result<String, FileError> {
     private_store::directory(&dir.join("fonts"))?;
     const FONTS: &[(&str, &[u8])] = &[
         (
-            "naskh.ttf",
-            include_bytes!("../../../src/fonts/assets/NotoNaskhArabic[wght].ttf"),
+            "amiri.ttf",
+            include_bytes!("../../../src/fonts/assets/Amiri-Regular.ttf"),
+        ),
+        (
+            "amiri-bold.ttf",
+            include_bytes!("../../../src/fonts/assets/Amiri-Bold.ttf"),
         ),
         (
             "cousine.ttf",
@@ -55,10 +59,12 @@ fn typst_template(fonts: PdfFonts, dir: &Path) -> Result<String, FileError> {
     for (name, bytes) in FONTS {
         private_store::atomic(&dir.join("fonts").join(name), bytes)?;
     }
-    Ok(TEMPLATE.replace(
-        "\"Arial Unicode MS\", \"Songti SC\"",
-        "\"Noto Naskh Arabic\"",
-    ).replace("#set heading(numbering: none)", "#set heading(numbering: none)\n#show raw: set text(font: (\"Cousine\", \"Noto Naskh Arabic\"))"))
+    Ok(TEMPLATE
+        .replace("\"Arial Unicode MS\", \"Songti SC\"", "\"Amiri\"")
+        .replace(
+            "#set heading(numbering: none)",
+            "#set heading(numbering: none)\n#show raw: set text(font: (\"Cousine\", \"Amiri\"))",
+        ))
 }
 fn typst_args(fonts: PdfFonts) -> Vec<String> {
     let mut call = args(&[
