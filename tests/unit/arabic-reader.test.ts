@@ -1,5 +1,9 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import {
+  authorMathSpans,
+  mathPlanForText,
+} from "../../src/reader/math-context";
 import { arabicOpening, longArabicDocument } from "../fixtures/arabic.mjs";
 import { buildIndex, normalize, renderText } from "../../src/reader/indexer";
 import { emptyContext, grammar } from "../../src/reader/grammar";
@@ -62,7 +66,7 @@ describe("Arabic reading documents", () => {
     host.innerHTML = sanitizeReader(html);
     expect(host.textContent).toBe(original.textContent);
     for (const block of host.querySelectorAll("p, h1, li, th, td"))
-      expect(block.getAttribute("dir")).toBe("auto");
+      expect(["ltr", "rtl", "auto"]).toContain(block.getAttribute("dir"));
     for (const code of host.querySelectorAll("code, pre:has(code)"))
       expect(code.getAttribute("dir")).toBe("ltr");
     for (const link of host.querySelectorAll("a"))
@@ -105,8 +109,90 @@ describe("Arabic reading documents", () => {
         "# العربية\n\nهذه فقرة طويلة مع English و١٢٣.\n\nEnglish العربية.",
       ).html,
     );
-    expect(
-      [...host.querySelectorAll("h1,p")].map((n) => n.getAttribute("dir")),
-    ).toEqual(["auto", "auto", "auto"]);
+    const blocks = [...host.querySelectorAll("h1,p")];
+    expect(blocks).toHaveLength(3);
+    for (const block of blocks)
+      expect(["rtl", "ltr", "auto"]).toContain(block.getAttribute("dir"));
   });
+});
+
+it("renders callout labels once and preserves literal markers outside the first quote paragraph", () => {
+  const text =
+    "> [!NOTE] هذه ملاحظة عربية $x+1$.\n\n> # [!TIP] عنوان حرفي\n\n[!NOTE]: note.md\n";
+  const result = renderText(text, emptyContext());
+  const host = document.createElement("div");
+  host.innerHTML = sanitizeReader(result.html);
+  expect(host.querySelectorAll(".callout")).toHaveLength(1);
+  expect(host.querySelector(".callout p")?.textContent).not.toContain(
+    "[!NOTE]",
+  );
+  expect(host.querySelector(".callout > strong")?.getAttribute("dir")).toBe(
+    "ltr",
+  );
+  expect(host.querySelector("blockquote h1")?.textContent).toBe(
+    "[!TIP] عنوان حرفي",
+  );
+});
+
+it("preserves the closed Markdown table alignments through sanitization", () => {
+  const result = renderText(
+    "| عربي | English | رقم |\n| :--- | :---: | ---: |\n| أ | B | ٣ |",
+    emptyContext(),
+  );
+  const host = document.createElement("div");
+  host.innerHTML = sanitizeReader(result.html);
+  expect(
+    [...host.querySelectorAll("th")].map((n) => n.getAttribute("align")),
+  ).toEqual(["left", "center", "right"]);
+  expect(
+    [...host.querySelectorAll("td")].map((n) => n.getAttribute("align")),
+  ).toEqual(["left", "center", "right"]);
+  expect(host.querySelector("[style]")).toBeNull();
+});
+
+it("retains exact original math spans when consuming a callout label", () => {
+  const text = "> [!NOTE] نص عربي مع $x+1$ هنا.\n";
+  const spans = authorMathSpans(text, mathPlanForText(text));
+  expect(spans).toHaveLength(1);
+  expect(text.slice(spans[0].from, spans[0].to)).toBe("$x+1$");
+});
+
+it("normalizes directions idempotently without changing text or source maps", () => {
+  const html = renderText(arabicOpening, emptyContext(), [], true, true).html;
+  const once = sanitizeReader(html);
+  expect(sanitizeReader(once)).toBe(once);
+});
+
+it("keeps automatic Arabic link direction available when the WebView lacks :dir", () => {
+  const matches = Element.prototype.matches;
+  const spy = vi
+    .spyOn(Element.prototype, "matches")
+    .mockImplementation(function (this: Element, selector: string) {
+      if (selector.startsWith(":dir("))
+        throw new DOMException("Unsupported selector", "SyntaxError");
+      return matches.call(this, selector);
+    });
+  try {
+    const host = document.createElement("div");
+    host.innerHTML = sanitizeReader(
+      '<h1><a href="note.md">العربية</a></h1><p><code>x + 1</code> نص عربي.</p>',
+    );
+    expect(host.querySelector("h1")?.getAttribute("dir")).toBe("auto");
+    expect(host.querySelector("a")?.hasAttribute("dir")).toBe(false);
+    expect(host.querySelector("code")?.getAttribute("dir")).toBe("ltr");
+    expect(host.textContent).toBe("العربيةx + 1 نص عربي.");
+  } finally {
+    spy.mockRestore();
+  }
+});
+
+it("preserves automatic direction in literal source fallbacks and LTR in code fences", () => {
+  const host = document.createElement("div");
+  host.innerHTML = sanitizeReader(
+    "<pre>English\nالعربية</pre><pre><code>العربية English</code></pre>",
+  );
+  const [source, code] = host.querySelectorAll("pre");
+  expect(source.getAttribute("dir")).toBe("auto");
+  expect(source.textContent).toBe("English\nالعربية");
+  expect(code.getAttribute("dir")).toBe("ltr");
 });

@@ -5,6 +5,7 @@ import { readingDirections } from "./direction";
 export function sanitizePreview(html: string): string {
   const clean = DOMPurify.sanitize(html, {
     USE_PROFILES: { html: true },
+    RETURN_DOM_FRAGMENT: true,
     FORBID_TAGS: [
       "img",
       "svg",
@@ -23,7 +24,7 @@ export function sanitizePreview(html: string): string {
     ALLOW_DATA_ATTR: false,
   });
   const host = document.createElement("template");
-  host.innerHTML = clean;
+  host.content.append(clean);
   readingDirections(host.content);
   return host.innerHTML;
 }

@@ -11,6 +11,11 @@ export const arabicOpening = [
   "1. خطوة عربية أولى\n2. English step with العربية\n3. خطوة عربية أخيرة",
   "> اقتباس عربي طويل يوضح موضع الحافة والمسافة الداخلية.\n>\n> English paragraph inside the same quotation.",
   "| الوصف | Code | القيمة |\n| --- | :---: | ---: |\n| كلمات عربية | `value + 1` | ١٢٣ |\n| English row | `x = 42` | 456 |",
+  "## [عنوان عربي مرتبط](notes.md)",
+  "[فقرة عربية مرتبطة بالكامل](notes.md)",
+  "[English label](notes.md) ثم كلمات عربية.",
+  "- فقرة عربية في قائمة متباعدة.\n\n- English paragraph in a loose list.",
+  "> [!NOTE]\n> هذه ملاحظة عربية مع [رابط عربي](notes.md).",
   '```sh\nprintf "%s\\n" "العربية English ١٢٣"\n```',
 ].join("\n\n");
 
@@ -23,3 +28,12 @@ export const longArabicDocument =
     (_, i) =>
       `## فصل ${i + 1}\n\n${paragraph.repeat(6)}\n\nEnglish section ${i + 1}: العربية alongside local notes, file.md and 123.45.\n`,
   ).join("\n");
+
+export const readerPagingDocument = Array.from(
+  { length: 36 },
+  (_, chapter) =>
+    `# Paging ${chapter}\n\n` +
+    Array.from({ length: 64 }, (_, item) =>
+      `- [كلمات عربية ${item}](notes.md) with English text and 123.45.`,
+    ).join("\n") + "\n\n",
+).join("");

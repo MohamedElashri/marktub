@@ -5165,7 +5165,25 @@ describe("Arabic reading layout", () => {
             codeDirections: [
               ...host.querySelectorAll("code, pre:has(code)"),
             ].map(direction),
-            linkDirections: [...host.querySelectorAll("a")].map(direction),
+            linkDirections: [...paragraphs[1].querySelectorAll("a")].map(
+              direction,
+            ),
+            linkedHeading: direction(host.querySelector("h2 a").parentElement),
+            linkedParagraph: direction(
+              [...host.querySelectorAll("section > p")].find(
+                (p) => p.textContent === "فقرة عربية مرتبطة بالكامل",
+              ),
+            ),
+            linkedEnglish: direction(
+              [...host.querySelectorAll("section > p")].find(
+                (p) => p.textContent === "English label ثم كلمات عربية.",
+              ),
+            ),
+            calloutDirection: direction(host.querySelector(".callout p")),
+            calloutText: host.querySelector(".callout p").textContent,
+            tableAlignment: [...host.querySelectorAll("th")].map(
+              (n) => getComputedStyle(n).textAlign,
+            ),
             listDirections: [...host.querySelectorAll("li")].map(direction),
             quoteDirection: direction(quote),
             quoteBorders: [
@@ -5183,6 +5201,12 @@ describe("Arabic reading layout", () => {
         await browser.saveScreenshot(
           `artifacts/arabic-${mode.toLowerCase()}-${size}.png`,
         );
+        expect(layout.linkedHeading).toBe("rtl");
+        expect(layout.linkedParagraph).toBe("rtl");
+        expect(layout.linkedEnglish).toBe("ltr");
+        expect(layout.calloutDirection).toBe("rtl");
+        expect(layout.calloutText).not.toContain("[!NOTE]");
+        expect(layout.tableAlignment).toEqual(["start", "center", "right"]);
         expect(layout.paragraphDirections).toEqual([
           "rtl",
           "rtl",
@@ -5207,6 +5231,8 @@ describe("Arabic reading layout", () => {
           "rtl",
           "ltr",
           "rtl",
+          "rtl",
+          "ltr",
         ]);
         expect(layout.quoteDirection).toBe("rtl");
         expect(layout.quoteBorders).toEqual(["0px", "2px"]);
@@ -5264,5 +5290,129 @@ describe("Arabic reading layout", () => {
       Buffer.from(longArabicDocument, "utf8"),
     );
     await invoke("update_settings", { id: null, scope: "session", text: "" });
+  });
+});
+
+describe("Reader paging cost", () => {
+  it("keeps linked Arabic pages bounded and records native navigation latency", async () => {
+    const { readerPagingDocument } = await import("../fixtures/arabic.mjs");
+    const call = (command, args = {}) =>
+      browser.tauri.execute(
+        ({ core }, command, args) => core.invoke(command, args),
+        command,
+        args,
+      );
+    const fixture = await call("e2e_fixture", {
+      action: "seed",
+      text: readerPagingDocument,
+    });
+    const pane = () => browser.$(".document-tab:not([hidden])");
+    await pane().$("button.open-button").waitForEnabled({ timeout: 60000 });
+    await pane().$("button.open-button").click();
+    await pane().$("button=Read").waitForEnabled({ timeout: 60000 });
+    await pane().$("button=Read").click();
+    await pane().$("button=Export HTML").waitForEnabled({ timeout: 60000 });
+    const samples = [];
+    for (const target of [3, 6, 9, 12, 15, 18, 21, 24, 27, 30]) {
+      const observation = await browser.tauri.execute(async (_api, target) => {
+        const pane = document.querySelector(".document-tab:not([hidden])");
+        const host = pane.querySelector(".reader-scroll");
+        const input = pane.querySelector('[aria-label="Go to section"]');
+        const before = host.firstElementChild;
+        const start = performance.now();
+        return new Promise((resolve, reject) => {
+          const timer = setTimeout(() => {
+            observer.disconnect();
+            reject(Error("Page replacement timed out"));
+          }, 30000);
+          const observer = new MutationObserver(() => {
+            const page = host.querySelector(
+              `section[data-section="${target}"]`,
+            );
+            if (!page || page === before) return;
+            observer.disconnect();
+            requestAnimationFrame(() =>
+              requestAnimationFrame(() => {
+                clearTimeout(timer);
+                resolve({
+                  ms: performance.now() - start,
+                  nodes: host.querySelectorAll("*").length,
+                });
+              }),
+            );
+          });
+          observer.observe(host, { childList: true });
+          input.value = String(target + 1);
+          input.dispatchEvent(new Event("change", { bubbles: true }));
+        });
+      }, target);
+      expect(observation.nodes).toBeGreaterThan(100);
+      expect(observation.nodes).toBeLessThan(2500);
+      samples.push(observation);
+    }
+    const { readFile } = await import("node:fs/promises");
+    const { createHash } = await import("node:crypto");
+    const binarySha256 = createHash("sha256")
+      .update(await readFile(desktopBinary("debug")))
+      .digest("hex");
+    const preparation = await browser.tauri.execute(() =>
+      window.MARKTUB_TEST_READER_COST(),
+    );
+    expect(preparation.textPreserved).toBe(true);
+    expect(preparation.before.samples).toHaveLength(20);
+    expect(preparation.after.samples).toHaveLength(20);
+    await writeFile(
+      "artifacts/reader-native-html-cost.json",
+      JSON.stringify(
+        {
+          platform: process.platform,
+          architecture: process.arch,
+          binarySha256,
+          ...preparation,
+        },
+        null,
+        2,
+      ),
+    );
+    const measured = samples
+      .slice(2)
+      .map((s) => s.ms)
+      .sort((a, b) => a - b);
+    await writeFile(
+      "artifacts/reader-native-paging.json",
+      JSON.stringify(
+        {
+          scope:
+            "Debug native page replacement plus two rAF callbacks; includes IPC, parsing, sanitization and scheduling, not physical paint or startup",
+          platform: process.platform,
+          architecture: process.arch,
+          binarySha256,
+          label: process.env.MARKTUB_BENCH_LABEL ?? "ci",
+          samples,
+          medianMs: measured[Math.floor(measured.length / 2)],
+          p95Ms: measured[Math.ceil(measured.length * 0.95) - 1],
+        },
+        null,
+        2,
+      ),
+    );
+    expect(await readFile(fixture.path)).toEqual(
+      Buffer.from(readerPagingDocument, "utf8"),
+    );
+    await browser.tauri.execute(() => {
+      const input = document.querySelector(
+        '.document-tab:not([hidden]) [aria-label="Go to section"]',
+      );
+      input.value = "2.5";
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await browser.waitUntil(() =>
+      browser.tauri.execute(
+        () =>
+          !!document.querySelector(
+            '.document-tab:not([hidden]) section[data-section="1"]',
+          ),
+      ),
+    );
   });
 });

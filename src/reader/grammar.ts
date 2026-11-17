@@ -77,12 +77,9 @@ export function grammar() {
   md.renderer.rules.frontmatter = (tokens, i) =>
     `<details class="frontmatter"><summary>Front matter (preserved as source)</summary><pre>${escape(tokens[i].content)}</pre></details>`;
   md.renderer.rules.blockquote_open = (tokens, i) => {
-    const inline = tokens.slice(i + 1, i + 4).find((t) => t.type === "inline");
-    const m = /^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]/.exec(
-      inline?.content ?? "",
-    );
-    return m
-      ? `<blockquote class="callout callout-${m[1].toLowerCase()}"><strong>${m[1].toLowerCase()}</strong>`
+    const label = tokens[i].meta?.callout as string | undefined;
+    return label
+      ? `<blockquote class="callout callout-${label}"><strong class="callout-label" dir="ltr">${label}</strong>`
       : "<blockquote>";
   };
   md.block.ruler.before("reference", "note", (state, start, end, silent) => {
@@ -246,9 +243,50 @@ export function grammar() {
         }
     }
   });
-  md.core.ruler.after("inline", "task_markers", (state) => {
-    for (let i = 2; i < state.tokens.length; i++) {
+  md.core.ruler.after("inline", "reading_blocks", (state) => {
+    for (let i = 0; i < state.tokens.length; i++) {
       const block = state.tokens[i];
+      if (block.type === "th_open" || block.type === "td_open") {
+        const align = /^text-align:(left|center|right);?$/.exec(
+          String(block.attrGet("style") ?? ""),
+        );
+        if (align) block.attrSet("align", align[1]);
+      }
+      if (
+        block.type === "blockquote_open" &&
+        state.tokens[i + 1]?.type === "paragraph_open"
+      ) {
+        const inline = state.tokens[i + 2];
+        const marker =
+          /^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\](?=\s|$)/.exec(
+            inline?.content ?? "",
+          );
+        const children = inline?.children;
+        if (inline?.type === "inline" && marker && children) {
+          block.meta = { ...block.meta, callout: marker[1].toLowerCase() };
+          block.attrJoin("class", `callout callout-${marker[1].toLowerCase()}`);
+          // Keep inline.content and math source offsets untouched. Only remove
+          // the rendered marker, including a marker parsed as a reference link.
+          if (children[0]?.type === "text") {
+            children[0].content = children[0].content
+              .slice(marker[0].length)
+              .replace(/^[ \t]+/, "");
+            if (!children[0].content) children.shift();
+          } else if (
+            children[0]?.type === "link_open" &&
+            children[1]?.content === `!${marker[1]}` &&
+            children[2]?.type === "link_close"
+          ) {
+            children.splice(0, 3);
+          }
+          if (
+            children[0]?.type === "softbreak" ||
+            children[0]?.type === "hardbreak"
+          )
+            children.shift();
+        }
+      }
+      if (i < 2) continue;
       const first = block.children?.[0];
       if (
         block.type === "inline" &&

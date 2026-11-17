@@ -5,6 +5,7 @@ import "./reader/typography.css";
 
 if (import.meta.env.VITE_MARKTUB_E2E === "1") {
   await import("@wdio/tauri-plugin");
+  await import("../tests/e2e/reader-cost");
 }
 
 mount(App, { target: document.getElementById("app")! });

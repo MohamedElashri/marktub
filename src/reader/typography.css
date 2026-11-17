@@ -20,3 +20,13 @@
   padding-inline: 0;
   padding-inline-start: 22px;
 }
+
+.prose :is(th, td)[align="left"] {
+  text-align: left;
+}
+.prose :is(th, td)[align="center"] {
+  text-align: center;
+}
+.prose :is(th, td)[align="right"] {
+  text-align: right;
+}

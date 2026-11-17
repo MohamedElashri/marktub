@@ -1,5 +1,6 @@
 import { buildIndex, renderText, findDocument } from "./indexer";
 import { escape } from "./grammar";
+import { headingBoundary } from "./headings";
 import type { Index, Page, Read } from "./model";
 let epoch = 0,
   index: Index | undefined;
@@ -85,7 +86,10 @@ self.onmessage = async ({ data }) => {
         : renderText(
             text,
             index.context,
-            index.headings.filter((h) => h.section === data.section),
+            index.headings.slice(
+              headingBoundary(index.headings, data.section),
+              headingBoundary(index.headings, data.section + 1),
+            ),
             section.start === 0,
             !section.note,
           );

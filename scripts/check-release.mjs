@@ -48,6 +48,7 @@ const chunks = readdirSync("dist/assets").filter((file) =>
 for (const chunk of chunks) {
   const source = readFileSync(`dist/assets/${chunk}`, "utf8");
   for (const marker of [
+    "MARKTUB_TEST_READER_COST",
     "marktubPierreProbe",
     "wdioTauri",
     "__wdio_mocks__",

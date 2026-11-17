@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, tick } from "svelte";
   import { ReaderClient } from "./client";
+  import { headingBoundary, matchingHeadings } from "./headings";
   import type { Read, Section, Heading, Page } from "./model";
   import { sanitizeReader, safeLink } from "./safe";
   import { hydrate, clearRichCache } from "../renderers/rich";
@@ -65,13 +66,7 @@
   let request = 0,
     restored = false;
   let activeAnchor: string | null = null;
-  const filtered = $derived(
-    headings
-      .filter((h) =>
-        h.title.toLocaleLowerCase().includes(headingQuery.toLocaleLowerCase()),
-      )
-      .slice(0, 200),
-  );
+  const filtered = $derived(matchingHeadings(headings, headingQuery));
   $effect(() => {
     if (embedded) return;
     document.documentElement.dataset.readingFocus = String(focus);
@@ -82,7 +77,13 @@
   async function show(section: number) {
     if (!client || !sections.length) return;
     const epoch = ++request;
-    at = Math.max(0, Math.min(section, sections.length - 1));
+    at = Math.max(
+      0,
+      Math.min(
+        Number.isFinite(section) ? Math.trunc(section) : 0,
+        sections.length - 1,
+      ),
+    );
     const current = client;
     const values: typeof pages = [];
     try {
@@ -90,10 +91,12 @@
         values.push({ index: i, page: await current.page(i) });
       if (epoch !== request || current !== client) return;
       pages = values;
+      const first = headingBoundary(headings, at);
       activeAnchor =
-        headings.find((h) => h.section === at)?.id ??
-        headings.filter((h) => h.section < at).at(-1)?.id ??
-        null;
+        (headings[first]?.section === at
+          ? headings[first]
+          : headings[first - 1]
+        )?.id ?? null;
       onposition(sections[at].start, anchor());
       await tick();
       if (epoch !== request || current !== client) return;
@@ -350,7 +353,9 @@
   }
   export function anchor() {
     return (
-      activeAnchor ?? headings.filter((h) => h.section <= at).at(-1)?.id ?? null
+      activeAnchor ??
+      headings[headingBoundary(headings, at + 1) - 1]?.id ??
+      null
     );
   }
   export function position() {
