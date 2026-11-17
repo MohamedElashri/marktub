@@ -2794,9 +2794,7 @@ textarea {
     display: none;
   }
   .document-toolbar .document-name {
-    display: block;
-    flex-basis: 100%;
-    font-size: 12px;
+    display: none;
   }
   .workbench .toolbar {
     padding-inline: 12px;

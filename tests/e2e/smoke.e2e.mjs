@@ -4988,6 +4988,9 @@ describe("Everyday workflows", () => {
             "artifacts/workflow-layout-observations.json",
             JSON.stringify(observations, null, 2),
           );
+          await browser.saveScreenshot(
+            `artifacts/native-workflow-source-${uiFont === "System UI" ? "system" : "arabic"}-${width}.png`,
+          );
           if (uiFont === "Noto Sans Arabic")
             expect(geometry.loadedFonts).toContain(uiFont);
           expect(geometry.recoveryCollapsed).toBe(true);
@@ -4996,9 +4999,6 @@ describe("Everyday workflows", () => {
           expect(geometry.toolsOverflow).toBe(false);
           expect(geometry.bodyOverflow).toBe(false);
           expect(geometry.editorHeight).toBeGreaterThan(200);
-          await browser.saveScreenshot(
-            `artifacts/native-workflow-source-${uiFont === "System UI" ? "system" : "arabic"}-${width}.png`,
-          );
           await browser.keys("Escape");
         }
       }
