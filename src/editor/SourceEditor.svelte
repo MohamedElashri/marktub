@@ -216,6 +216,19 @@
     }
     return low + 1;
   }
+  export function viewportAnchor() {
+    if (!view) return null;
+    const height =
+      view.scrollDOM.getBoundingClientRect().top - view.documentTop + 1;
+    const block = view.lineBlockAtHeight(Math.max(0, height));
+    return {
+      line: view.state.doc.lineAt(block.from).number,
+      fraction: Math.max(
+        0,
+        Math.min(1, (height - block.top) / Math.max(1, block.height)),
+      ),
+    };
+  }
   export function revealLine(
     number: number,
     focusEditor = false,
@@ -232,22 +245,34 @@
       view.focus();
       view.dispatch({ selection: { anchor: line.from } });
     }
-    view.requestMeasure({
-      read: (v) => {
-        const block = v.lineBlockAt(line.from);
-        return (
-          v.scrollDOM.scrollTop +
-          v.documentTop +
-          block.top -
-          v.scrollDOM.getBoundingClientRect().top +
-          Math.max(0, Math.min(1, fraction)) * block.height
-        );
-      },
-      write: (top, v) => {
-        if (request === scrollGeneration) v.scrollDOM.scrollTop = top;
-      },
-    });
+    const align = (attempt = 0) => {
+      if (!view || request !== scrollGeneration) return;
+      view.requestMeasure({
+        read: (v) => {
+          const position = v.state.doc.line(
+            Math.min(line.number, v.state.doc.lines),
+          ).from;
+          const block = v.lineBlockAt(position);
+          return (
+            v.scrollDOM.scrollTop +
+            v.documentTop +
+            block.top -
+            v.scrollDOM.getBoundingClientRect().top +
+            Math.max(0, Math.min(1, fraction)) * block.height
+          );
+        },
+        write: (top, v) => {
+          if (request !== scrollGeneration) return;
+          v.scrollDOM.scrollTop = Math.ceil(top);
+          // Moving a virtual viewport replaces estimated wrapped-line heights
+          // with measurements. Re-align after layout, unless input superseded it.
+          if (attempt < 2) requestAnimationFrame(() => align(attempt + 1));
+        },
+      });
+    };
+    align();
   }
+
   export function assetDrop(id: string) {
     void tools.dropped(id);
   }
@@ -512,21 +537,11 @@
             },
             scroll: () => {
               if (view && !focus && performance.now() >= syncUntil) {
-                const height =
-                  view.scrollDOM.getBoundingClientRect().top - view.documentTop;
-                const block = view.lineBlockAtHeight(Math.max(0, height));
-                const line = view.state.doc.lineAt(block.from).number;
-                lastLine = line;
-                onanchor(
-                  line,
-                  Math.max(
-                    0,
-                    Math.min(
-                      1,
-                      (height - block.top) / Math.max(1, block.height),
-                    ),
-                  ),
-                );
+                const position = viewportAnchor();
+                if (position) {
+                  lastLine = position.line;
+                  onanchor(position.line, position.fraction);
+                }
               }
               return false;
             },
@@ -570,6 +585,7 @@
             spellcheck: String(spellcheck),
           })),
           EditorView.updateListener.of((update) => {
+            if (update.docChanged) scrollIntent();
             if (update.selectionSet && !update.docChanged) notify();
             if (
               update.selectionSet &&

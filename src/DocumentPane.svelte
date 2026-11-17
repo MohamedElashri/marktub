@@ -276,6 +276,7 @@
     writingFocus = $state(false),
     windowStart = $state(0);
   let renderRequest = 0;
+  let syncedSplitEpoch = -1;
   let visual = $state(false),
     dirty = $state(false),
     durable = $state(true),
@@ -1487,6 +1488,12 @@
                   ? `Working revision ${editor?.controller().revision ?? 0}`
                   : `Saved snapshot ${document.revision}`}
                 ondisplay={() => {
+                  if (mode === "split" && syncedSplitEpoch !== readerEpoch) {
+                    syncedSplitEpoch = readerEpoch;
+                    const position = editor?.viewportAnchor();
+                    if (position)
+                      sourceAnchor(position.line, position.fraction);
+                  }
                   reviewDisplayed = true;
                   void reviewPanel
                     ?.markDisplayed()

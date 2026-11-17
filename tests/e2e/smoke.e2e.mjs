@@ -2123,13 +2123,14 @@ describe("Author experience", () => {
           const reader = document.querySelector(
             ".document-tab:not([hidden]) .reader-scroll",
           );
-          const node = reader.querySelector('[data-source-line="122"]');
+          const node =
+            reader.querySelector("#h-section-30")?.nextElementSibling;
           return (
             node &&
             Math.abs(
               node.getBoundingClientRect().top -
                 reader.getBoundingClientRect().top,
-            ) < 4
+            ) < 8
           );
         }),
       { timeout: 10000 },
@@ -2139,7 +2140,7 @@ describe("Author experience", () => {
       const reader = document.querySelector(
         ".document-tab:not([hidden]) .reader-scroll",
       );
-      const node = reader.querySelector('[data-source-line="242"]');
+      const node = reader.querySelector("#h-section-25")?.nextElementSibling;
       reader.dispatchEvent(
         new WheelEvent("wheel", { bubbles: true, deltaY: 1 }),
       );
@@ -2156,11 +2157,11 @@ describe("Author experience", () => {
               v.lineBlockAtHeight(
                 Math.max(
                   0,
-                  v.scrollDOM.getBoundingClientRect().top - v.documentTop,
+                  v.scrollDOM.getBoundingClientRect().top - v.documentTop + 1,
                 ),
               ).from,
             ).number,
-        )) === 243,
+        )) === 103,
       { timeout: 10000 },
     );
     expect(await view((v) => v.state.selection.main.anchor)).toBe(selected);
@@ -2169,7 +2170,7 @@ describe("Author experience", () => {
       const reader = document.querySelector(
         ".document-tab:not([hidden]) .reader-scroll",
       );
-      const node = reader.querySelector('[data-source-line="162"]');
+      const node = reader.querySelector("#h-section-30")?.nextElementSibling;
       reader.dispatchEvent(
         new WheelEvent("wheel", { bubbles: true, deltaY: -1 }),
       );
@@ -2184,12 +2185,47 @@ describe("Author experience", () => {
               v.lineBlockAtHeight(
                 Math.max(
                   0,
-                  v.scrollDOM.getBoundingClientRect().top - v.documentTop,
+                  v.scrollDOM.getBoundingClientRect().top - v.documentTop + 1,
                 ),
               ).from,
             ).number,
-        )) === 163,
+        )) === 123,
       { timeout: 10000 },
+    );
+    await browser.tauri.execute(() => {
+      window.splitReaderBefore = document.querySelector(
+        ".document-tab:not([hidden]) .reader",
+      );
+    });
+    await view((v) =>
+      v.dispatch({ changes: { from: v.state.doc.length, insert: "\nTail" } }),
+    );
+    await browser.waitUntil(
+      () =>
+        browser.tauri.execute(() => {
+          const reader = document.querySelector(
+            ".document-tab:not([hidden]) .reader",
+          );
+          const host = reader?.querySelector(".reader-scroll");
+          const node = host?.querySelector("#h-section-30")?.nextElementSibling;
+          return (
+            reader &&
+            reader !== window.splitReaderBefore &&
+            node &&
+            Math.abs(
+              node.getBoundingClientRect().top -
+                host.getBoundingClientRect().top,
+            ) < 8
+          );
+        }),
+      { timeout: 30000 },
+    );
+    expect(await view((v) => v.state.selection.main.anchor)).toBe(selected);
+    const undo = pane().$(".source-toolbar").$("button=Undo");
+    await undo.waitForEnabled();
+    await undo.click();
+    await browser.waitUntil(
+      async () => (await view((v) => v.state.doc.toString())) === source,
     );
     expect(await view((v) => v.state.doc.toString())).toBe(source);
     expect(await view((v) => v.state.selection.main.anchor)).toBe(selected);
