@@ -3476,6 +3476,72 @@ describe("Export and local jobs", () => {
         console.error("POWER FAILURE", (await panel().getText()).slice(-5000));
     }
   });
+  it("exports Arabic with bundled PDF fonts without scanning the system collection", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const { execFileSync } = await import("node:child_process");
+    const source =
+      "# Bundled fonts\n\nA local document with العربية and $a^2+b^2=c^2$.\n\n```text\nlocal code\n```\n";
+    await seed(source);
+    await open();
+    await tool("pandoc", installedTool("pandoc"), "Choose Pandoc…");
+    await tool("typst", installedTool("typst"), "Choose Typst…");
+    await select('select[aria-label="PDF fonts"]', "bundled");
+    try {
+      await consent();
+      await panel().$("button=Prepare PDF…").click();
+      const result = await finish();
+      expect(result).toContain("PDF ready");
+      expect(result).not.toContain("no glyph");
+      const output = path.join(
+        path.dirname(fixture.path),
+        "marktub-bundled-fonts.pdf",
+      );
+      await choose("pdf-destination", output);
+      await panel().$("button=Export PDF…").click();
+      await browser.waitUntil(() => fs.existsSync(output), { timeout: 30000 });
+      const fonts = execFileSync("pdffonts", [output], { encoding: "utf8" });
+      expect(fonts).toContain("NotoNaskhArabic");
+      expect(fonts).toContain("Cousine");
+      const text = execFileSync("pdftotext", [output, "-"], {
+        encoding: "utf8",
+      });
+      expect(text).toContain("Bundled fonts");
+      expect(text).toMatch(/[\u0600-\u06ff]/);
+      expect(fs.readFileSync(fixture.path, "utf8")).toBe(source);
+      fs.copyFileSync(output, "artifacts/export-bundled-fonts.pdf");
+      if (process.platform === "linux") {
+        await panel().$("button=Open PDF to inspect / print").click();
+        execFileSync("/usr/bin/python3", [
+          "scripts/close-test-viewer.py",
+          output,
+        ]);
+        await browser.waitUntil(
+          () => browser.tauri.execute(() => document.hasFocus()),
+          {
+            timeout: 5000,
+            timeoutMsg:
+              "Native focus did not return after closing the PDF viewer",
+          },
+        );
+      }
+      await writeFile(
+        "artifacts/export-bundled-fonts.json",
+        JSON.stringify(
+          {
+            method: `actual ${nativeWebView} and selected native Pandoc/Typst; explicit bundled-font option, unchanged process limits`,
+            fonts,
+            sourceUnchanged: true,
+          },
+          null,
+          2,
+        ),
+      );
+    } finally {
+      await select('select[aria-label="PDF fonts"]', "system");
+      await panel().$("button=Close export and jobs").click();
+    }
+  });
   it("keeps execution off, converts a selected saved revision with approved images/diagrams and exports an exclusive real PDF", async () => {
     const fs = await import("node:fs");
     const path = await import("node:path");

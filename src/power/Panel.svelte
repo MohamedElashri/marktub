@@ -24,6 +24,7 @@
     tab = $state("pdf"),
     toc = $state(true),
     texPdf = $state(false),
+    pdfFonts = $state<"system" | "bundled">("system"),
     selected = $state(""),
     write = $state(false),
     job = $state<string | null>(null),
@@ -161,6 +162,7 @@
         pandoc: toolId("pandoc"),
         mode,
         toc,
+        pdfFonts: mode === "pdf" ? pdfFonts : "system",
       };
       await onsettle(capture!);
       const approval = await api.prepare(request);
@@ -267,7 +269,7 @@
         Convert only this captured revision. Raw markup and external links are
         excluded. Choose image permissions explicitly. PDF export does not
         enable document execution. PDF uses the converter’s print layout and
-        installed fonts; use HTML export to preserve the reading theme and
+        your chosen fonts; use HTML export to preserve the reading theme and
         bundled typography.
       </p>
       <div class="power-tools">
@@ -283,6 +285,22 @@
             "No local Typst selected"}</span
         >
       </div>
+      {#if !texPdf}<label>
+          PDF fonts
+          <select
+            aria-label="PDF fonts"
+            bind:value={pdfFonts}
+            disabled={busy || running}
+          >
+            <option value="system">System fonts</option>
+            <option value="bundled">Bundled fonts</option>
+          </select>
+        </label>
+        <p>
+          Bundled fonts avoid scanning installed fonts and include Arabic, Latin
+          and math. Use System fonts for other scripts or installed families.
+          Missing glyphs are reported in the result.
+        </p>{/if}
       <label
         ><input type="checkbox" bind:checked={toc} disabled={busy || running} /> Include
         table of contents</label

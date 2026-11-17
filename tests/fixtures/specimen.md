@@ -173,7 +173,9 @@ not create sample repositories or change files on your behalf.
 - Copy shown text from Read when you need a short excerpt.
 
 PDF conversion tools are separate installations. Inspect the result for fonts,
-page breaks and layout before sharing or printing.
+page breaks and layout before sharing or printing. If Typst is slow to scan
+installed fonts, choose **PDF fonts → Bundled fonts** for Arabic, Latin and math.
+Keep **System fonts** when other scripts or installed families are needed.
 
 ## Optional local tools
 

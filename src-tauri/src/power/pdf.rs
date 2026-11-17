@@ -1,5 +1,5 @@
 //! Bounded native Pandoc JSON policy and private fixed-template conversion.
-use super::{Mode, Prepared, Tool, err, hash, process};
+use super::{Mode, PdfFonts, Prepared, Tool, err, hash, process};
 use crate::{files::FileError, private_store, reader_assets};
 use serde_json::{Value, json};
 use std::{
@@ -33,6 +33,47 @@ $if(toc)$\tableofcontents\newpage$endif$
 $body$
 \end{document}
 "#;
+fn typst_template(fonts: PdfFonts, dir: &Path) -> Result<String, FileError> {
+    if fonts == PdfFonts::System {
+        return Ok(TEMPLATE.into());
+    }
+    private_store::directory(&dir.join("fonts"))?;
+    const FONTS: &[(&str, &[u8])] = &[
+        (
+            "naskh.ttf",
+            include_bytes!("../../../src/fonts/assets/NotoNaskhArabic[wght].ttf"),
+        ),
+        (
+            "cousine.ttf",
+            include_bytes!("../../../src/fonts/assets/Cousine-Regular.ttf"),
+        ),
+        (
+            "cousine-bold.ttf",
+            include_bytes!("../../../src/fonts/assets/Cousine-Bold.ttf"),
+        ),
+    ];
+    for (name, bytes) in FONTS {
+        private_store::atomic(&dir.join("fonts").join(name), bytes)?;
+    }
+    Ok(TEMPLATE.replace(
+        "\"Arial Unicode MS\", \"Songti SC\"",
+        "\"Noto Naskh Arabic\"",
+    ).replace("#set heading(numbering: none)", "#set heading(numbering: none)\n#show raw: set text(font: (\"Cousine\", \"Noto Naskh Arabic\"))"))
+}
+fn typst_args(fonts: PdfFonts) -> Vec<String> {
+    let mut call = args(&[
+        "compile",
+        "--root",
+        ".",
+        "--package-path=packages",
+        "--package-cache-path=packages",
+    ]);
+    if fonts == PdfFonts::Bundled {
+        call.extend(args(&["--ignore-system-fonts", "--font-path=fonts"]));
+    }
+    call.extend(args(&["document.typ", "document.pdf"]));
+    call
+}
 fn success(o: process::Output) -> Result<process::Output, FileError> {
     if o.code != Some(0) {
         return Err(err(format!(
@@ -538,13 +579,14 @@ pub fn convert(
         &serde_json::to_vec(&ast).map_err(|_| err("Cannot encode safe PDF source."))?,
     )?;
     let is_tex = p.request.mode == Mode::PdfTex;
+    let template = if is_tex {
+        LATEX.into()
+    } else {
+        typst_template(p.request.pdf_fonts, dir)?
+    };
     private_store::atomic(
         &dir.join(if is_tex { "layout.tex" } else { "layout.typ" }),
-        if is_tex {
-            LATEX.as_bytes()
-        } else {
-            TEMPLATE.as_bytes()
-        },
+        template.as_bytes(),
     )?;
     let mut call = args(&[
         "--sandbox",
@@ -577,20 +619,16 @@ pub fn convert(
     } else {
         let output = success(process::run(
             &engine.path,
-            &args(&[
-                "compile",
-                "--root",
-                ".",
-                "--package-path=packages",
-                "--package-cache-path=packages",
-                "document.typ",
-                "document.pdf",
-            ]),
+            &typst_args(p.request.pdf_fonts),
             dir,
             None,
             cancel,
             30,
-        )?)?;
+        ).map_err(|error| {
+            if error.code == "timeout" && p.request.pdf_fonts == PdfFonts::System {
+                FileError::new("timeout", "Typst timed out. Scanning a large installed-font collection can exceed the job limit. Try PDF fonts → Bundled fonts, or use another selected converter. No destination was written.")
+            } else { error }
+        })?)?;
         if !output.stderr.is_empty() {
             warnings.push(output.stderr.chars().take(4096).collect());
         }
@@ -621,6 +659,7 @@ mod tests {
             pandoc: None,
             mode: Mode::Pdf,
             toc: false,
+            pdf_fonts: PdfFonts::System,
         };
         let mut p = Prepared {
             request,
@@ -742,6 +781,7 @@ mod local_tools {
             pandoc: None,
             mode: Mode::Pdf,
             toc: true,
+            pdf_fonts: PdfFonts::System,
         };
         let mut prepared = Prepared {
             request,
