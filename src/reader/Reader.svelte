@@ -350,7 +350,9 @@
       if (epoch === request) {
         loadingSection = null;
         contextReady =
-          complete && pages.every((item) => !item.page.provisional);
+          complete &&
+          (pages.length > 0 || sections.length === 0) &&
+          pages.every((item) => !item.page.provisional);
         if (sourceTarget) void alignSource();
       }
     }
