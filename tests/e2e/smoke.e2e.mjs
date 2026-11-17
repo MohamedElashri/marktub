@@ -2222,14 +2222,24 @@ describe("Author experience", () => {
           );
           const host = reader?.querySelector(".reader-scroll");
           const node = host?.querySelector("#h-section-30")?.nextElementSibling;
+          const v = document.querySelector(
+            ".document-tab:not([hidden]) .cm-content",
+          )?.cmTile?.root?.view;
+          if (!reader || reader === window.splitReaderBefore || !node || !v)
+            return false;
+          const y = Math.max(
+            0,
+            v.scrollDOM.getBoundingClientRect().top - v.documentTop + 1,
+          );
+          const block = v.lineBlockAtHeight(y);
+          const fraction = (y - block.top) / Math.max(1, block.height);
+          const renderedFraction =
+            (host.getBoundingClientRect().top -
+              node.getBoundingClientRect().top) /
+            Math.max(1, node.getBoundingClientRect().height);
           return (
-            reader &&
-            reader !== window.splitReaderBefore &&
-            node &&
-            Math.abs(
-              node.getBoundingClientRect().top -
-                host.getBoundingClientRect().top,
-            ) < 8
+            v.state.doc.lineAt(block.from).number === 123 &&
+            Math.abs(fraction - renderedFraction) < 0.03
           );
         }),
       { timeout: 30000 },
