@@ -30,6 +30,10 @@ pnpm test:e2e
 generates resources needed by native checks. Native e2e needs the converters and
 desktop packages listed in [CI](.github/workflows/check.yml). Serialize Cargo/Tauri
 builds. For dependency changes, also run CI's audit and source-override checks.
+Development file filters treat repeated `+(...)` and `*(...)` globs as literals;
+use braces or `@(...)` alternatives instead. Reviewed local backports and raw
+upstream advisory findings are checked in CI.
+
 On Linux, `xvfb-run -a dbus-run-session -- python3 scripts/e2e-wayland.py` reuses
 the E2E build under Weston to check actual Wayland focus and rendering. It needs
 Weston and Xvfb; it does not certify physical input or a particular desktop shell.

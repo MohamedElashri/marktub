@@ -190,6 +190,12 @@ jobs:
         continue-on-error: true
         id: javascript
         run: pnpm audit --json > artifacts/all-advisories.json
+      - name: Reviewed JavaScript backports and visible upstream advisories
+        continue-on-error: true
+        id: javascriptBackports
+        run: |
+          node scripts/check-javascript-overrides.mjs --audit
+          node --test tests/tooling/picomatch-mitigation.test.mjs
       - name: Install pinned Rust audit tool
         run: cargo install cargo-audit --version 0.23.0 --locked
       - name: Rust advisories including unsound/unmaintained warnings
@@ -202,5 +208,5 @@ jobs:
           name: release-advisories
           path: artifacts/*advisories.json
       - name: Enforce unresolved advisory gate
-        if: steps.javascript.outcome == 'failure' || steps.rust.outcome == 'failure'
+        if: steps.javascript.outcome == 'failure' || steps.javascriptBackports.outcome == 'failure' || steps.rust.outcome == 'failure'
         run: exit 1

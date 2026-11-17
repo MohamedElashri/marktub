@@ -8,3 +8,4 @@ dist/
 artifacts/
 tests/generated/
 tests/fixtures/
+vendor/

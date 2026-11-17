@@ -7,6 +7,9 @@ allowBuilds:
   edgedriver: false
   geckodriver: false
 overrides:
+  picomatch: file:vendor/picomatch-4.0.7
+  "anymatch@3>picomatch": file:vendor/picomatch-2.3.2
+  "readdirp@3>picomatch": file:vendor/picomatch-2.3.2
   "@wdio/utils>@puppeteer/browsers": 3.2.7
   deepmerge: npm:@stackline/deepmerge@1.1.2
   "@wdio/tauri-service>@wdio/globals": 9.33.1

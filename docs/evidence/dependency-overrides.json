@@ -1173,5 +1173,140 @@
         "Native configuration serialization and a compiler-error fixture reject accidental chrono feature use."
       ]
     }
-  ]
+  ],
+  "javascript": {
+    "scope": "Application-owned backports of the exact unchanged upstream package identities for development tools only. Registry audits do not certify local file dependencies: provenance, installed-resolution and adversarial regressions plus a separate audit of upstream identities are mandatory. Raw upstream findings remain visible; no advisory ignores or invented patched upstream releases.",
+    "advisory": "https://github.com/advisories/GHSA-fc5q-39xc-vjpf",
+    "policy": "Repeated +(...) and *(...) extglobs are intentionally unsupported in development-tool backports and use the upstream escaped-literal fallback. This removes the reported repeated-extglob attack surface even when recursion limits are disabled. Ordinary wildcard/globstar, brace, dotfile, optional and negative extglob behavior is preserved; consumer compatibility and the exact rejected patterns are tested.",
+    "packages": [
+      {
+        "name": "picomatch",
+        "version": "2.3.2",
+        "upstream": "https://registry.npmjs.org/picomatch/-/picomatch-2.3.2.tgz",
+        "archiveIntegrity": "sha512-V7+vQEJ06Z+c5tSye8S+nHUfI51xoXIXjHQ99cQtKUkQqqO1kO/KCJUfZXuB47h/YBlDhah2H3hdUGXn8ie0oA==",
+        "archiveSha256": "4c843ba015bec815ac52116162559ab7b4b4efbd3b86f7fcf38f3d770decace6",
+        "repository": "https://github.com/micromatch/picomatch",
+        "vcs": "81cba8d4b767cab3cb29d26eb4f691eed75b73b2",
+        "path": "vendor/picomatch-2.3.2",
+        "patch": "patches/picomatch-2.3.2.patch",
+        "patchSha256": "5d98c25f6013273fae0c4f7f4ed0da483b3c32986a0c85082906dbb63f2a08bf",
+        "files": [
+          {
+            "path": "LICENSE",
+            "upstreamSha256": "d0cd141b0c322fded5dfad1d4645bb2fedfc05b7321fe1009469638190d59ef9",
+            "sha256": "d0cd141b0c322fded5dfad1d4645bb2fedfc05b7321fe1009469638190d59ef9"
+          },
+          {
+            "path": "index.js",
+            "upstreamSha256": "5695ff5dfcd5a338a40630bd506056f2950bcb08fe1cc068519cbbfe60add480",
+            "sha256": "5695ff5dfcd5a338a40630bd506056f2950bcb08fe1cc068519cbbfe60add480"
+          },
+          {
+            "path": "lib/constants.js",
+            "upstreamSha256": "980225ab847a88a784f6d315557b8434f7742b2551ce20e354455c61b938c0a5",
+            "sha256": "980225ab847a88a784f6d315557b8434f7742b2551ce20e354455c61b938c0a5"
+          },
+          {
+            "path": "lib/parse.js",
+            "upstreamSha256": "3a91656f440069aa8f8e15c9d695b9f6b2209df1eab2be8127c72cbcca45ff5f",
+            "sha256": "695b8e512056ee77c10f5547a49d5b032a1047b959131e342a155f8d4cb33011"
+          },
+          {
+            "path": "lib/picomatch.js",
+            "upstreamSha256": "2cb169cbe17d356036c5f62a377318b85e30817877e59797842aec9d8b15f54b",
+            "sha256": "2cb169cbe17d356036c5f62a377318b85e30817877e59797842aec9d8b15f54b"
+          },
+          {
+            "path": "lib/scan.js",
+            "upstreamSha256": "227fcc994a477ea95c5a0435d32783566334c6bd0dcc4a103029735ad8c9c535",
+            "sha256": "227fcc994a477ea95c5a0435d32783566334c6bd0dcc4a103029735ad8c9c535"
+          },
+          {
+            "path": "lib/utils.js",
+            "upstreamSha256": "809fc29cf35ab0aa76b99cad29182f62c0ae598902481d10f9868eaef71981ee",
+            "sha256": "809fc29cf35ab0aa76b99cad29182f62c0ae598902481d10f9868eaef71981ee"
+          },
+          {
+            "path": "package.json",
+            "upstreamSha256": "63264d817e856a4bff57d4304f2b38d2964a4f6df520eb169e7bcdb619f13e9a",
+            "sha256": "63264d817e856a4bff57d4304f2b38d2964a4f6df520eb169e7bcdb619f13e9a"
+          }
+        ],
+        "upstreamName": "picomatch"
+      },
+      {
+        "name": "picomatch",
+        "version": "4.0.7",
+        "upstream": "https://registry.npmjs.org/picomatch/-/picomatch-4.0.7.tgz",
+        "archiveIntegrity": "sha512-qcJu88Q2IWqJsDD529JKMdwGm/dvInW4HvQnRwiH9JtihJvzGOscDtHE3x1pBKeUOTysQ8kVmLnJ2kJu7yhcGA==",
+        "archiveSha256": "697b463be3cdbd9ffc8f4194fd5019a69ddf95875fb703d78b2b115cc9e740a8",
+        "repository": "https://github.com/micromatch/picomatch",
+        "vcs": "6bb40679c218cefba5d4e9662408c5fdf699a8bb",
+        "path": "vendor/picomatch-4.0.7",
+        "patch": "patches/picomatch-4.0.7.patch",
+        "patchSha256": "39d387997cb9f2db1bb3616c70f699763491d1940b74639ca29b8cb2ca963ee1",
+        "files": [
+          {
+            "path": "LICENSE",
+            "upstreamSha256": "d0cd141b0c322fded5dfad1d4645bb2fedfc05b7321fe1009469638190d59ef9",
+            "sha256": "d0cd141b0c322fded5dfad1d4645bb2fedfc05b7321fe1009469638190d59ef9"
+          },
+          {
+            "path": "index.js",
+            "upstreamSha256": "02ae26406508e28f9ba0865be16cf77f0b33de6c4d4d49c212c4176df1d5625a",
+            "sha256": "02ae26406508e28f9ba0865be16cf77f0b33de6c4d4d49c212c4176df1d5625a"
+          },
+          {
+            "path": "lib/constants.js",
+            "upstreamSha256": "c28f952d2758261fe5428a121add485cc25b03e0193633f649de903dc0e5e222",
+            "sha256": "c28f952d2758261fe5428a121add485cc25b03e0193633f649de903dc0e5e222"
+          },
+          {
+            "path": "lib/parse.js",
+            "upstreamSha256": "4e1e05447668aa1e94366c5516a2bcd8f5fff800cc92b1d0cd7d77703b8618c4",
+            "sha256": "1388afb05130ef26b8b88230a77a317cd4dfca7cd00d85bd76fedaf21163090d"
+          },
+          {
+            "path": "lib/picomatch.js",
+            "upstreamSha256": "fdd249d7ffff853f3bb1c77eafc8baa1a437bea85a94c35877b83c6a40d9ca94",
+            "sha256": "fdd249d7ffff853f3bb1c77eafc8baa1a437bea85a94c35877b83c6a40d9ca94"
+          },
+          {
+            "path": "lib/scan.js",
+            "upstreamSha256": "6457a1764e5c2e543cc3a0c00ce12ebb3764097628868198370b64d4e642aaae",
+            "sha256": "6457a1764e5c2e543cc3a0c00ce12ebb3764097628868198370b64d4e642aaae"
+          },
+          {
+            "path": "lib/utils.js",
+            "upstreamSha256": "f04604f70cd1a3f6ace80b84766468674ff38b4bb83818d2ef1d81fc6355f935",
+            "sha256": "f04604f70cd1a3f6ace80b84766468674ff38b4bb83818d2ef1d81fc6355f935"
+          },
+          {
+            "path": "package.json",
+            "upstreamSha256": "479b70b87aa7b44344d62c8a459ae7e53dd2bca6c61f1396bd55e63e9de73fc6",
+            "sha256": "479b70b87aa7b44344d62c8a459ae7e53dd2bca6c61f1396bd55e63e9de73fc6"
+          },
+          {
+            "path": "posix.js",
+            "upstreamSha256": "5695ff5dfcd5a338a40630bd506056f2950bcb08fe1cc068519cbbfe60add480",
+            "sha256": "5695ff5dfcd5a338a40630bd506056f2950bcb08fe1cc068519cbbfe60add480"
+          }
+        ],
+        "upstreamName": "picomatch"
+      }
+    ],
+    "reviewedAdvisory": {
+      "id": 1247710,
+      "url": "https://github.com/advisories/GHSA-fc5q-39xc-vjpf",
+      "title": "picomatch vulnerable to ReDoS through single-branch repeated extglobs",
+      "severity": "high",
+      "vulnerable_versions": "<=4.0.7",
+      "cwe": ["CWE-1333"],
+      "cvss": {
+        "score": 7.5,
+        "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+      }
+    },
+    "advisorySha256": "0b3c3126665f837950f1a1f25f261b7347694453033eb410ea7c83945f7f198a"
+  }
 }
