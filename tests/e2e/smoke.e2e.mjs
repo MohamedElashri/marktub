@@ -47,7 +47,9 @@ before(async () => {
   await browser.tauri.execute(() => {
     window.marktubTestErrors = [];
     const record = (error) => {
-      window.marktubTestErrors.push(String(error).slice(0, 2000));
+      window.marktubTestErrors.push(
+        String(error?.stack ?? error).slice(0, 2000),
+      );
       window.marktubTestErrors = window.marktubTestErrors.slice(-20);
     };
     addEventListener("error", (event) => record(event.error ?? event.message));

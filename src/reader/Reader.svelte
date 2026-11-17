@@ -61,11 +61,15 @@
   let sections = $state<Section[]>([]),
     headings = $state<Heading[]>([]),
     complete = $state(false),
-    contextReady = $state(false),
     scanned = $state(0),
     total = $state(0),
     at = $state(0),
     pages = $state<{ index: number; page: Page }[]>([]);
+  const contextReady = $derived(
+    complete &&
+      (pages.length > 0 || sections.length === 0) &&
+      pages.every((item) => !item.page.provisional),
+  );
   let focus = $state(true),
     outline = $state(false),
     query = $state(""),
@@ -232,7 +236,8 @@
       full === whole &&
       range.from === from &&
       range.to === to &&
-      pages.length
+      pages.length &&
+      pages.every((item) => item.page.provisional === !complete)
     ) {
       if (jump) scrollWithin(host.querySelector(`[data-section="${target}"]`));
       return true;
@@ -349,10 +354,6 @@
     } finally {
       if (epoch === request) {
         loadingSection = null;
-        contextReady =
-          complete &&
-          (pages.length > 0 || sections.length === 0) &&
-          pages.every((item) => !item.page.provisional);
         if (sourceTarget) void alignSource();
       }
     }
@@ -919,6 +920,7 @@
     let restored = false,
       expected = 0;
     return () => {
+      if (!client || !host?.isConnected) return;
       // A delayed font load must not undo scrolling since the first restore.
       if (restored && Math.abs(host.scrollTop - expected) > 1) return;
       if (node?.isConnected) {
@@ -977,10 +979,8 @@
         layout.resize(sections);
         if (complete && !wasComplete) {
           contextEpoch++;
-          contextReady = false;
         }
         if (complete && !sections.length) {
-          contextReady = true;
           ondisplay();
         }
         for (const [key, value] of cache) {
