@@ -30,7 +30,8 @@
   and editing stay local, with no telemetry.
 - **Make technical writing readable.** Use math, equation references, diagrams,
   tables, images and highlighted code. Switch between Read, Source, Split and
-  Visual to read comfortably or work on the Markdown itself.
+  Visual to read comfortably or work on the Markdown itself. Arabic and mixed
+  RTL/LTR text use paragraph-level reading direction.
 - **Review changes and share your work.** Inspect Git diffs, stage selected hunks
   and leave optional feedback on saved revisions. Export a standalone HTML copy
   or create a PDF with your selected local tools.

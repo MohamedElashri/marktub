@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { ReaderClient } from "./client";
 import { sanitizeReader } from "./safe";
 import { renderRich } from "../renderers/rich";
+import typography from "./typography.css?raw";
 const LIMIT = 48 * 1024 * 1024;
 export async function exportStandalone(
   client: ReaderClient,
@@ -74,7 +75,7 @@ export async function exportStandalone(
       throw Error("Export font mapping incomplete.");
   }
   const doc = document.implementation.createHTMLDocument(title);
-  doc.documentElement.lang = "en";
+  doc.body.className = "prose";
   const csp = doc.createElement("meta");
   csp.httpEquiv = "Content-Security-Policy";
   csp.content =
@@ -84,7 +85,7 @@ export async function exportStandalone(
   meta.setAttribute("charset", "utf-8");
   doc.head.prepend(meta);
   const style = doc.createElement("style");
-  style.textContent = `body{max-width:760px;margin:40px auto;padding:0 24px;font:18px/1.7 Palatino,Georgia,serif;color:#24352f;background:#fafbf9}pre{white-space:pre-wrap;background:#f0f4f1;padding:18px}table{border-collapse:collapse}td,th{border:1px solid #dce3df;padding:8px}svg{max-width:100%;height:auto}.export-revision{font:13px system-ui;color:#66736d} ${fonts}`;
+  style.textContent = `body{max-width:760px;margin:40px auto;padding:0 24px;font:18px/1.7 Palatino,Georgia,serif;color:#24352f;background:#fafbf9}pre{white-space:pre-wrap;background:#f0f4f1;padding:18px}table{border-collapse:collapse}td,th{border:1px solid #dce3df;padding:8px}svg{max-width:100%;height:auto}.export-revision{font:13px system-ui;color:#66736d} ${typography} ${fonts}`;
   doc.head.append(style);
   style.textContent +=
     ".sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}";

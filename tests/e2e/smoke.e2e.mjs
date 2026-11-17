@@ -5037,3 +5037,232 @@ describe("Math context policy", () => {
     await writeFile("artifacts/math-context-export.html", html);
   });
 });
+
+describe("Arabic reading layout", () => {
+  it("lays out long Arabic and English paragraphs independently in Read and Split", async () => {
+    const { longArabicDocument } = await import("../fixtures/arabic.mjs");
+    const invoke = (command, args = {}) =>
+      browser.tauri.execute(
+        ({ core }, command, args) => core.invoke(command, args),
+        command,
+        args,
+      );
+    const fixture = await invoke("e2e_fixture", {
+      action: "seed",
+      text: longArabicDocument,
+    });
+    const pane = () => browser.$(".document-tab:not([hidden])");
+    await pane().$("button.open-button").waitForEnabled({ timeout: 60000 });
+    await pane().$("button.open-button").click();
+    if (await browser.$('dialog[open] [id$="-discard-title"]').isDisplayed())
+      await browser.$("button=Discard edits").click();
+    await pane().$("button=Read").waitForEnabled({ timeout: 60000 });
+    await pane().$("button=Read").click();
+    await pane().$(".reader-scroll h1").waitForDisplayed({ timeout: 60000 });
+    await pane().$("button=Export HTML").waitForEnabled({ timeout: 60000 });
+    const observations = [];
+    for (const mode of ["Read", "Split"]) {
+      await pane().$(`button=${mode}`).waitForEnabled({ timeout: 60000 });
+      await pane().$(`button=${mode}`).click();
+      await pane().$(".reader-scroll h1").waitForDisplayed({ timeout: 60000 });
+      await pane().$("button=Export HTML").waitForEnabled({ timeout: 60000 });
+      await pane()
+        .$(".reader-scroll [data-rich] :is(svg, .katex)")
+        .waitForExist({ timeout: 30000 });
+      for (const size of [18, 24]) {
+        await invoke("update_settings", {
+          id: null,
+          scope: "session",
+          text: `$reader.font_size=${size}\n$reader.line_height=${size === 18 ? 175 : 200}`,
+        });
+        await browser.waitUntil(() =>
+          browser.tauri.execute(
+            (_api, size) =>
+              getComputedStyle(
+                document.querySelector(
+                  ".document-tab:not([hidden]) .reader-scroll",
+                ),
+              ).fontSize === `${size}px`,
+            size,
+          ),
+        );
+        const layout = await browser.tauri.execute(async () => {
+          await document.fonts.ready;
+          await new Promise((done) =>
+            requestAnimationFrame(() => requestAnimationFrame(done)),
+          );
+          const host = document.querySelector(
+            ".document-tab:not([hidden]) .reader-scroll",
+          );
+          host.scrollTop = 0;
+          const paragraphs = [
+            ...host.querySelectorAll("section > p:not(.context-note)"),
+          ];
+          const arabic = paragraphs[0];
+          const bounds = arabic.getBoundingClientRect();
+          const range = document.createRange();
+          range.selectNodeContents(arabic);
+          const rows = new Map();
+          for (const rect of range.getClientRects()) {
+            if (!rect.width) continue;
+            const key = rect.top.toFixed(2);
+            rows.set(key, Math.max(rows.get(key) ?? -Infinity, rect.right));
+          }
+          let splitWords = 0,
+            clippedWords = 0,
+            words = 0;
+          for (const paragraph of paragraphs) {
+            const box = paragraph.getBoundingClientRect();
+            const walker = document.createTreeWalker(
+              paragraph,
+              NodeFilter.SHOW_TEXT,
+            );
+            while (walker.nextNode()) {
+              const text = walker.currentNode;
+              for (const match of text.textContent.matchAll(
+                /[\p{L}\p{M}]+/gu,
+              )) {
+                if (!/\p{Script=Arabic}/u.test(match[0])) continue;
+                range.setStart(text, match.index);
+                range.setEnd(text, match.index + match[0].length);
+                const rects = [...range.getClientRects()].filter(
+                  (r) => r.width > 0,
+                );
+                const lineHeight = parseFloat(
+                  getComputedStyle(paragraph).lineHeight,
+                );
+                const centers = rects.map((r) => (r.top + r.bottom) / 2);
+                if (
+                  Math.max(...centers) - Math.min(...centers) >
+                  lineHeight / 2
+                )
+                  splitWords++;
+                if (
+                  rects.some(
+                    (r) => r.left < box.left - 1 || r.right > box.right + 1,
+                  )
+                )
+                  clippedWords++;
+                words++;
+              }
+            }
+          }
+          const direction = (node) => getComputedStyle(node).direction;
+          const quote = host.querySelector("blockquote");
+          return {
+            paragraphDirections: paragraphs.slice(0, 4).map(direction),
+            lineCount: rows.size,
+            rightEdgeError: Math.max(
+              ...[...rows.values()].map((right) =>
+                Math.abs(right - bounds.right),
+              ),
+            ),
+            words,
+            splitWords,
+            clippedWords,
+            width: bounds.width,
+            overflow: host.scrollWidth > host.clientWidth + 1,
+            codeDirections: [
+              ...host.querySelectorAll("code, pre:has(code)"),
+            ].map(direction),
+            linkDirections: [...host.querySelectorAll("a")].map(direction),
+            listDirections: [...host.querySelectorAll("li")].map(direction),
+            quoteDirection: direction(quote),
+            quoteBorders: [
+              getComputedStyle(quote).borderLeftWidth,
+              getComputedStyle(quote).borderRightWidth,
+            ],
+            tableDirections: [...host.querySelectorAll("th")].map(direction),
+          };
+        });
+        observations.push({ mode, size, ...layout });
+        await writeFile(
+          "artifacts/arabic-reading-layout.json",
+          JSON.stringify(observations, null, 2),
+        );
+        await browser.saveScreenshot(
+          `artifacts/arabic-${mode.toLowerCase()}-${size}.png`,
+        );
+        expect(layout.paragraphDirections).toEqual([
+          "rtl",
+          "rtl",
+          "ltr",
+          "rtl",
+        ]);
+        expect(layout.lineCount).toBeGreaterThan(10);
+        expect(layout.rightEdgeError).toBeLessThanOrEqual(1);
+        expect(layout.words).toBeGreaterThan(200);
+        expect(layout.splitWords).toBe(0);
+        expect(layout.clippedWords).toBe(0);
+        expect(layout.overflow).toBe(false);
+        expect(layout.codeDirections.length).toBeGreaterThan(3);
+        expect(layout.codeDirections.every((d) => d === "ltr")).toBe(true);
+        expect(layout.linkDirections).toEqual(["rtl", "ltr"]);
+        expect(layout.listDirections).toEqual([
+          "rtl",
+          "ltr",
+          "rtl",
+          "rtl",
+          "rtl",
+          "rtl",
+          "ltr",
+          "rtl",
+        ]);
+        expect(layout.quoteDirection).toBe("rtl");
+        expect(layout.quoteBorders).toEqual(["0px", "2px"]);
+        expect(layout.tableDirections).toEqual(["rtl", "ltr", "rtl"]);
+        if (mode === "Read" && size === 18) {
+          await browser.tauri.execute(() =>
+            document
+              .querySelector(".document-tab:not([hidden]) .reader-scroll ul")
+              .scrollIntoView({ block: "start" }),
+          );
+          await browser.saveScreenshot("artifacts/arabic-lists-and-quote.png");
+        }
+      }
+    }
+    await pane().$("button=Read").click();
+    await pane().$("button=Export HTML").waitForEnabled({ timeout: 60000 });
+    const section = pane().$('input[aria-label="Go to section"]');
+    const last = Number(await section.getAttribute("max"));
+    expect(last).toBeGreaterThan(200);
+    await section.setValue(String(last - 1));
+    await browser.keys("Tab");
+    await browser.waitUntil(() =>
+      browser.tauri.execute(() =>
+        [
+          ...document.querySelectorAll(
+            ".document-tab:not([hidden]) article h2",
+          ),
+        ].some((heading) => heading.textContent === "فصل 240"),
+      ),
+    );
+    expect(
+      await browser.tauri.execute(
+        () =>
+          getComputedStyle(
+            document.querySelector(
+              ".document-tab:not([hidden]) article h2:last-of-type",
+            ),
+          ).direction,
+      ),
+    ).toBe("rtl");
+    await invoke("e2e_fixture", { action: "export" });
+    await pane().$("button=Export HTML").click();
+    await pane().$("button=Export HTML").waitForEnabled({ timeout: 60000 });
+    const { readFile } = await import("node:fs/promises");
+    const output = await invoke("e2e_fixture", { action: "read-export" });
+    const html = await readFile(output.path, "utf8");
+    expect(html).toContain('class="prose"');
+    expect(html).toContain('dir="auto"');
+    expect(html).toContain('dir="ltr"');
+    expect(html).toContain("padding-inline-start");
+    expect(html).not.toContain("<script");
+    expect(html).not.toContain('lang="en"');
+    expect(html).toContain("فصل 240");
+    expect(await readFile(fixture.path)).toEqual(
+      Buffer.from(longArabicDocument, "utf8"),
+    );
+    await invoke("update_settings", { id: null, scope: "session", text: "" });
+  });
+});

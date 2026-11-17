@@ -246,19 +246,23 @@ export function grammar() {
         }
     }
   });
-  const inline = md.renderer.rules.inline;
-  md.renderer.rules.inline = (tokens, i, o, env, self) => {
-    const children = tokens[i].children ?? [];
-    // Task checkboxes are inert text; no document-controlled form surface.
-    if (/^\[[ xX]\]\s/.test(tokens[i].content) && children[0]?.type === "text")
-      children[0].content = children[0].content.replace(
-        /^\[([ xX])\]\s/,
-        (_m, c) => (c === " " ? "☐ " : "☑ "),
-      );
-    return inline
-      ? inline(tokens, i, o, env, self)
-      : self.renderInline(children, o, env);
-  };
+  md.core.ruler.after("inline", "task_markers", (state) => {
+    for (let i = 2; i < state.tokens.length; i++) {
+      const block = state.tokens[i];
+      const first = block.children?.[0];
+      if (
+        block.type === "inline" &&
+        state.tokens[i - 2].type === "list_item_open" &&
+        first?.type === "text" &&
+        /^\[[ xX]\]\s/.test(block.content)
+      )
+        // Keep checkboxes inert. Replace Markdown syntax before rendering so
+        // the checked marker's Latin x cannot determine an Arabic item's dir.
+        first.content = first.content.replace(/^\[([ xX])\]\s/, (_m, c) =>
+          c === " " ? "☐ " : "☑ ",
+        );
+    }
+  });
   md.renderer.rules.heading_open = (tokens, i, _o, env) => {
     const title = tokens[i + 1]?.content ?? "";
     const id = (env as unknown as Environment).heading?.(

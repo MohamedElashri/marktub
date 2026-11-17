@@ -1,4 +1,5 @@
 import DOMPurify from "dompurify";
+import { readingDirections } from "./direction";
 const forbidden = [
   "script",
   "iframe",
@@ -37,6 +38,7 @@ export function sanitizeReader(html: string) {
     else if (href?.startsWith("#") && !href.startsWith("#h-"))
       el.setAttribute("href", "#h-" + href.slice(1));
   }
+  readingDirections(host.content);
   return host.innerHTML;
 }
 export function safeLink(href: string) {
