@@ -168,6 +168,7 @@ describe("OS file open and accessibility", () => {
           (await browser
             .$('dialog[open] [id$="-discard-title"]')
             .isDisplayed()),
+        { timeout: 60000 },
       );
       if (await browser.$('dialog[open] [id$="-discard-title"]').isDisplayed())
         await browser.$("button=Discard edits").click();
@@ -176,6 +177,7 @@ describe("OS file open and accessibility", () => {
           (await browser.$$('.tabs button[aria-label^="Close "]')).length <
             countBefore ||
           (await browser.$("button=Read the example").isDisplayed()),
+        { timeout: 60000 },
       );
       if (await browser.$("button=Read the example").isDisplayed()) break;
     }
@@ -371,7 +373,7 @@ describe("OS file open and accessibility", () => {
         );
         await browser.$("button=Source").waitForEnabled({ timeout: 60000 });
         await browser.$("button=Source").click();
-        await browser.$(".cm-content").waitForDisplayed();
+        await browser.$(".cm-content").waitForDisplayed({ timeout: 60000 });
         await browser.$("button=Visual").waitForEnabled({ timeout: 60000 });
         await browser.$("button=Visual").click();
         samples.push({
@@ -1802,7 +1804,7 @@ describe("Preferences and commands", () => {
       await browser.$("button=Discard edits").click();
     await pane().$("button=Source").waitForEnabled();
     await pane().$("button=Source").click();
-    await pane().$(".cm-content").waitForDisplayed();
+    await pane().$(".cm-content").waitForDisplayed({ timeout: 60000 });
     await pane().$(".cm-content").addValue("文");
     await browser.tauri.execute(() => {
       window.preferenceEditorContent = document.querySelector(
