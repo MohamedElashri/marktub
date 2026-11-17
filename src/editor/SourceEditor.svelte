@@ -90,7 +90,7 @@
     onchange: (queue: EditQueue) => void;
     onready: () => void;
     onerror: (message: string) => void;
-    onanchor?: (line: number) => void;
+    onanchor?: (line: number, fraction?: number) => void;
     onimage: (
       copy: boolean,
       offer?: string,
@@ -108,6 +108,12 @@
   let host: HTMLDivElement;
   let tools: RichTools;
   let lastLine = 0;
+  let syncUntil = 0;
+  let scrollGeneration = 0;
+  function scrollIntent() {
+    syncUntil = 0;
+    scrollGeneration++;
+  }
   let dropLine = $state<number | null>(null);
   let dragging:
     | { doc: import("@codemirror/state").Text; from: number; to: number }
@@ -181,47 +187,63 @@
       onerror(errorMessage(e));
     }
   }
-  let byteMapDoc: unknown,
-    byteMap: number[] = [];
-  function mapLines() {
-    if (!view) return;
-    if (byteMapDoc === view.state.doc) return;
-    byteMapDoc = view.state.doc;
-    byteMap = [0];
-    let bytes = 0;
-    const encoder = new TextEncoder();
-    for (const line of view.state.doc.iterLines()) {
-      bytes += encoder.encode(line).length + 1;
-      byteMap.push(bytes);
-    }
+  export function viewportAnchor() {
+    if (!view) return null;
+    const height =
+      view.scrollDOM.getBoundingClientRect().top - view.documentTop + 1;
+    const block = view.lineBlockAtHeight(Math.max(0, height));
+    return {
+      line: view.state.doc.lineAt(block.from).number,
+      fraction: Math.max(
+        0,
+        Math.min(1, (height - block.top) / Math.max(1, block.height)),
+      ),
+    };
   }
-  export function byteAtLine(line: number) {
-    mapLines();
-    return byteMap[Math.max(0, line - 1)] ?? 0;
-  }
-  export function lineAtByte(byte: number) {
-    mapLines();
-    let low = 0,
-      high = byteMap.length - 1;
-    while (low < high) {
-      const mid = Math.ceil((low + high) / 2);
-      if (byteMap[mid] <= byte) low = mid;
-      else high = mid - 1;
-    }
-    return low + 1;
-  }
-  export function revealLine(number: number, focusEditor = false) {
+  export function revealLine(
+    number: number,
+    focusEditor = false,
+    fraction = 0,
+  ) {
     if (!view) return;
     const line = view.state.doc.line(
       Math.max(1, Math.min(number, view.state.doc.lines)),
     );
+    const request = ++scrollGeneration;
+    syncUntil = performance.now() + 200;
     lastLine = line.number;
-    if (focusEditor) view.focus();
-    view.dispatch({
-      selection: { anchor: line.from },
-      effects: EditorView.scrollIntoView(line.from, { y: "start" }),
-    });
+    if (focusEditor) {
+      view.focus();
+      view.dispatch({ selection: { anchor: line.from } });
+    }
+    const align = (attempt = 0) => {
+      if (!view || request !== scrollGeneration) return;
+      view.requestMeasure({
+        read: (v) => {
+          const position = v.state.doc.line(
+            Math.min(line.number, v.state.doc.lines),
+          ).from;
+          const block = v.lineBlockAt(position);
+          return (
+            v.scrollDOM.scrollTop +
+            v.documentTop +
+            block.top -
+            v.scrollDOM.getBoundingClientRect().top +
+            Math.max(0, Math.min(1, fraction)) * block.height
+          );
+        },
+        write: (top, v) => {
+          if (request !== scrollGeneration) return;
+          v.scrollDOM.scrollTop = Math.ceil(top);
+          // Moving a virtual viewport replaces estimated wrapped-line heights
+          // with measurements. Re-align after layout, unless input superseded it.
+          if (attempt < 2) requestAnimationFrame(() => align(attempt + 1));
+        },
+      });
+    };
+    align();
   }
+
   export function assetDrop(id: string) {
     void tools.dropped(id);
   }
@@ -417,6 +439,12 @@
             indentWithTab,
             ...defaultKeymap,
           ]),
+          EditorView.domEventObservers({
+            wheel: scrollIntent,
+            pointerdown: scrollIntent,
+            touchstart: scrollIntent,
+            keydown: scrollIntent,
+          }),
           EditorView.domEventHandlers({
             dragover: (e, v) => {
               if (
@@ -479,12 +507,11 @@
               return true;
             },
             scroll: () => {
-              if (view && !focus) {
-                const at = view.viewport.from;
-                const line = view.state.doc.lineAt(at).number;
-                if (line !== lastLine) {
-                  lastLine = line;
-                  onanchor(line);
+              if (view && !focus && performance.now() >= syncUntil) {
+                const position = viewportAnchor();
+                if (position) {
+                  lastLine = position.line;
+                  onanchor(position.line, position.fraction);
                 }
               }
               return false;
@@ -529,8 +556,13 @@
             spellcheck: String(spellcheck),
           })),
           EditorView.updateListener.of((update) => {
+            if (update.docChanged) scrollIntent();
             if (update.selectionSet && !update.docChanged) notify();
-            if (update.selectionSet && !update.view.composing) {
+            if (
+              update.selectionSet &&
+              !update.view.composing &&
+              performance.now() >= syncUntil
+            ) {
               const line = update.state.doc.lineAt(
                 update.state.selection.main.head,
               ).number;

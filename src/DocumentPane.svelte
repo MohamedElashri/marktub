@@ -285,8 +285,8 @@
   let splitPercent = $state(50),
     writingFocus = $state(false),
     windowStart = $state(0);
-  let syncUntil = 0,
-    renderRequest = 0;
+  let renderRequest = 0;
+  let syncedSplitEpoch = -1;
   let visual = $state(false),
     dirty = $state(false),
     durable = $state(true),
@@ -486,15 +486,13 @@
     editor?.assetDrop(image.id);
     return true;
   }
-  function sourceAnchor(line: number) {
-    if (mode !== "split" || performance.now() < syncUntil || !editor) return;
-    syncUntil = performance.now() + 160;
-    void reader?.revealSource(editor.byteAtLine(line), line);
+  function sourceAnchor(line: number, fraction = 0) {
+    if (mode !== "split" || !editor) return;
+    void reader?.revealSource(line, fraction);
   }
-  function previewAnchor(line: number, clicked: boolean) {
-    if (mode !== "split" || performance.now() < syncUntil) return;
-    syncUntil = performance.now() + 160;
-    editor?.revealLine(line, clicked);
+  function previewAnchor(line: number, clicked: boolean, fraction = 0) {
+    if (mode !== "split") return;
+    editor?.revealLine(line, clicked, fraction);
   }
   function resizeSplit(event: PointerEvent) {
     const target = event.currentTarget as HTMLElement;
@@ -1494,7 +1492,6 @@
                       await switchMode("source");
                     }
                   : undefined}
-                sourceLine={(byte) => editor?.lineAtByte(byte) ?? 1}
                 onsource={previewAnchor}
                 operationBusy={busy}
                 presentation={displayed}
@@ -1512,6 +1509,12 @@
                   ? `Working revision ${editor?.controller().revision ?? 0}`
                   : `Saved snapshot ${document.revision}`}
                 ondisplay={() => {
+                  if (mode === "split" && syncedSplitEpoch !== readerEpoch) {
+                    syncedSplitEpoch = readerEpoch;
+                    const position = editor?.viewportAnchor();
+                    if (position)
+                      sourceAnchor(position.line, position.fraction);
+                  }
                   reviewDisplayed = true;
                   void reviewPanel
                     ?.markDisplayed()

@@ -12,7 +12,6 @@
     embedded = false,
     onedit,
     ondisplay = () => {},
-    sourceLine = () => 1,
     onsource = () => {},
     start = 0,
     anchorId = null,
@@ -33,8 +32,7 @@
     embedded?: boolean;
     ondisplay?: () => void;
     onedit?: (byte: number) => void | Promise<void>;
-    sourceLine?: (byte: number) => number;
-    onsource?: (line: number, clicked: boolean) => void;
+    onsource?: (line: number, clicked: boolean, fraction?: number) => void;
     start?: number;
     anchorId?: string | null;
     onposition: (byte: number, anchor: string | null) => void;
@@ -79,6 +77,7 @@
       delete document.documentElement.dataset.readingFocus;
     };
   });
+  let loadingSection: number | null = null;
   async function show(section: number) {
     if (!client || !sections.length) return;
     const epoch = ++request;
@@ -89,6 +88,7 @@
         sections.length - 1,
       ),
     );
+    loadingSection = at;
     const current = client;
     const values: typeof pages = [];
     try {
@@ -108,6 +108,7 @@
       ondisplay();
       syncUntil = performance.now() + 200;
       host.scrollTop = 0;
+      await alignSource(false);
       for (const value of values) {
         const block = host.querySelector<HTMLElement>(
           `[data-section="${value.index}"]`,
@@ -118,10 +119,14 @@
             value.page.rich,
             () => request === epoch && current === client,
             current.math,
-          ).catch((e) => onerror(String(e)));
+          )
+            .then(() => alignSource(false))
+            .catch((e) => onerror(String(e)));
       }
     } catch (e) {
       if (current === client) onerror(String(e));
+    } finally {
+      if (epoch === request) loadingSection = null;
     }
   }
   function scrollWithin(node: Element | null, center = false) {
@@ -134,12 +139,14 @@
         : 0);
   }
   async function goHeading(heading: Heading) {
+    intent();
     await show(heading.section);
     activeAnchor = heading.id;
     scrollWithin(host.querySelector(`#${CSS.escape(heading.id)}`));
     onposition(sections[at].start, heading.id);
   }
   async function jumpMatch(section: number) {
+    intent();
     await show(section);
     const walker = document.createTreeWalker(host, NodeFilter.SHOW_TEXT);
     while (walker.nextNode()) {
@@ -157,53 +164,113 @@
       break;
     }
   }
-  let syncUntil = 0,
-    scrollIntent = 0;
+  let syncUntil = 0;
+  let manualScroll = false;
+  let sourceTarget: { line: number; fraction: number } | null = null;
   function intent() {
-    scrollIntent = performance.now() + 800;
+    syncUntil = 0;
+    sourceTarget = null;
+    manualScroll = true;
   }
   export async function revealByte(byte: number) {
     const index = sections.findIndex((s) => byte >= s.start && byte < s.end);
     if (index >= 0) await show(index);
     else onerror("The saved section is not yet indexed.");
   }
-  export async function revealSource(byte: number, line: number) {
-    const section = sections.findIndex((s) => byte >= s.start && byte < s.end);
-    if (section < 0) return;
+  export async function revealSource(line: number, fraction = 0) {
+    sourceTarget = { line, fraction };
+    manualScroll = false;
     syncUntil = performance.now() + 200;
-    if (section < at || section >= at + 3) await show(section);
+    await alignSource();
+  }
+  async function alignSource(load = true) {
+    const target = sourceTarget;
+    if (!target || !client) return;
+    const { line, fraction } = target;
+    let section = -1;
+    for (let i = sections.length - 1; i >= 0; i--) {
+      const s = sections[i];
+      if (
+        s.line !== undefined &&
+        line >= s.line &&
+        line <= Math.max(s.line, s.endLine ?? s.line)
+      ) {
+        section = i;
+        break;
+      }
+    }
+    if (section < 0) return;
+    if (
+      load &&
+      loadingSection !== null &&
+      section >= loadingSection &&
+      section < loadingSection + 3
+    )
+      return;
+    if (
+      !pages.some((page) => page.index === section) ||
+      (load &&
+        loadingSection !== null &&
+        (section < loadingSection || section >= loadingSection + 3))
+    ) {
+      if (load) await show(section);
+      return;
+    }
     await tick();
-    const local = line - sourceLine(sections[section].start);
+    if (sourceTarget !== target) return;
+    const local = line - sections[section].line!;
     const block = host.querySelector(`[data-section="${section}"]`);
     const node = [
       ...(block?.querySelectorAll<HTMLElement>("[data-source-line]") ?? []),
     ]
       .filter((n) => Number(n.dataset.sourceLine) <= local)
       .at(-1);
-    scrollWithin(node ?? block);
+    if (!node) {
+      scrollWithin(block);
+      return;
+    }
+    const start = Number(node.dataset.sourceLine);
+    const end = Number(node.dataset.sourceEndLine ?? start + 1);
+    const ratio = Math.max(
+      0,
+      Math.min(1, (local - start + fraction) / Math.max(1, end - start)),
+    );
+    host.scrollTop +=
+      node.getBoundingClientRect().top -
+      host.getBoundingClientRect().top +
+      ratio * node.getBoundingClientRect().height;
+    syncUntil = performance.now() + 200;
   }
-  function sourceAnchor(node: HTMLElement, clicked = false) {
+  function sourceAnchor(node: HTMLElement, clicked = false, ratio = 0) {
     const section = node.closest<HTMLElement>("[data-section]");
     if (!section) return;
     const index = Number(section.dataset.section);
-    if (!sections[index]) return;
-    onsource(
-      sourceLine(sections[index].start) + Number(node.dataset.sourceLine ?? 0),
-      clicked,
-    );
+    if (sections[index]?.line === undefined) return;
+    const start = Number(node.dataset.sourceLine ?? 0);
+    const end = Number(node.dataset.sourceEndLine ?? start + 1);
+    const position =
+      start + Math.max(0, Math.min(0.999999, ratio)) * Math.max(1, end - start);
+    const line = sections[index].line! + Math.floor(position);
+    if (embedded) sourceTarget = { line, fraction: position % 1 };
+    onsource(line, clicked, position % 1);
   }
   function authorScroll() {
-    if (
-      !embedded ||
-      performance.now() < syncUntil ||
-      performance.now() > scrollIntent
-    )
-      return;
+    if (!embedded || performance.now() < syncUntil || !manualScroll) return;
     const top = host.getBoundingClientRect().top;
-    const node = [
-      ...host.querySelectorAll<HTMLElement>("[data-source-line]"),
-    ].find((n) => n.getBoundingClientRect().bottom > top);
-    if (node) sourceAnchor(node);
+    const nodes = [...host.querySelectorAll<HTMLElement>("[data-source-line]")];
+    // Prefer the innermost mapped block at the viewport edge (for lists/tables),
+    // rather than an ancestor spanning several unrelated source lines.
+    const crossing = nodes.filter((node) => {
+      const r = node.getBoundingClientRect();
+      return r.top <= top && r.bottom > top;
+    });
+    const node =
+      crossing.at(-1) ??
+      nodes.find((node) => node.getBoundingClientRect().bottom > top);
+    if (node) {
+      const r = node.getBoundingClientRect();
+      sourceAnchor(node, false, (top - r.top) / Math.max(1, r.height));
+    }
   }
   async function copyShown() {
     try {
@@ -385,6 +452,12 @@
         complete = update.complete;
         scanned = update.scanned;
         total = update.total;
+        if (sourceTarget) {
+          restored = true;
+          if (complete && !wasComplete) void show(at);
+          void alignSource();
+          return;
+        }
         if (!restored && sections.length) {
           const found = sections.findIndex((s) => s.end > start);
           if (found >= 0 || complete) {
@@ -560,8 +633,12 @@
     </article>
   </div>
   <nav class="section-navigation" aria-label="Reader sections">
-    <button onclick={() => show(at - 3)} disabled={at === 0}
-      >Previous sections</button
+    <button
+      onclick={() => {
+        intent();
+        void show(at - 3);
+      }}
+      disabled={at === 0}>Previous sections</button
     >
     <label
       >Section <input
@@ -570,12 +647,19 @@
         min="1"
         max={sections.length}
         value={at + 1}
-        onchange={(e) => show(Number(e.currentTarget.value) - 1)}
+        onchange={(e) => {
+          intent();
+          void show(Number(e.currentTarget.value) - 1);
+        }}
       />
       / {sections.length.toLocaleString()}</label
     >
-    <button onclick={() => show(at + 3)} disabled={at + 3 >= sections.length}
-      >Next sections</button
+    <button
+      onclick={() => {
+        intent();
+        void show(at + 3);
+      }}
+      disabled={at + 3 >= sections.length}>Next sections</button
     >
   </nav>
 </div>

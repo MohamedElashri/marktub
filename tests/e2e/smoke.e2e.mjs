@@ -2137,6 +2137,166 @@ describe("Author experience", () => {
       .$('.window-shell[data-busy="false"][data-dirty="false"]')
       .waitForExist({ timeout: 30000 });
   }
+  it("syncs actual viewport positions both ways without moving the editor selection", async () => {
+    let ending = 0;
+    const source =
+      "\uFEFF" +
+      Array.from(
+        { length: 80 },
+        (_, i) =>
+          `## Section ${i}\n\n${"A wrapped paragraph العربية 日本語 🦀 for scroll mapping. ".repeat(8)}\n\n`,
+      )
+        .join("")
+        .replace(/\n/g, () => ["\r\n", "\n", "\r"][ending++ % 3]);
+    await seed(source);
+    const initialText = await view((v) => v.state.doc.toString());
+    await pane().$("button=Split").click();
+    await pane().$(".reader-scroll").waitForDisplayed({ timeout: 60000 });
+    await view((v) =>
+      v.dispatch({ selection: { anchor: v.state.doc.line(5).from } }),
+    );
+    const selected = await view((v) => v.state.selection.main.anchor);
+    await view((v) => {
+      v.scrollDOM.dispatchEvent(
+        new WheelEvent("wheel", { bubbles: true, deltaY: 1 }),
+      );
+      v.scrollDOM.scrollTop +=
+        v.documentTop +
+        v.lineBlockAt(v.state.doc.line(123).from).top -
+        v.scrollDOM.getBoundingClientRect().top;
+    });
+    await browser.waitUntil(
+      () =>
+        browser.tauri.execute(() => {
+          const pane = document.querySelector(".document-tab:not([hidden])");
+          const reader = pane.querySelector(".reader-scroll");
+          const node =
+            reader.querySelector("#h-section-30")?.nextElementSibling;
+          const v = pane.querySelector(".cm-content")?.cmTile?.root?.view;
+          if (!node || !v) return false;
+          const y = Math.max(
+            0,
+            v.scrollDOM.getBoundingClientRect().top - v.documentTop + 1,
+          );
+          const block = v.lineBlockAtHeight(y);
+          const fraction = (y - block.top) / Math.max(1, block.height);
+          const renderedFraction =
+            (reader.getBoundingClientRect().top -
+              node.getBoundingClientRect().top) /
+            Math.max(1, node.getBoundingClientRect().height);
+          return (
+            v.state.doc.lineAt(block.from).number === 123 &&
+            Math.abs(fraction - renderedFraction) < 0.03
+          );
+        }),
+      { timeout: 10000 },
+    );
+    expect(await view((v) => v.state.selection.main.anchor)).toBe(selected);
+    await browser.tauri.execute(() => {
+      const reader = document.querySelector(
+        ".document-tab:not([hidden]) .reader-scroll",
+      );
+      const node = reader.querySelector("#h-section-31")?.nextElementSibling;
+      reader.dispatchEvent(
+        new WheelEvent("wheel", { bubbles: true, deltaY: 1 }),
+      );
+      reader.scrollTop +=
+        node.getBoundingClientRect().top -
+        reader.getBoundingClientRect().top +
+        node.getBoundingClientRect().height * 0.4;
+    });
+    await browser.waitUntil(
+      async () =>
+        (await view(
+          (v) =>
+            v.state.doc.lineAt(
+              v.lineBlockAtHeight(
+                Math.max(
+                  0,
+                  v.scrollDOM.getBoundingClientRect().top - v.documentTop + 1,
+                ),
+              ).from,
+            ).number,
+        )) === 127,
+      { timeout: 10000 },
+    );
+    expect(await view((v) => v.state.selection.main.anchor)).toBe(selected);
+    // Reverse direction promptly: genuine input must override a pending sync.
+    await browser.tauri.execute(() => {
+      const reader = document.querySelector(
+        ".document-tab:not([hidden]) .reader-scroll",
+      );
+      const node = reader.querySelector("#h-section-30")?.nextElementSibling;
+      reader.dispatchEvent(
+        new WheelEvent("wheel", { bubbles: true, deltaY: -1 }),
+      );
+      reader.scrollTop +=
+        node.getBoundingClientRect().top - reader.getBoundingClientRect().top;
+    });
+    await browser.waitUntil(
+      async () =>
+        (await view(
+          (v) =>
+            v.state.doc.lineAt(
+              v.lineBlockAtHeight(
+                Math.max(
+                  0,
+                  v.scrollDOM.getBoundingClientRect().top - v.documentTop + 1,
+                ),
+              ).from,
+            ).number,
+        )) === 123,
+      { timeout: 10000 },
+    );
+    await browser.tauri.execute(() => {
+      window.splitReaderBefore = document.querySelector(
+        ".document-tab:not([hidden]) .reader",
+      );
+    });
+    await view((v) =>
+      v.dispatch({ changes: { from: v.state.doc.length, insert: "\nTail" } }),
+    );
+    await browser.waitUntil(
+      () =>
+        browser.tauri.execute(() => {
+          const reader = document.querySelector(
+            ".document-tab:not([hidden]) .reader",
+          );
+          const host = reader?.querySelector(".reader-scroll");
+          const node = host?.querySelector("#h-section-30")?.nextElementSibling;
+          const v = document.querySelector(
+            ".document-tab:not([hidden]) .cm-content",
+          )?.cmTile?.root?.view;
+          if (!reader || reader === window.splitReaderBefore || !node || !v)
+            return false;
+          const y = Math.max(
+            0,
+            v.scrollDOM.getBoundingClientRect().top - v.documentTop + 1,
+          );
+          const block = v.lineBlockAtHeight(y);
+          const fraction = (y - block.top) / Math.max(1, block.height);
+          const renderedFraction =
+            (host.getBoundingClientRect().top -
+              node.getBoundingClientRect().top) /
+            Math.max(1, node.getBoundingClientRect().height);
+          return (
+            v.state.doc.lineAt(block.from).number === 123 &&
+            Math.abs(fraction - renderedFraction) < 0.03
+          );
+        }),
+      { timeout: 30000 },
+    );
+    expect(await view((v) => v.state.selection.main.anchor)).toBe(selected);
+    const undo = pane().$(".source-toolbar").$("button=Undo");
+    await undo.waitForEnabled();
+    await undo.click();
+    await browser.waitUntil(
+      async () => (await view((v) => v.state.doc.toString())) === initialText,
+    );
+    expect(await view((v) => v.state.doc.toString())).toBe(initialText);
+    expect(await view((v) => v.state.selection.main.anchor)).toBe(selected);
+    await saved(source);
+  });
   it("keeps the same editor, document, caret, folds and undo across Source/Split/Visual/Read", async () => {
     await seed();
     await select("alpha");
