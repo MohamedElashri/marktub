@@ -1,6 +1,7 @@
 import type { Read, Section, Heading, Page } from "./model";
 import { DocumentMath } from "../renderers/math-document";
 export interface Update {
+  replaceFrom?: number;
   sections: Section[];
   headings: Heading[];
   complete: boolean;

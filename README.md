@@ -81,7 +81,8 @@ append `-s -- --download-only` after `bash`.
 
 **Try a complete workflow:** open a Markdown file or folder, choose **Split** to
 write beside the preview, then **Save** your Markdown or **Export HTML** to share
-a copy. Use **Git** for saved-file diffs and **Review** for feedback on saved
+a copy. Reading stays continuous in long notes; **Outline & find** reaches the
+whole document. Use **Git** for saved-file diffs and **Review** for feedback on saved
 revisions. Quick open is Cmd/Ctrl+P; open and save are Cmd/Ctrl+O and Cmd/Ctrl+S.
 
 Start a **New note** with Cmd/Ctrl+N, or choose a starter template from the empty

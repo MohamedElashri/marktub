@@ -29,10 +29,10 @@ export const longArabicDocument =
       `## فصل ${i + 1}\n\n${paragraph.repeat(6)}\n\nEnglish section ${i + 1}: العربية alongside local notes, file.md and 123.45.\n`,
   ).join("\n");
 
-export const readerPagingDocument = Array.from(
-  { length: 36 },
+export const readerFlowDocument = Array.from(
+  { length: 72 },
   (_, chapter) =>
-    `# Paging ${chapter}\n\n` +
+    `# Chapter ${chapter}\n\n` +
     Array.from({ length: 64 }, (_, item) =>
       `- [كلمات عربية ${item}](notes.md) with English text and 123.45.`,
     ).join("\n") + "\n\n",

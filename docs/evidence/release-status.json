@@ -223,5 +223,32 @@
       "Publish the first update-capable release with both signed packages and latest.json; existing installations need one manual bootstrap upgrade.",
       "Actual privileged DEB approval/restart and macOS replacement/restart require a controlled installed-release upgrade; test fixtures must never update this workstation."
     ]
+  },
+  "continuousReader": {
+    "date": "2026-11-17",
+    "status": "local qualification passed; unreleased; hosted results are tracked by the pull request checks",
+    "behavior": "One continuous reader with whole-note semantic text for ordinary documents, measured buffered content for large documents, lazy nearby rich output and whole-document Markdown copy. Parser context, native byte provenance, grants and Source undo remain unchanged.",
+    "localValidation": {
+      "host": "Zorin OS 18.1 amd64; WebKitGTK 2.52.6",
+      "frontend": 827,
+      "nodeTooling": 18,
+      "pythonTooling": 37,
+      "nativeWayland": 21,
+      "nativeWaylandBinarySha256": "024d48d9c8a56b8f81e085260f7c01deb74a3d2f19c6253c5f050590cf5e3f0e",
+      "waylandScope": "Actual GDK Wayland under isolated Weston with an X11-backed input seat; includes native focus, selection, keyboard scroll, offscreen search/copy, math, HTML/PDF export and Split checks.",
+      "arabicVariants": 12,
+      "arabicSplitWords": 0,
+      "arabicClippedWords": 0,
+      "arabicOverflow": false,
+      "normalDebug": {
+        "binarySha256": "8a5dc9338fa631bdb70265c1f4ceb99ad82816ca6119f0f6f34cc5c6f750d34e",
+        "isolation": "pass; normal frontend, ACL, executable and dependency graph contain no test hooks; not release-package qualification"
+      }
+    },
+    "limits": [
+      "Virtual large-document views expose nearby semantic text. Complete standalone HTML remains available; physical screen-reader/IME certification and GNOME activation policy are Not Run.",
+      "Live manual selections retain a bounded window. A notice preserves the selection before further scrolling would discard it; Select All/Copy and Copy document Markdown include the full native revision.",
+      "Parser/context/output admission limits and bounded source fallbacks remain in force. Debug scroll observations include WebDriver/IPC polling and are not physical paint or input-latency measurements."
+    ]
   }
 }

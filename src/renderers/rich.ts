@@ -198,16 +198,29 @@ export async function hydrate(
   rich: Rich[],
   current: () => boolean,
   math?: DocumentMath,
+  visible?: (target: HTMLElement) => boolean,
 ) {
   const targets = Array.from(host.querySelectorAll<HTMLElement>("[data-rich]"));
   // Bound actual retained output, rather than rejecting a fifth small formula.
   const outputLimit = 8 * 1024 * 1024;
-  let outputBytes = 0;
+  let outputBytes = visible
+    ? targets.reduce(
+        (n, target) =>
+          n +
+          (target.dataset.hydrated === "true"
+            ? target.innerHTML.length * 2
+            : 0),
+        0,
+      )
+    : 0;
   let exhausted = false;
   for (const target of targets) {
     if (!current() || !target.isConnected) return;
+    if (visible && (!visible(target) || target.dataset.hydrated === "true"))
+      continue;
     const item = rich[Number(target.dataset.rich)];
     if (!item) continue;
+    target.dataset.hydrated = "true";
     const fallback = () => {
       target.innerHTML = `<details class="render-error"><summary>Rich output exceeds the 8 MiB section limit. Source is available.</summary><pre>${escape(item.source)}</pre></details>`;
     };
@@ -261,11 +274,17 @@ export async function hydrate(
   }
   const code = Array.from(
     host.querySelectorAll<HTMLElement>("pre code"),
-  ).filter((c) => c.textContent && c.textContent.length < 16000);
+  ).filter(
+    (c) =>
+      c.textContent &&
+      c.textContent.length < 16000 &&
+      (!visible || (visible(c) && c.dataset.highlighted !== "true")),
+  );
   if (code.length) {
     const { highlight } = await import("./highlight");
     for (const block of code) {
       if (!current()) return;
+      block.dataset.highlighted = "true";
       block.innerHTML = sanitizeReader(
         highlight(
           block.textContent ?? "",

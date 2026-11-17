@@ -106,3 +106,40 @@ it("bounds aggregate rich output and preserves the remaining source", async () =
     host.remove();
   }
 });
+
+it("defers offscreen rich output and hydrates it once when it becomes visible", async () => {
+  const host = document.createElement("div");
+  host.innerHTML = '<span data-rich="0"></span><span data-rich="1"></span>';
+  document.body.append(host);
+  const items = [diagram(100), diagram(101)];
+  engine.render.mockResolvedValue({ svg: "<svg><text>visible</text></svg>" });
+  try {
+    await hydrate(
+      host,
+      items,
+      () => true,
+      undefined,
+      (node) => node.dataset.rich === "0",
+    );
+    expect(engine.render).toHaveBeenCalledTimes(1);
+    expect(host.children[1].innerHTML).toBe("");
+    await hydrate(
+      host,
+      items,
+      () => true,
+      undefined,
+      () => true,
+    );
+    expect(engine.render).toHaveBeenCalledTimes(2);
+    await hydrate(
+      host,
+      items,
+      () => true,
+      undefined,
+      () => true,
+    );
+    expect(engine.render).toHaveBeenCalledTimes(2);
+  } finally {
+    host.remove();
+  }
+});

@@ -170,7 +170,9 @@ not create sample repositories or change files on your behalf.
 - **More → Export & run → PDF** uses your selected local Pandoc and Typst or
   XeLaTeX. Choose a saved or acknowledged working revision, review warnings,
   then export to a new native destination.
-- Copy shown text from Read when you need a short excerpt.
+- Select text in Read for an excerpt, or use **Copy document Markdown** for the
+  entire document. Long notes scroll continuously; **Outline & find** searches
+  beyond the visible text.
 
 PDF conversion tools are separate installations. Inspect the result for fonts,
 page breaks and layout before sharing or printing. If Typst is slow to scan

@@ -6,6 +6,28 @@ import { resolve, dirname, join } from "node:path";
 
 const nativeWebView = process.platform === "darwin" ? "WKWebView" : "WebKitGTK";
 
+async function expectReadingHeading(title) {
+  await browser.waitUntil(
+    () =>
+      browser.tauri.execute((_api, title) => {
+        const host = document.querySelector(
+          ".document-tab:not([hidden]) .reader-scroll",
+        );
+        if (!host) return false;
+        const viewport = host.getBoundingClientRect();
+        return [...host.querySelectorAll("h1,h2,h3")].some((heading) => {
+          const rect = heading.getBoundingClientRect();
+          return (
+            heading.textContent === title &&
+            rect.bottom > viewport.top &&
+            rect.top < viewport.bottom
+          );
+        });
+      }, title),
+    { timeout: 30000, timeoutMsg: `Reading heading is not visible: ${title}` },
+  );
+}
+
 function installedTool(role, command = role) {
   const configured = process.env[`MARKTUB_E2E_${role.toUpperCase()}`];
   if (configured) return resolve(configured);
@@ -46,6 +68,23 @@ afterEach(async function () {
       mode: tab.querySelector('[aria-pressed="true"]')?.textContent,
       busy: tab.querySelector(".window-shell")?.getAttribute("data-busy"),
       editors: tab.querySelectorAll(".cm-editor").length,
+    })),
+    readers: [
+      ...document.querySelectorAll(
+        ".document-tab:not([hidden]) .reader-scroll",
+      ),
+    ].map((host) => ({
+      top: host.scrollTop,
+      extent: host.scrollHeight,
+      focused: document.activeElement?.outerHTML.slice(0, 250),
+      headings: [...host.querySelectorAll("h1,h2,h3")]
+        .slice(-20)
+        .map((node) => ({
+          text: node.textContent,
+          id: node.id,
+          top:
+            node.getBoundingClientRect().top - host.getBoundingClientRect().top,
+        })),
     })),
     closeControls: [
       ...document.querySelectorAll('.tabbar button[aria-label^="Close "]'),
@@ -843,7 +882,7 @@ describe("Reader and local renderers", () => {
     "# Reader integrity\n\nA forward [link][later] and footnote[^one].\n\n![Approved pixel](pixel.png){width=32 height=32}\n\nInline $a^2$ and compatibility $\\prescript{a}{b}{X}$.\n\n```mermaid\ngraph TD\nA[Read] --> B[Keep source]\n```\n\n" +
     ("A paragraph about local documents. ".repeat(20) + "\n\n").repeat(100) +
     "# Far away\n\nNeedleAtTheEnd\n\n[later]: chapter.md\n[^one]: A final footnote.\n";
-  it("opens Read without CodeMirror, renders local math/diagrams, and navigates unmounted text", async () => {
+  it("opens Read without CodeMirror, renders local math/diagrams, and navigates offscreen text", async () => {
     await fixture("seed", content);
     await browser.$("button.open-button").waitForEnabled({ timeout: 20000 });
     await browser.$("button.open-button").click();
@@ -894,6 +933,8 @@ describe("Reader and local renderers", () => {
       expect.stringContaining("NeedleAtTheEnd"),
     );
     await browser.saveScreenshot("artifacts/reader-reader.png");
+    await browser.$("a.footnote-ref").click();
+    await expectReadingHeading("Footnote one");
   });
   it("exports the coherent full saved revision including offscreen math/diagrams and footnotes", async () => {
     await fixture("export");
@@ -961,7 +1002,7 @@ describe("Reader and local renderers", () => {
         );
       });
     await browser.$("button=Export HTML").waitForEnabled({ timeout: 20000 });
-    await expect(browser.$("article h1")).toHaveText("Far away");
+    await expectReadingHeading("Far away");
   });
   it("authorizes relative navigation through a new native file selection", async () => {
     if (!(await browser.$(".outline").isDisplayed()))
@@ -1076,7 +1117,7 @@ describe("Working reader and export", () => {
 });
 
 describe("Large reader measurements", () => {
-  it("opens 1/10/100 MiB with bounded DOM and reaches the final indexed section", async function () {
+  it("opens 1/10/100 MiB with bounded DOM and scrolls to the document end", async function () {
     this.timeout(180000);
     const samples = [];
     for (const tier of [1, 10, 100]) {
@@ -1109,16 +1150,16 @@ describe("Large reader measurements", () => {
       const finalizedMs = performance.now() - started;
       const metrics = await browser.tauri.execute(() => ({
         nodes: document.querySelectorAll("*").length,
-        sections: document.querySelector('input[aria-label="Go to section"]')
-          ?.max,
+        scrollHeight: document.querySelector(".reader-scroll")?.scrollHeight,
         editors: document.querySelectorAll(".cm-editor").length,
       }));
       expect(metrics.nodes).toBeLessThan(1500);
       expect(metrics.editors).toBe(0);
-      await browser
-        .$('input[aria-label="Go to section"]')
-        .setValue(metrics.sections);
-      await browser.keys("Tab");
+      await browser.tauri.execute(() => {
+        const host = document.querySelector(".reader-scroll");
+        host.scrollTop = host.scrollHeight;
+        host.dispatchEvent(new Event("scroll"));
+      });
       await expect(browser.$("article")).toHaveText(
         expect.stringContaining("FINAL_READER_SENTINEL"),
       );
@@ -2639,10 +2680,8 @@ describe("Author experience", () => {
       );
       throw error;
     }
-    await pane()
-      .$("button=Edit this section")
-      .waitForEnabled({ timeout: 60000 });
-    await pane().$("button=Edit this section").click();
+    await pane().$("button=Edit here").waitForEnabled({ timeout: 60000 });
+    await pane().$("button=Edit here").click();
     // Range rotation replaces the editor; query the live node on each poll.
     await browser.waitUntil(async () => pane().$(".cm-content").isDisplayed(), {
       timeout: 30000,
@@ -5386,7 +5425,7 @@ describe("Everyday workflows", () => {
 });
 
 describe("Math context policy", () => {
-  it("renders finalized equation context across unmounted sections and standalone export", async () => {
+  it("renders finalized equation context across the document and standalone export", async () => {
     const call = (command, args = {}) =>
       browser.tauri.execute(
         ({ core }, command, args) => core.invoke(command, args),
@@ -5396,7 +5435,7 @@ describe("Math context policy", () => {
     const pane = () => browser.$(".document-tab:not([hidden])");
     const source =
       "# Local math policy\n\n$$\\begin{equation}x\\label{first}\\end{equation}$$\n\n$\\gdef\\local{q}\\local$\n\n$$x=y\\tag{7}$$\n\n" +
-      "Padding for independent section navigation.\n\n".repeat(400) +
+      "Padding for long document navigation.\n\n".repeat(400) +
       "# Later reference\n\n$$\\eqref{first}$$\n\n$$(1)$$\n\n";
     await call("e2e_fixture", { action: "seed", text: source });
     const close = await browser.$$('.tabs button[aria-label^="Close "]');
@@ -5445,7 +5484,7 @@ describe("Math context policy", () => {
     await pane().$("button=Export HTML").waitForEnabled({ timeout: 60000 });
     await pane().$("button=Outline & find").click();
     await pane().$(".outline nav").$("button=Later reference").click();
-    await expect(pane().$("article h1")).toHaveText("Later reference");
+    await expectReadingHeading("Later reference");
     await pane().$("[data-rich] svg").waitForExist({ timeout: 30000 });
     await browser.waitUntil(
       async () => (await pane().$$("[data-rich] svg")).length >= 2,
@@ -5456,6 +5495,12 @@ describe("Math context policy", () => {
           ".document-tab:not([hidden]) article [data-rich] svg",
         ),
       ]
+        .filter(
+          (svg) =>
+            document
+              .querySelector(".document-tab:not([hidden]) #h-later-reference")
+              .compareDocumentPosition(svg) & Node.DOCUMENT_POSITION_FOLLOWING,
+        )
         .slice(0, 2)
         .map((svg) =>
           [...svg.querySelectorAll("path")].map((path) =>
@@ -5499,9 +5544,21 @@ describe("Arabic reading layout", () => {
       await pane().$(`button=${mode}`).click();
       await pane().$(".reader-scroll h1").waitForDisplayed({ timeout: 60000 });
       await pane().$("button=Export HTML").waitForEnabled({ timeout: 60000 });
+      await browser.tauri.execute(() =>
+        document
+          .querySelector(
+            ".document-tab:not([hidden]) .reader-scroll [data-rich]",
+          )
+          ?.scrollIntoView({ block: "center" }),
+      );
       await pane()
         .$(".reader-scroll [data-rich] :is(svg, .katex)")
         .waitForExist({ timeout: 30000 });
+      await browser.tauri.execute(() => {
+        document.querySelector(
+          ".document-tab:not([hidden]) .reader-scroll",
+        ).scrollTop = 0;
+      });
       for (const theme of ["light", "riwaq_day", "riwaq_night"]) {
         for (const size of [18, 24]) {
           await invoke("update_settings", {
@@ -5530,7 +5587,7 @@ describe("Arabic reading layout", () => {
             );
             host.scrollTop = 0;
             const paragraphs = [
-              ...host.querySelectorAll("section > p:not(.context-note)"),
+              ...host.querySelectorAll(".reader-chunk > p:not(.context-note)"),
             ];
             const arabic = paragraphs[0];
             const bounds = arabic.getBoundingClientRect();
@@ -5611,12 +5668,12 @@ describe("Arabic reading layout", () => {
                 host.querySelector("h2 a").parentElement,
               ),
               linkedParagraph: direction(
-                [...host.querySelectorAll("section > p")].find(
+                [...host.querySelectorAll(".reader-chunk > p")].find(
                   (p) => p.textContent === "فقرة عربية مرتبطة بالكامل",
                 ),
               ),
               linkedEnglish: direction(
-                [...host.querySelectorAll("section > p")].find(
+                [...host.querySelectorAll(".reader-chunk > p")].find(
                   (p) => p.textContent === "English label ثم كلمات عربية.",
                 ),
               ),
@@ -5702,11 +5759,13 @@ describe("Arabic reading layout", () => {
     }
     await pane().$("button=Read").click();
     await pane().$("button=Export HTML").waitForEnabled({ timeout: 60000 });
-    const section = pane().$('input[aria-label="Go to section"]');
-    const last = Number(await section.getAttribute("max"));
-    expect(last).toBeGreaterThan(200);
-    await section.setValue(String(last - 1));
-    await browser.keys("Tab");
+    await browser.tauri.execute(() => {
+      const host = document.querySelector(
+        ".document-tab:not([hidden]) .reader-scroll",
+      );
+      host.focus();
+    });
+    await browser.keys("End");
     await browser.waitUntil(() =>
       browser.tauri.execute(() =>
         [
@@ -5756,64 +5815,285 @@ describe("Arabic reading layout", () => {
   });
 });
 
-describe("Reader paging cost", () => {
-  it("keeps linked Arabic pages bounded and records native navigation latency", async () => {
-    const { readerPagingDocument } = await import("../fixtures/arabic.mjs");
-    const call = (command, args = {}) =>
-      browser.tauri.execute(
-        ({ core }, command, args) => core.invoke(command, args),
-        command,
-        args,
-      );
-    const fixture = await call("e2e_fixture", {
-      action: "seed",
-      text: readerPagingDocument,
-    });
-    const pane = () => browser.$(".document-tab:not([hidden])");
+describe("Continuous reader", () => {
+  const pane = () => browser.$(".document-tab:not([hidden])");
+  const call = (command, args = {}) =>
+    browser.tauri.execute(
+      ({ core }, command, args) => core.invoke(command, args),
+      command,
+      args,
+    );
+  async function open(text) {
+    const fixture = await call("e2e_fixture", { action: "seed", text });
     await pane().$("button.open-button").waitForEnabled({ timeout: 60000 });
     await pane().$("button.open-button").click();
     await pane().$("button=Read").waitForEnabled({ timeout: 60000 });
     await pane().$("button=Read").click();
     await pane().$("button=Export HTML").waitForEnabled({ timeout: 60000 });
+    return fixture;
+  }
+  it("keeps an ordinary note whole for native selection and preserves text on resize", async () => {
+    const text =
+      "# Continuous note\n\n" +
+      Array.from(
+        { length: 70 },
+        (_, i) => `Paragraph ${i}: ` + "ordinary readable text ".repeat(12),
+      ).join("\n\n");
+    await open(text);
+    await browser.waitUntil(() =>
+      browser.tauri.execute(() =>
+        document
+          .querySelector(".document-tab:not([hidden]) article")
+          ?.textContent.includes("Paragraph 69:"),
+      ),
+    );
+    expect(
+      await pane().$('nav[aria-label="Reader sections"]').isExisting(),
+    ).toBe(false);
+    const selected = await browser.tauri.execute(() => {
+      const host = document.querySelector(
+        ".document-tab:not([hidden]) article",
+      );
+      const paragraphs = host.querySelectorAll("p[data-source-line]");
+      const selection = getSelection();
+      const range = document.createRange();
+      range.setStart(paragraphs[0].firstChild, 0);
+      range.setEnd(paragraphs[69].firstChild, 13);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      return {
+        count: paragraphs.length,
+        text: selection.toString(),
+        chunks: host.querySelectorAll("[data-section]").length,
+      };
+    });
+    expect(selected.count).toBe(70);
+    expect(selected.chunks).toBeGreaterThan(3);
+    expect(selected.text).toContain("Paragraph 69:");
+    expect(selected.text).toContain("Paragraph 35:");
+    await browser.tauri.execute(() => getSelection().removeAllRanges());
+    const anchor = await browser.tauri.execute(() => {
+      const host = document.querySelector(
+        ".document-tab:not([hidden]) article",
+      );
+      const paragraph = [...host.querySelectorAll("p")].find((p) =>
+        p.textContent.startsWith("Paragraph 35:"),
+      );
+      host.scrollTop +=
+        paragraph.getBoundingClientRect().top -
+        host.getBoundingClientRect().top;
+      return {
+        text: paragraph.textContent,
+        offset:
+          paragraph.getBoundingClientRect().top -
+          host.getBoundingClientRect().top,
+      };
+    });
+    await call("update_settings", {
+      id: null,
+      scope: "session",
+      text: "$reader.font_size=22\n$reader.width=600\n",
+    });
+    await browser.pause(500);
+    const after = await browser.tauri.execute((_api, text) => {
+      const host = document.querySelector(
+        ".document-tab:not([hidden]) article",
+      );
+      const paragraph = [...host.querySelectorAll("p")].find(
+        (p) => p.textContent === text,
+      );
+      return (
+        paragraph.getBoundingClientRect().top - host.getBoundingClientRect().top
+      );
+    }, anchor.text);
+    expect(Math.abs(after - anchor.offset)).toBeLessThan(3);
+    await call("update_settings", { id: null, scope: "session", text: "" });
+  });
+  it("scrolls long Arabic notes continuously, finds offscreen text and copies the whole native revision", async () => {
+    const { readerFlowDocument } = await import("../fixtures/arabic.mjs");
+    const fixture = await open(readerFlowDocument);
     const samples = [];
-    for (const target of [3, 6, 9, 12, 15, 18, 21, 24, 27, 30]) {
-      const observation = await browser.tauri.execute(async (_api, target) => {
-        const pane = document.querySelector(".document-tab:not([hidden])");
-        const host = pane.querySelector(".reader-scroll");
-        const input = pane.querySelector('[aria-label="Go to section"]');
-        const before = host.firstElementChild;
-        const start = performance.now();
-        return new Promise((resolve, reject) => {
-          const timer = setTimeout(() => {
-            observer.disconnect();
-            reject(Error("Page replacement timed out"));
-          }, 30000);
-          const observer = new MutationObserver(() => {
-            const page = host.querySelector(
-              `section[data-section="${target}"]`,
+    for (const fraction of [0.2, 0.8, 1, 0.6, 0]) {
+      const started = performance.now();
+      await browser.tauri.execute((_api, fraction) => {
+        const host = document.querySelector(
+          ".document-tab:not([hidden]) .reader-scroll",
+        );
+        host.scrollTop = (host.scrollHeight - host.clientHeight) * fraction;
+        host.dispatchEvent(new Event("scroll"));
+      }, fraction);
+      await browser.waitUntil(
+        () =>
+          browser.tauri.execute(() => {
+            const host = document.querySelector(
+              ".document-tab:not([hidden]) .reader-scroll",
             );
-            if (!page || page === before) return;
-            observer.disconnect();
-            requestAnimationFrame(() =>
-              requestAnimationFrame(() => {
-                clearTimeout(timer);
-                resolve({
-                  ms: performance.now() - start,
-                  nodes: host.querySelectorAll("*").length,
-                });
-              }),
+            const top = host.getBoundingClientRect().top;
+            return [...host.querySelectorAll("[data-section]")].some(
+              (block) => {
+                const rect = block.getBoundingClientRect();
+                return rect.bottom > top && rect.top < top + host.clientHeight;
+              },
             );
-          });
-          observer.observe(host, { childList: true });
-          input.value = String(target + 1);
-          input.dispatchEvent(new Event("change", { bubbles: true }));
-        });
-      }, target);
-      expect(observation.nodes).toBeGreaterThan(100);
-      expect(observation.nodes).toBeLessThan(2500);
-      samples.push(observation);
+          }),
+        { timeout: 30000 },
+      );
+      const stats = await browser.tauri.execute(() => {
+        const host = document.querySelector(
+          ".document-tab:not([hidden]) .reader-scroll",
+        );
+        return {
+          nodes: host.querySelectorAll("*").length,
+          chunks: host.querySelectorAll("[data-section]").length,
+          extent: host.scrollHeight,
+          width: host.clientWidth,
+          height: host.clientHeight,
+        };
+      });
+      expect(stats.chunks).toBeLessThanOrEqual(25);
+      expect(stats.nodes).toBeLessThan(6000);
+      expect(stats.extent).toBeLessThan(8_100_000);
+      samples.push({ fraction, ms: performance.now() - started, ...stats });
     }
+    await pane().$("button=Outline & find").click();
+    await pane()
+      .$('input[aria-label="Find in document"]')
+      .setValue("Chapter 71");
+    await pane().$("button=Find").click();
+    await pane().$(".find-result").waitForDisplayed();
+    await pane().$(".find-result").click();
+    await browser.waitUntil(() =>
+      browser.tauri.execute(() =>
+        document
+          .querySelector(".document-tab:not([hidden]) article")
+          ?.textContent.includes("Chapter 71"),
+      ),
+    );
+    const selection = await browser.tauri.execute(() => {
+      const host = document.querySelector(
+        ".document-tab:not([hidden]) article",
+      );
+      const blocks = host.querySelectorAll("[data-section]");
+      const paragraphs = [...host.querySelectorAll("li")];
+      const range = document.createRange();
+      range.setStartBefore(paragraphs[0]);
+      range.setEndAfter(paragraphs.at(-1));
+      getSelection().removeAllRanges();
+      getSelection().addRange(range);
+      const text = getSelection().toString();
+      host.scrollTop -= host.clientHeight;
+      host.dispatchEvent(new Event("scroll"));
+      return { text, chunks: blocks.length };
+    });
+    expect(selection.chunks).toBeGreaterThan(1);
+    await browser.pause(300);
+    expect(await browser.tauri.execute(() => getSelection().toString())).toBe(
+      selection.text,
+    );
+    await browser.tauri.execute(() => {
+      getSelection().removeAllRanges();
+      window.readerCopyOriginal = Object.getOwnPropertyDescriptor(
+        navigator.clipboard,
+        "write",
+      );
+      Object.defineProperty(navigator.clipboard, "write", {
+        configurable: true,
+        value: async (items) => {
+          window.readerCopiedText = await (
+            await items[0].getType("text/plain")
+          ).text();
+        },
+      });
+    });
+    try {
+      if (await pane().$("button=Exit focus").isExisting())
+        await pane().$("button=Exit focus").click();
+      await pane().$("button=Copy document Markdown").click();
+      await browser.waitUntil(
+        () =>
+          browser.tauri.execute(
+            () => typeof window.readerCopiedText === "string",
+          ),
+        { timeout: 30000 },
+      );
+      expect(await browser.tauri.execute(() => window.readerCopiedText)).toBe(
+        readerFlowDocument,
+      );
+      await browser.tauri.execute(() => {
+        delete window.readerCopiedText;
+        document.querySelector(".document-tab:not([hidden]) article").focus();
+      });
+      await browser.keys([
+        process.platform === "darwin" ? "Meta" : "Control",
+        "a",
+      ]);
+      await browser.keys([
+        process.platform === "darwin" ? "Meta" : "Control",
+        "c",
+      ]);
+      await browser.waitUntil(
+        () =>
+          browser.tauri.execute(
+            () => typeof window.readerCopiedText === "string",
+          ),
+        { timeout: 30000 },
+      );
+      expect(await browser.tauri.execute(() => window.readerCopiedText)).toBe(
+        readerFlowDocument,
+      );
+    } finally {
+      await browser.tauri.execute(() => {
+        if (window.readerCopyOriginal)
+          Object.defineProperty(
+            navigator.clipboard,
+            "write",
+            window.readerCopyOriginal,
+          );
+        else delete navigator.clipboard.write;
+        delete window.readerCopyOriginal;
+        delete window.readerCopiedText;
+      });
+    }
+    await browser.tauri.execute(() => {
+      const buttons = [
+        ...document.querySelectorAll(
+          ".document-tab:not([hidden]) .outline nav button",
+        ),
+      ];
+      buttons.find((button) => button.textContent === "Chapter 20").click();
+      buttons.find((button) => button.textContent === "Chapter 0").click();
+    });
+    await expectReadingHeading("Chapter 0");
+    for (let step = 0; step < 12; step++) {
+      await browser.keys("PageDown");
+      await browser.tauri.execute(
+        () =>
+          new Promise((done) =>
+            requestAnimationFrame(() => requestAnimationFrame(done)),
+          ),
+      );
+    }
+    await browser.waitUntil(
+      () =>
+        browser.tauri.execute(() => {
+          const host = document.querySelector(
+            ".document-tab:not([hidden]) article",
+          );
+          return (
+            Number(host.querySelector("[data-section]")?.dataset.section) > 0 &&
+            host.contains(document.activeElement)
+          );
+        }),
+      {
+        timeout: 30000,
+        timeoutMsg:
+          "Keyboard scrolling lost focus while replacing offscreen content",
+      },
+    );
     const { readFile } = await import("node:fs/promises");
+    expect(await readFile(fixture.path)).toEqual(
+      Buffer.from(readerFlowDocument, "utf8"),
+    );
     const { createHash } = await import("node:crypto");
     const binarySha256 = createHash("sha256")
       .update(await readFile(desktopBinary("debug")))
@@ -5837,44 +6117,23 @@ describe("Reader paging cost", () => {
         2,
       ),
     );
-    const measured = samples
-      .slice(2)
-      .map((s) => s.ms)
-      .sort((a, b) => a - b);
     await writeFile(
-      "artifacts/reader-native-paging.json",
+      "artifacts/reader-native-continuous.json",
       JSON.stringify(
         {
-          scope:
-            "Debug native page replacement plus two rAF callbacks; includes IPC, parsing, sanitization and scheduling, not physical paint or startup",
           platform: process.platform,
           architecture: process.arch,
           binarySha256,
+          workloadSha256: createHash("sha256")
+            .update(readerFlowDocument)
+            .digest("hex"),
           label: process.env.MARKTUB_BENCH_LABEL ?? "ci",
+          scope:
+            "Debug native scroll, WebDriver/IPC polling and DOM bounds, not compositor paint or input latency",
           samples,
-          medianMs: measured[Math.floor(measured.length / 2)],
-          p95Ms: measured[Math.ceil(measured.length * 0.95) - 1],
         },
         null,
         2,
-      ),
-    );
-    expect(await readFile(fixture.path)).toEqual(
-      Buffer.from(readerPagingDocument, "utf8"),
-    );
-    await browser.tauri.execute(() => {
-      const input = document.querySelector(
-        '.document-tab:not([hidden]) [aria-label="Go to section"]',
-      );
-      input.value = "2.5";
-      input.dispatchEvent(new Event("change", { bubbles: true }));
-    });
-    await browser.waitUntil(() =>
-      browser.tauri.execute(
-        () =>
-          !!document.querySelector(
-            '.document-tab:not([hidden]) section[data-section="1"]',
-          ),
       ),
     );
   });
@@ -6018,6 +6277,33 @@ describe("TeX guide rendering", () => {
     const discard = browser.$('dialog[open] [id$="-discard-title"]');
     if (await discard.isDisplayed())
       await browser.$("button=Discard edits").click();
+    await browser.$("button=Export HTML").waitForEnabled({ timeout: 60000 });
+    const richCount = await browser.tauri.execute(
+      () =>
+        document.querySelectorAll(
+          ".document-tab:not([hidden]) .reader-scroll [data-rich]",
+        ).length,
+    );
+    for (let index = 0; index < richCount; index++) {
+      await browser.tauri.execute((_api, index) => {
+        document
+          .querySelectorAll(
+            ".document-tab:not([hidden]) .reader-scroll [data-rich]",
+          )
+          .item(index)
+          .scrollIntoView({ block: "center" });
+      }, index);
+      await browser.waitUntil(
+        () =>
+          browser.tauri.execute((_api, index) => {
+            const target = document.querySelectorAll(
+              ".document-tab:not([hidden]) .reader-scroll [data-rich]",
+            )[index];
+            return !!target?.querySelector("svg,.katex,.render-error");
+          }, index),
+        { timeout: 30000 },
+      );
+    }
     await browser.waitUntil(
       () =>
         browser.tauri.execute(
