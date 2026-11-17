@@ -266,7 +266,9 @@
       <p>
         Convert only this captured revision. Raw markup and external links are
         excluded. Choose image permissions explicitly. PDF export does not
-        enable document execution.
+        enable document execution. PDF uses the converter’s print layout and
+        installed fonts; use HTML export to preserve the reading theme and
+        bundled typography.
       </p>
       <div class="power-tools">
         <button disabled={busy || running} onclick={() => tool("pandoc")}

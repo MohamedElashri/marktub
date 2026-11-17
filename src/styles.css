@@ -336,7 +336,7 @@ main {
   padding: 0 8px;
 }
 .cm-live-heading {
-  font-family: Palatino, Georgia, serif;
+  font-family: var(--reader-heading-font, Palatino), Georgia, serif;
   font-size: 24px;
   font-weight: 600;
   line-height: 1.7;
@@ -1534,7 +1534,7 @@ textarea {
   font-size: 13px;
 }
 .preferences-specimen .specimen-title {
-  font: 21px var(--reader-font, serif);
+  font: 700 21px/1.8 var(--reader-heading-font, serif);
 }
 .preferences-specimen code {
   background: var(--code);
@@ -3078,4 +3078,12 @@ textarea {
 .search-result-open span {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+.preferences-specimen .specimen-body {
+  font-family: var(--reader-font, serif);
+  line-height: var(--reader-line-height, 1.75);
+}
+.riwaq-typography {
+  margin-block: 14px;
 }

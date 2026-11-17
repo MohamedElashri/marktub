@@ -95,7 +95,10 @@ and file operations. Quick Open filters filenames as you type; choose **File
 contents** to search text, then use the arrow keys and Enter to open a result.
 
 Drag tabs to arrange them, resize the Library with its divider, and use **Settings**
-to preview themes, fonts and layout changes before applying them. The built-in
+to preview themes, fonts and layout changes before applying them. Riwaq Day/Night
+add cream or navy with gold accents; **Use Riwaq typography** applies Arabic fonts
+separately. Open fonts are bundled; installed Thmanyah is supported. HTML exports
+preserve the reading appearance. The built-in
 **Guide** demonstrates formatting, math, diagrams, images, review and local tools.
 
 <details>

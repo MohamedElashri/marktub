@@ -5,6 +5,7 @@
   import type { Read, Section, Heading, Page } from "./model";
   import { sanitizeReader, safeLink } from "./safe";
   import { hydrate, clearRichCache } from "../renderers/rich";
+  import { themes, type Values } from "../preferences";
   import { exportStandalone } from "./standalone";
   let {
     read,
@@ -23,6 +24,8 @@
     title = "Document",
     revision = "Saved snapshot",
     operationBusy = false,
+    presentation = {},
+    dark = false,
     onpreference,
     preferences = { theme: "system", width: 760, size: 18 },
   }: {
@@ -44,6 +47,8 @@
     title?: string;
     revision?: string;
     operationBusy?: boolean;
+    presentation?: Values;
+    dark?: boolean;
     onpreference: (key: string, value: string) => void;
     preferences?: { theme: string; width: number; size: number };
   } = $props();
@@ -311,7 +316,7 @@
     }
     exporting = true;
     try {
-      await exportStandalone(client, title, revision);
+      await exportStandalone(client, title, revision, presentation, dark);
       notice = "HTML export completed.";
     } catch (e) {
       onerror(String(e));
@@ -340,12 +345,19 @@
       ...host.querySelectorAll("h1,h2,h3,p,pre,table,blockquote"),
     ].find((node) => node.getBoundingClientRect().bottom > top);
     const offset = node ? node.getBoundingClientRect().top - top : 0;
+    let restored = false,
+      expected = 0;
     return () => {
-      if (node?.isConnected)
+      // A delayed font load must not undo scrolling since the first restore.
+      if (restored && Math.abs(host.scrollTop - expected) > 1) return;
+      if (node?.isConnected) {
         host.scrollTop +=
           node.getBoundingClientRect().top -
           host.getBoundingClientRect().top -
           offset;
+        expected = host.scrollTop;
+        restored = true;
+      }
     };
   }
   export function navigation() {
@@ -431,13 +443,10 @@
           aria-label="Reading theme"
           value={preferences.theme}
           onchange={(e) => onpreference("theme", e.currentTarget.value)}
-          ><option value="system">Follow system</option><option value="light"
-            >Light</option
-          ><option value="paper">Parchment</option><option value="dark"
-            >Dark</option
-          ><option value="midnight">Ink</option><option value="custom"
-            >Custom</option
-          ></select
+          ><option value="system">Follow system</option
+          >{#each Object.entries(themes) as [key, theme] (key)}<option
+              value={key}>{theme.label}</option
+            >{/each}<option value="custom">Custom</option></select
         ></label
       >
       <label

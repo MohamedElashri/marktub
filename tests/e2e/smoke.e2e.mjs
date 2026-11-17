@@ -1751,7 +1751,7 @@ describe("Preferences and commands", () => {
     ).toBe(before.text);
     await invoke("update_settings", { id: null, scope: "session", text: "" });
   });
-  it("previews all four themes and typography while preserving Source node, caret, dirty state and byte-exact undo", async () => {
+  it("previews color schemes and Riwaq typography while preserving Source node, caret, dirty state and byte-exact undo", async () => {
     await invoke("e2e_fixture", { action: "seed", text: original });
     await pane().$("button.open-button").waitForEnabled();
     await pane().$("button.open-button").click();
@@ -1775,6 +1775,8 @@ describe("Preferences and commands", () => {
       ["Parchment", "#fbf5e9"],
       ["Dark", "#202127"],
       ["Ink", "#17202c"],
+      ["Riwaq Day", "#faf6ee"],
+      ["Riwaq Night", "#1a1a2e"],
     ]) {
       await prefs().$(`button[aria-label="Use ${label} theme"]`).click();
       await browser.waitUntil(
@@ -1786,6 +1788,32 @@ describe("Preferences and commands", () => {
           )) === hex,
       );
     }
+    const fontsBeforePreset = await browser.tauri.execute(() =>
+      document
+        .querySelector(".document-tab:not([hidden]) .window-shell")
+        .style.getPropertyValue("--source-font"),
+    );
+    expect(fontsBeforePreset).not.toContain("Cousine");
+    await prefs().$("button=Use Riwaq typography").click();
+    await browser.waitUntil(async () =>
+      (
+        await browser.tauri.execute(() =>
+          document
+            .querySelector(".document-tab:not([hidden]) .window-shell")
+            .style.getPropertyValue("--source-font"),
+        )
+      ).includes("Cousine"),
+    );
+    await browser.saveScreenshot("artifacts/native-riwaq-settings.png");
+    await prefs().$("button=Revert changes").click();
+    await browser.waitUntil(
+      async () =>
+        (await browser.tauri.execute(() =>
+          document
+            .querySelector(".document-tab:not([hidden]) .window-shell")
+            .style.getPropertyValue("--source-font"),
+        )) === fontsBeforePreset,
+    );
     await prefs()
       .$('input[aria-label="Search preferences"]')
       .setValue("Source size");
@@ -1829,8 +1857,22 @@ describe("Preferences and commands", () => {
     await advanced(
       "$theme=dark\n$editor.font_size=17\n$editor.wrap=false\n$ui.scale=110\n$reader.line_height=190",
     );
+    await prefs().$("button=Appearance").click();
+    await prefs().$('button[aria-label="Use Riwaq Night theme"]').click();
+    await prefs().$("button=Use Riwaq typography").click();
+    await prefs().$("button=Apply settings").waitForEnabled({ timeout: 60000 });
     await prefs().$("button=Apply settings").click();
     await prefs().waitForDisplayed({ reverse: true });
+    const appliedTypography = await invoke("get_settings", {
+      id: null,
+      scope: "session",
+    });
+    expect(appliedTypography.resolved.theme.value).toBe("riwaq_night");
+    expect(appliedTypography.resolved["editor.font"].value).toBe("Cousine");
+    expect(["Amiri", "Thmanyah Serif Display"]).toContain(
+      appliedTypography.resolved["reader.heading_font"].value,
+    );
+    expect(appliedTypography.resolved["editor.font_size"].value).toBe(17);
     expect(
       await browser.tauri.execute(
         () =>
@@ -5069,181 +5111,201 @@ describe("Arabic reading layout", () => {
       await pane()
         .$(".reader-scroll [data-rich] :is(svg, .katex)")
         .waitForExist({ timeout: 30000 });
-      for (const size of [18, 24]) {
-        await invoke("update_settings", {
-          id: null,
-          scope: "session",
-          text: `$reader.font_size=${size}\n$reader.line_height=${size === 18 ? 175 : 200}`,
-        });
-        await browser.waitUntil(() =>
-          browser.tauri.execute(
-            (_api, size) =>
-              getComputedStyle(
-                document.querySelector(
-                  ".document-tab:not([hidden]) .reader-scroll",
-                ),
-              ).fontSize === `${size}px`,
-            size,
-          ),
-        );
-        const layout = await browser.tauri.execute(async () => {
-          await document.fonts.ready;
-          await new Promise((done) =>
-            requestAnimationFrame(() => requestAnimationFrame(done)),
+      for (const theme of ["light", "riwaq_day", "riwaq_night"]) {
+        for (const size of [18, 24]) {
+          await invoke("update_settings", {
+            id: null,
+            scope: "session",
+            text: `$theme=${theme}\n$reader.font_size=${size}\n$reader.line_height=${size === 18 ? 175 : 200}${theme === "light" ? "" : '\n$reader.font="Noto Naskh Arabic"\n$reader.heading_font="Amiri"\n$ui.font="Noto Sans Arabic"\n$editor.font="Cousine"'}`,
+          });
+          await browser.waitUntil(() =>
+            browser.tauri.execute(
+              (_api, size) =>
+                getComputedStyle(
+                  document.querySelector(
+                    ".document-tab:not([hidden]) .reader-scroll",
+                  ),
+                ).fontSize === `${size}px`,
+              size,
+            ),
           );
-          const host = document.querySelector(
-            ".document-tab:not([hidden]) .reader-scroll",
-          );
-          host.scrollTop = 0;
-          const paragraphs = [
-            ...host.querySelectorAll("section > p:not(.context-note)"),
-          ];
-          const arabic = paragraphs[0];
-          const bounds = arabic.getBoundingClientRect();
-          const range = document.createRange();
-          range.selectNodeContents(arabic);
-          const rows = new Map();
-          for (const rect of range.getClientRects()) {
-            if (!rect.width) continue;
-            const key = rect.top.toFixed(2);
-            rows.set(key, Math.max(rows.get(key) ?? -Infinity, rect.right));
-          }
-          let splitWords = 0,
-            clippedWords = 0,
-            words = 0;
-          for (const paragraph of paragraphs) {
-            const box = paragraph.getBoundingClientRect();
-            const walker = document.createTreeWalker(
-              paragraph,
-              NodeFilter.SHOW_TEXT,
+          const layout = await browser.tauri.execute(async () => {
+            await document.fonts.ready;
+            await new Promise((done) =>
+              requestAnimationFrame(() => requestAnimationFrame(done)),
             );
-            while (walker.nextNode()) {
-              const text = walker.currentNode;
-              for (const match of text.textContent.matchAll(
-                /[\p{L}\p{M}]+/gu,
-              )) {
-                if (!/\p{Script=Arabic}/u.test(match[0])) continue;
-                range.setStart(text, match.index);
-                range.setEnd(text, match.index + match[0].length);
-                const rects = [...range.getClientRects()].filter(
-                  (r) => r.width > 0,
-                );
-                const lineHeight = parseFloat(
-                  getComputedStyle(paragraph).lineHeight,
-                );
-                const centers = rects.map((r) => (r.top + r.bottom) / 2);
-                if (
-                  Math.max(...centers) - Math.min(...centers) >
-                  lineHeight / 2
-                )
-                  splitWords++;
-                if (
-                  rects.some(
-                    (r) => r.left < box.left - 1 || r.right > box.right + 1,
+            const host = document.querySelector(
+              ".document-tab:not([hidden]) .reader-scroll",
+            );
+            host.scrollTop = 0;
+            const paragraphs = [
+              ...host.querySelectorAll("section > p:not(.context-note)"),
+            ];
+            const arabic = paragraphs[0];
+            const bounds = arabic.getBoundingClientRect();
+            const range = document.createRange();
+            range.selectNodeContents(arabic);
+            const rows = new Map();
+            for (const rect of range.getClientRects()) {
+              if (!rect.width) continue;
+              const key = rect.top.toFixed(2);
+              rows.set(key, Math.max(rows.get(key) ?? -Infinity, rect.right));
+            }
+            let splitWords = 0,
+              clippedWords = 0,
+              words = 0;
+            for (const paragraph of paragraphs) {
+              const box = paragraph.getBoundingClientRect();
+              const walker = document.createTreeWalker(
+                paragraph,
+                NodeFilter.SHOW_TEXT,
+              );
+              while (walker.nextNode()) {
+                const text = walker.currentNode;
+                for (const match of text.textContent.matchAll(
+                  /[\p{L}\p{M}]+/gu,
+                )) {
+                  if (!/\p{Script=Arabic}/u.test(match[0])) continue;
+                  range.setStart(text, match.index);
+                  range.setEnd(text, match.index + match[0].length);
+                  const rects = [...range.getClientRects()].filter(
+                    (r) => r.width > 0,
+                  );
+                  const lineHeight = parseFloat(
+                    getComputedStyle(paragraph).lineHeight,
+                  );
+                  const centers = rects.map((r) => (r.top + r.bottom) / 2);
+                  if (
+                    Math.max(...centers) - Math.min(...centers) >
+                    lineHeight / 2
                   )
-                )
-                  clippedWords++;
-                words++;
+                    splitWords++;
+                  if (
+                    rects.some(
+                      (r) => r.left < box.left - 1 || r.right > box.right + 1,
+                    )
+                  )
+                    clippedWords++;
+                  words++;
+                }
               }
             }
-          }
-          const direction = (node) => getComputedStyle(node).direction;
-          const quote = host.querySelector("blockquote");
-          return {
-            paragraphDirections: paragraphs.slice(0, 4).map(direction),
-            lineCount: rows.size,
-            rightEdgeError: Math.max(
-              ...[...rows.values()].map((right) =>
-                Math.abs(right - bounds.right),
+            const direction = (node) => getComputedStyle(node).direction;
+            const quote = host.querySelector("blockquote");
+            return {
+              headingFont: getComputedStyle(host.querySelector("h1"))
+                .fontFamily,
+              loadedFonts: [...document.fonts]
+                .filter((f) => f.status === "loaded")
+                .map((f) => f.family.replaceAll('"', "")),
+              paragraphDirections: paragraphs.slice(0, 4).map(direction),
+              lineCount: rows.size,
+              rightEdgeError: Math.max(
+                ...[...rows.values()].map((right) =>
+                  Math.abs(right - bounds.right),
+                ),
               ),
-            ),
-            words,
-            splitWords,
-            clippedWords,
-            width: bounds.width,
-            overflow: host.scrollWidth > host.clientWidth + 1,
-            codeDirections: [
-              ...host.querySelectorAll("code, pre:has(code)"),
-            ].map(direction),
-            linkDirections: [...paragraphs[1].querySelectorAll("a")].map(
-              direction,
-            ),
-            linkedHeading: direction(host.querySelector("h2 a").parentElement),
-            linkedParagraph: direction(
-              [...host.querySelectorAll("section > p")].find(
-                (p) => p.textContent === "فقرة عربية مرتبطة بالكامل",
+              words,
+              splitWords,
+              clippedWords,
+              width: bounds.width,
+              overflow: host.scrollWidth > host.clientWidth + 1,
+              codeDirections: [
+                ...host.querySelectorAll("code, pre:has(code)"),
+              ].map(direction),
+              linkDirections: [...paragraphs[1].querySelectorAll("a")].map(
+                direction,
               ),
-            ),
-            linkedEnglish: direction(
-              [...host.querySelectorAll("section > p")].find(
-                (p) => p.textContent === "English label ثم كلمات عربية.",
+              linkedHeading: direction(
+                host.querySelector("h2 a").parentElement,
               ),
-            ),
-            calloutDirection: direction(host.querySelector(".callout p")),
-            calloutText: host.querySelector(".callout p").textContent,
-            tableAlignment: [...host.querySelectorAll("th")].map(
-              (n) => getComputedStyle(n).textAlign,
-            ),
-            listDirections: [...host.querySelectorAll("li")].map(direction),
-            quoteDirection: direction(quote),
-            quoteBorders: [
-              getComputedStyle(quote).borderLeftWidth,
-              getComputedStyle(quote).borderRightWidth,
-            ],
-            tableDirections: [...host.querySelectorAll("th")].map(direction),
-          };
-        });
-        observations.push({ mode, size, ...layout });
-        await writeFile(
-          "artifacts/arabic-reading-layout.json",
-          JSON.stringify(observations, null, 2),
-        );
-        await browser.saveScreenshot(
-          `artifacts/arabic-${mode.toLowerCase()}-${size}.png`,
-        );
-        expect(layout.linkedHeading).toBe("rtl");
-        expect(layout.linkedParagraph).toBe("rtl");
-        expect(layout.linkedEnglish).toBe("ltr");
-        expect(layout.calloutDirection).toBe("rtl");
-        expect(layout.calloutText).not.toContain("[!NOTE]");
-        expect(layout.tableAlignment).toEqual(["start", "center", "right"]);
-        expect(layout.paragraphDirections).toEqual([
-          "rtl",
-          "rtl",
-          "ltr",
-          "rtl",
-        ]);
-        expect(layout.lineCount).toBeGreaterThan(10);
-        expect(layout.rightEdgeError).toBeLessThanOrEqual(1);
-        expect(layout.words).toBeGreaterThan(200);
-        expect(layout.splitWords).toBe(0);
-        expect(layout.clippedWords).toBe(0);
-        expect(layout.overflow).toBe(false);
-        expect(layout.codeDirections.length).toBeGreaterThan(3);
-        expect(layout.codeDirections.every((d) => d === "ltr")).toBe(true);
-        expect(layout.linkDirections).toEqual(["rtl", "ltr"]);
-        expect(layout.listDirections).toEqual([
-          "rtl",
-          "ltr",
-          "rtl",
-          "rtl",
-          "rtl",
-          "rtl",
-          "ltr",
-          "rtl",
-          "rtl",
-          "ltr",
-        ]);
-        expect(layout.quoteDirection).toBe("rtl");
-        expect(layout.quoteBorders).toEqual(["0px", "2px"]);
-        expect(layout.tableDirections).toEqual(["rtl", "ltr", "rtl"]);
-        if (mode === "Read" && size === 18) {
-          await browser.tauri.execute(() =>
-            document
-              .querySelector(".document-tab:not([hidden]) .reader-scroll ul")
-              .scrollIntoView({ block: "start" }),
+              linkedParagraph: direction(
+                [...host.querySelectorAll("section > p")].find(
+                  (p) => p.textContent === "فقرة عربية مرتبطة بالكامل",
+                ),
+              ),
+              linkedEnglish: direction(
+                [...host.querySelectorAll("section > p")].find(
+                  (p) => p.textContent === "English label ثم كلمات عربية.",
+                ),
+              ),
+              calloutDirection: direction(host.querySelector(".callout p")),
+              calloutText: host.querySelector(".callout p").textContent,
+              tableAlignment: [...host.querySelectorAll("th")].map(
+                (n) => getComputedStyle(n).textAlign,
+              ),
+              listDirections: [...host.querySelectorAll("li")].map(direction),
+              quoteDirection: direction(quote),
+              quoteBorders: [
+                getComputedStyle(quote).borderLeftWidth,
+                getComputedStyle(quote).borderRightWidth,
+              ],
+              tableDirections: [...host.querySelectorAll("th")].map(direction),
+            };
+          });
+          observations.push({ mode, size, theme, ...layout });
+          await writeFile(
+            "artifacts/arabic-reading-layout.json",
+            JSON.stringify(observations, null, 2),
           );
-          await browser.saveScreenshot("artifacts/arabic-lists-and-quote.png");
+          await browser.saveScreenshot(
+            `artifacts/native-arabic-${theme}-${mode.toLowerCase()}-${size}.png`,
+          );
+          if (theme !== "light") {
+            expect(layout.headingFont).toContain("Amiri");
+            for (const font of [
+              "Noto Naskh Arabic",
+              "Noto Sans Arabic",
+              "Amiri",
+            ])
+              expect(layout.loadedFonts).toContain(font);
+          }
+          expect(layout.linkedHeading).toBe("rtl");
+          expect(layout.linkedParagraph).toBe("rtl");
+          expect(layout.linkedEnglish).toBe("ltr");
+          expect(layout.calloutDirection).toBe("rtl");
+          expect(layout.calloutText).not.toContain("[!NOTE]");
+          expect(layout.tableAlignment).toEqual(["start", "center", "right"]);
+          expect(layout.paragraphDirections).toEqual([
+            "rtl",
+            "rtl",
+            "ltr",
+            "rtl",
+          ]);
+          expect(layout.lineCount).toBeGreaterThan(10);
+          expect(layout.rightEdgeError).toBeLessThanOrEqual(1);
+          expect(layout.words).toBeGreaterThan(200);
+          expect(layout.splitWords).toBe(0);
+          expect(layout.clippedWords).toBe(0);
+          expect(layout.overflow).toBe(false);
+          expect(layout.codeDirections.length).toBeGreaterThan(3);
+          expect(layout.codeDirections.every((d) => d === "ltr")).toBe(true);
+          expect(layout.linkDirections).toEqual(["rtl", "ltr"]);
+          expect(layout.listDirections).toEqual([
+            "rtl",
+            "ltr",
+            "rtl",
+            "rtl",
+            "rtl",
+            "rtl",
+            "ltr",
+            "rtl",
+            "rtl",
+            "ltr",
+          ]);
+          expect(layout.quoteDirection).toBe("rtl");
+          expect(layout.quoteBorders).toEqual(["0px", "2px"]);
+          expect(layout.tableDirections).toEqual(["rtl", "ltr", "rtl"]);
+          if (mode === "Read" && size === 18 && theme === "light") {
+            await browser.tauri.execute(() =>
+              document
+                .querySelector(".document-tab:not([hidden]) .reader-scroll ul")
+                .scrollIntoView({ block: "start" }),
+            );
+            await browser.saveScreenshot(
+              "artifacts/arabic-lists-and-quote.png",
+            );
+          }
         }
       }
     }
@@ -5286,6 +5348,10 @@ describe("Arabic reading layout", () => {
     expect(html).not.toContain("<script");
     expect(html).not.toContain('lang="en"');
     expect(html).toContain("فصل 240");
+    expect(html).toContain("--paper:#1a1a2e");
+    expect(html).toContain("data:font/ttf;base64,");
+    expect(html).toContain('font-family:"Amiri"');
+    expect(html).not.toMatch(/url\((?!data:)/);
     expect(await readFile(fixture.path)).toEqual(
       Buffer.from(longArabicDocument, "utf8"),
     );

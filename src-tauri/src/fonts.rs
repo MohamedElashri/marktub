@@ -1,4 +1,4 @@
-//! Font names only; never a font path, download or file bridge.
+//! Bundled and installed family names only; never a font path, download or file bridge.
 use std::collections::BTreeSet;
 pub fn families() -> Vec<String> {
     let mut names = BTreeSet::from([
@@ -6,9 +6,20 @@ pub fn families() -> Vec<String> {
         "System Mono".into(),
         "Serif".into(),
         "Sans Serif".into(),
+        "Noto Naskh Arabic".into(),
+        "Noto Sans Arabic".into(),
+        "Amiri".into(),
+        "Cousine".into(),
     ]);
-    platform(&mut names);
-    names.into_iter().take(512).collect()
+    let mut installed = BTreeSet::new();
+    platform(&mut installed);
+    for name in installed {
+        if names.len() >= 512 {
+            break;
+        }
+        names.insert(name);
+    }
+    names.into_iter().collect()
 }
 #[cfg(target_os = "macos")]
 fn platform(names: &mut BTreeSet<String>) {

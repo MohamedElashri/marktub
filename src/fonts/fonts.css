@@ -1,0 +1,53 @@
+/* Browser font faces load only when used; every source is a bundled asset. */
+@font-face {
+  font-family: "Noto Naskh Arabic";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("./assets/NotoNaskhArabic[wght].ttf") format("truetype");
+}
+@font-face {
+  font-family: "Noto Sans Arabic";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("./assets/NotoSansArabic[wdth,wght].ttf") format("truetype");
+}
+@font-face {
+  font-family: "Amiri";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./assets/Amiri-Regular.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Amiri";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("./assets/Amiri-Bold.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Cousine";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./assets/Cousine-Regular.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Cousine";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("./assets/Cousine-Bold.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Marktub Arabic";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("./assets/NotoNaskhArabic[wght].ttf") format("truetype");
+  unicode-range:
+    U+0600-06FF, U+0750-077F, U+0870-08FF, U+FB50-FDFF, U+FE70-FEFF,
+    U+10EC0-10EFF, U+1EE00-1EEFF;
+}

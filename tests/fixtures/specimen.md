@@ -58,6 +58,11 @@ preview before applying it. Turn off document preview to compare with your saved
 appearance. **Revert changes** restores the draft; **Cancel** leaves saved
 settings alone.
 
+Riwaq Day and Night offer cream or navy with gold accents. **Use Riwaq typography**
+sets reading, heading, interface and code fonts separately from the color scheme.
+Open Arabic fonts are bundled; installed Thmanyah is supported. HTML export keeps
+the reading theme and embeds the bundled fonts. PDF uses the converter’s print layout.
+
 Choose whether settings apply to the app, a selected workspace, one file, or
 only this session. The Markdown document stays unchanged. Shortcuts and library
 width are app-wide or session-only. Reading and Source have separate typography

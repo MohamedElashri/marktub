@@ -334,7 +334,16 @@
         value("theme", "system"),
       );
     }
-    void tick().then(() => restore?.());
+    let canceled = false;
+    void tick().then(async () => {
+      if (canceled) return;
+      restore?.();
+      await window.document.fonts.ready;
+      if (!canceled) restore?.();
+    });
+    return () => {
+      canceled = true;
+    };
   });
   export async function sourceLineAt(line: number) {
     await switchMode("source");
@@ -1477,6 +1486,8 @@
                 sourceLine={(byte) => editor?.lineAtByte(byte) ?? 1}
                 onsource={previewAnchor}
                 operationBusy={busy}
+                presentation={displayed}
+                dark={$osDark}
                 start={readerStart}
                 anchorId={readerAnchor}
                 onpreference={preference}
