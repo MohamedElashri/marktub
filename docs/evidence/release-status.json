@@ -3,6 +3,59 @@
   "date": "2026-11-16",
   "version": "0.1.2",
   "status": "Desktop, package and advisory checks passed",
+  "candidateQualification": {
+    "date": "2026-11-17",
+    "status": "pass; unreleased candidate",
+    "sourceCommit": "47771673470b9a3aa1beacb98a394bfa0632e2f1",
+    "hostedCI": {
+      "run": 44130422519,
+      "url": "https://github.com/MohamedElashri/marktub/actions/runs/44130422519",
+      "linux": "pass",
+      "macOS": "pass",
+      "advisories": "pass"
+    },
+    "tests": {
+      "frontend": 820,
+      "nodeTooling": 18,
+      "pythonTooling": 37,
+      "rustLinux": 172,
+      "rustMacOS": 163,
+      "rustIgnoredPerPlatform": 6,
+      "nativeLinuxX11": 71,
+      "nativeLinuxWayland": 12,
+      "nativeMacOS": 70
+    },
+    "security": {
+      "javascriptProduction": 0,
+      "javascriptAll": 0,
+      "rustVulnerabilities": 0,
+      "rustWarnings": {},
+      "deny": ["unsound", "unmaintained"],
+      "ignores": [],
+      "rustAdvisoryDatabaseCommit": "233155b4025b854c68a4b199c0e32d7fd53291a2",
+      "dependencyOverrides": "pass; reviewed source/patch hashes, native serialization and compiler diagnostics"
+    },
+    "waylandScope": "Actual GDK Wayland/WebKitGTK under Weston 13 with an X11-backed input seat and Pixman renderer. Existing native keyboard-focus assertions remain mandatory. Does not certify GNOME activation policy, physical input/IME/accessibility or input-to-paint latency.",
+    "pdfFonts": "Native export validates embedded static Amiri regular/bold and Cousine, preserved Markdown bytes and focus after closing the owned viewer. Isolated Linux Typst 0.14.2/0.15.1 font probes pass without warnings. System fonts remain the default; bundled mode is explicit and process/output limits are unchanged.",
+    "packages": {
+      "ubuntu": {
+        "status": "pass; production DEB, installation, native desktop integration and normal-release isolation",
+        "binarySha256": "2ac0c50264a4a5143b407dbdbdbd0b0a3d11444d757ed31a88358587a4fd79ad"
+      },
+      "macOS": {
+        "status": "pass; universal desktop app/DMG, strict ad-hoc signature, resource/platform checks and normal-release isolation",
+        "binarySha256": "1b927e5d43a6f9db7aa128e43a1508f573dd361286fd4e69fc0e9d3fd232efde",
+        "architectures": ["x86_64", "arm64"],
+        "platform": "MACOS",
+        "runtimeScope": "runner-native ARM64 only"
+      }
+    },
+    "localNormalDebug": {
+      "status": "pass; rebuilt after E2E and checked for test hooks, permissions and dependencies; not release-package qualification",
+      "binarySha256": "a3c13899ef1e47eec1341d3bb43ab4b45d70f6ca8b9785b78eabcc5a155a815b"
+    },
+    "scope": "Results bind to the referenced tested candidate. This later qualification-record edit changes no runtime source, manifests, dependency locks or bundled resources. Published-release facts and remainingQualifications elsewhere in this record retain their original scope."
+  },
   "source": {
     "qualifiedCommit": "eea4a6dfeed2b0e5d375805371ce04f2690c4ccd",
     "qualifiedTree": "1abb7624b60156b04b0dc370a9e6f288256abde0",
