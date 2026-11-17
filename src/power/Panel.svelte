@@ -6,11 +6,13 @@
   let {
     oncapture,
     onsettle,
+    oncopy,
     hasSaved = true,
     hasWorking = false,
   }: {
     oncapture: (saved: boolean) => Promise<api.Capture>;
     onsettle: (capture: api.Capture) => Promise<void>;
+    oncopy: () => Promise<api.Capture | null>;
     hasSaved?: boolean;
     hasWorking?: boolean;
   } = $props();
@@ -114,6 +116,61 @@
     data?.tools.filter((t) => t.role === role).at(-1)?.id ?? null;
   const rootId = (kind: api.Kind) =>
     data?.roots.filter((r) => r.kind === kind).at(-1)?.id ?? null;
+  const shellSteps = $derived(
+    block?.kind === "shell"
+      ? [
+          ...(!capture?.executable
+            ? ["Save your own copy of this example before running it."]
+            : []),
+          ...(!data?.shell ? ["Enable shell for this session."] : []),
+          ...(!rootId("shell")
+            ? ["Trust the folder containing your saved document for shell."]
+            : []),
+          ...(!toolId("shell")
+            ? ["Choose an installed shell (sh, bash or zsh)."]
+            : []),
+        ]
+      : [],
+  );
+  const sqlSteps = $derived(
+    block?.kind === "sqlite"
+      ? [
+          ...(!capture?.executable
+            ? ["Save your own copy of this example before running it."]
+            : []),
+          ...(!data?.sqlite ? ["Enable SQLite for this session."] : []),
+          ...(!rootId("sqlite")
+            ? ["Trust the folder containing your saved document for SQLite."]
+            : []),
+          ...(!data?.databases.length
+            ? [
+                "Choose a local SQLite database. Read-only queries do not need a separate SQL tool.",
+              ]
+            : []),
+        ]
+      : [],
+  );
+  async function saveCopy() {
+    await action(async () => {
+      const previous = block;
+      const next = await oncopy();
+      if (!next) {
+        notice = "No runnable copy was saved. You can try Save As again.";
+        return;
+      }
+      if (capture) await api.release(capture.id);
+      capture = next;
+      saved = false;
+      selected =
+        next.blocks.find(
+          (b) => b.kind === previous?.kind && b.line === previous?.line,
+        )?.id ??
+        next.blocks[0]?.id ??
+        "";
+      notice =
+        "Saved and captured your copy. Complete the setup below, then review the code before running.";
+    });
+  }
   async function start(mode: api.Mode) {
     if (!capture || busy || running) return;
     await action(async () => {
@@ -156,9 +213,12 @@
         block: block?.id ?? null,
         root: kind ? rootId(kind) : null,
         database: data?.databases.at(-1)?.id ?? null,
-        tool: toolId(
-          mode === "pdf" ? "typst" : kind === "shell" ? "shell" : "tex",
-        ),
+        tool:
+          kind === "sqlite"
+            ? null
+            : toolId(
+                mode === "pdf" ? "typst" : kind === "shell" ? "shell" : "tex",
+              ),
         pandoc: toolId("pandoc"),
         mode,
         toc,
@@ -408,6 +468,30 @@
             >{/each}</select
         ></label
       >
+      {#if block?.kind === "shell" && shellSteps.length}
+        <div aria-label="Shell setup required" role="status">
+          <p>Before running this shell block:</p>
+          <ul>
+            {#each shellSteps as step (step)}<li>{step}</li>{/each}
+          </ul>
+          {#if !capture?.executable}<button
+              disabled={busy || running}
+              onclick={saveCopy}>Save a runnable copy…</button
+            >{/if}
+        </div>
+      {/if}
+      {#if block?.kind === "sqlite" && sqlSteps.length}
+        <div aria-label="SQLite setup required" role="status">
+          <p>Before running this SQL block:</p>
+          <ul>
+            {#each sqlSteps as step (step)}<li>{step}</li>{/each}
+          </ul>
+          {#if !capture?.executable}<button
+              disabled={busy || running}
+              onclick={saveCopy}>Save a runnable copy…</button
+            >{/if}
+        </div>
+      {/if}
       {#if block}<textarea
           aria-label="Captured code"
           readonly
@@ -431,7 +515,9 @@
           disabled={busy ||
             running ||
             !capture?.executable ||
-            !data?.[block.kind]}
+            !data?.[block.kind] ||
+            (block.kind === "shell" && shellSteps.length > 0) ||
+            (block.kind === "sqlite" && sqlSteps.length > 0)}
           onclick={() =>
             start(
               block!.kind === "sqlite"
