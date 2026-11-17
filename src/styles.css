@@ -685,7 +685,9 @@ select {
   border-bottom: 0;
   color: var(--quiet);
 }
-:root[data-reading-focus="true"] .reader-controls > span {
+:root[data-reading-focus="true"]
+  .reader-controls
+  > span[data-context-ready="true"] {
   display: none;
 }
 .reader-scroll.prose {

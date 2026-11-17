@@ -61,6 +61,7 @@
   let sections = $state<Section[]>([]),
     headings = $state<Heading[]>([]),
     complete = $state(false),
+    contextReady = $state(false),
     scanned = $state(0),
     total = $state(0),
     at = $state(0),
@@ -96,6 +97,9 @@
   let forceWindow = false;
   let deferredRefresh = false;
   let loadingSection: number | null = null;
+  let loadingJump = false,
+    loadingIntent = 0,
+    intentSerial = 0;
   let observer: ResizeObserver | undefined;
   let richObserver: IntersectionObserver | undefined;
   let frame = 0,
@@ -136,14 +140,16 @@
   }
   function visibleAnchor() {
     if (!host) return null;
-    const top = host.getBoundingClientRect().top;
+    const { top, bottom } = host.getBoundingClientRect();
+    const intersects = (node: HTMLElement) => {
+      const rect = node.getBoundingClientRect();
+      return rect.bottom > top && rect.top < bottom;
+    };
     const node =
       [...host.querySelectorAll<HTMLElement>("[data-source-line]")].find(
-        (node) => node.getBoundingClientRect().bottom > top,
+        intersects,
       ) ??
-      [...host.querySelectorAll<HTMLElement>(".reader-chunk")].find(
-        (node) => node.getBoundingClientRect().bottom > top,
-      );
+      [...host.querySelectorAll<HTMLElement>(".reader-chunk")].find(intersects);
     return node
       ? {
           node,
@@ -152,6 +158,24 @@
           offset: node.getBoundingClientRect().top - top,
         }
       : null;
+  }
+  let expectedScroll = 0;
+  function moveTo(top: number) {
+    host.scrollTop = top;
+    expectedScroll = host.scrollTop;
+  }
+  function viewportIndex() {
+    const anchor = visibleAnchor();
+    if (anchor?.section !== undefined) return Number(anchor.section);
+    const padding = Number.parseFloat(getComputedStyle(host).paddingTop) || 0;
+    return layout.atScroll(Math.max(0, host.scrollTop - padding), from, to);
+  }
+  function scrolled() {
+    // Native scrollbar drags and external reveals have no wheel/key event.
+    // Distinguish them from our own Source/layout synchronization by position.
+    if (Math.abs(host.scrollTop - expectedScroll) > 1) intent();
+    expectedScroll = host.scrollTop;
+    scheduleScroll();
   }
   function restoreVisible(saved: ReturnType<typeof visibleAnchor>) {
     if (!saved) return;
@@ -162,10 +186,12 @@
         ? block?.querySelector(`[data-source-line="${saved.line}"]`)
         : block;
     if (node)
-      host.scrollTop +=
-        node.getBoundingClientRect().top -
-        host.getBoundingClientRect().top -
-        saved.offset;
+      moveTo(
+        host.scrollTop +
+          node.getBoundingClientRect().top -
+          host.getBoundingClientRect().top -
+          saved.offset,
+      );
   }
   function selected() {
     const selection = document.getSelection();
@@ -214,7 +240,14 @@
     const epoch = ++request;
     const current = client;
     loadingSection = target;
-    const saved = jump ? null : visibleAnchor();
+    loadingJump = jump;
+    const navigation = (loadingIntent = intentSerial);
+    let saved = jump ? null : visibleAnchor();
+    const scrollAtStart = host.scrollTop;
+    const atEnd = () =>
+      host.scrollTop > 0 &&
+      host.scrollHeight - host.clientHeight - host.scrollTop < 2;
+    let keepEnd = atEnd();
     const values: typeof pages = [];
     let bytes = 0;
     try {
@@ -237,6 +270,17 @@
         values.push({ index: i, page: value });
       }
       if (epoch !== request || current !== client) return;
+      if (jump && navigation !== intentSerial) {
+        if (sourceTarget) return false;
+        return await show(viewportIndex(), false, refresh);
+      }
+      if (!jump && Math.abs(host.scrollTop - scrollAtStart) > 1) {
+        saved = visibleAnchor();
+        keepEnd = atEnd();
+        const destination = viewportIndex();
+        if (!values.some((value) => value.index === destination))
+          return await show(destination, false, refresh);
+      }
       // Selection may begin while native reads are in flight. Revalidate at
       // commit, not only when choosing the requested window.
       if (!jump && selected()) {
@@ -277,6 +321,7 @@
       spacers();
       await tick();
       if (epoch !== request || current !== client) return;
+      expectedScroll = host.scrollTop;
       observeBlocks();
       await measureBlocks(null);
       if (epoch !== request || current !== client) return;
@@ -286,7 +331,9 @@
         syncUntil = performance.now() + 200;
         scrollWithin(host.querySelector(`[data-section="${target}"]`));
         onposition(sections[target].start, anchor());
-      } else restoreVisible(saved);
+      } else if (keepEnd) moveTo(host.scrollHeight);
+      else if (saved) restoreVisible(saved);
+      else scrollWithin(host.querySelector(`[data-section="${target}"]`));
       rememberAnchor();
       ondisplay();
       await alignSource(false);
@@ -302,6 +349,8 @@
     } finally {
       if (epoch === request) {
         loadingSection = null;
+        contextReady =
+          complete && pages.every((item) => !item.page.provisional);
         if (sourceTarget) void alignSource();
       }
     }
@@ -344,6 +393,7 @@
     await tick();
     measuring = false;
     if (!client) return;
+    expectedScroll = host.scrollTop;
     restoreVisible(saved);
     rememberAnchor();
     scheduleScroll();
@@ -351,9 +401,14 @@
   const richSources = new WeakMap<HTMLElement, string>();
   // eslint-disable-next-line svelte/prefer-svelte-reactivity -- DOM retention accounting is not UI state.
   const richBytes = new Map<HTMLElement, { html: string; bytes: number }>();
-  let hydrating = false;
+  let hydrating = false,
+    hydrationPending = false;
   async function hydrateVisible() {
-    if (hydrating || !client || !host) return;
+    if (!client || !host) return;
+    if (hydrating) {
+      hydrationPending = true;
+      return;
+    }
     hydrating = true;
     const current = client;
     try {
@@ -431,6 +486,10 @@
       if (current === client) onerror(String(e));
     } finally {
       hydrating = false;
+      if (hydrationPending && client) {
+        hydrationPending = false;
+        scheduleScroll();
+      }
     }
   }
   function scheduleScroll() {
@@ -444,9 +503,7 @@
       const block = blocks.find((b) => b.getBoundingClientRect().bottom > top);
       const inside =
         block && block.getBoundingClientRect().top <= top + host.clientHeight;
-      const index = inside
-        ? Number(block.dataset.section)
-        : layout.atScroll(Math.max(0, host.scrollTop - 30), from, to);
+      const index = inside ? Number(block.dataset.section) : viewportIndex();
       if (at !== index) {
         at = index;
         onposition(sections[index]?.start ?? 0, anchor());
@@ -462,23 +519,27 @@
   }
   function scrollWithin(node: Element | null, center = false) {
     if (!node) return;
-    host.scrollTop +=
-      node.getBoundingClientRect().top -
-      host.getBoundingClientRect().top -
-      (center
-        ? host.clientHeight / 2 - node.getBoundingClientRect().height / 2
-        : 0);
+    moveTo(
+      host.scrollTop +
+        node.getBoundingClientRect().top -
+        host.getBoundingClientRect().top -
+        (center
+          ? host.clientHeight / 2 - node.getBoundingClientRect().height / 2
+          : 0),
+    );
   }
-  async function goHeading(heading: Heading) {
-    intent();
+  async function goHeading(heading: Heading, interactive = true) {
+    if (interactive) intent();
     if (!(await show(heading.section))) return;
     activeAnchor = heading.id;
     const destination = host.querySelector<HTMLElement>(
       `#${CSS.escape(heading.id)}`,
     );
     if (destination) {
-      destination.tabIndex = -1;
-      destination.focus({ preventScroll: true });
+      if (interactive) {
+        destination.tabIndex = -1;
+        destination.focus({ preventScroll: true });
+      }
       scrollWithin(destination);
     }
     onposition(sections[at].start, heading.id);
@@ -509,6 +570,7 @@
   let manualScroll = false;
   let sourceTarget: { line: number; fraction: number } | null = null;
   function intent() {
+    intentSerial++;
     syncUntil = 0;
     sourceTarget = null;
     manualScroll = true;
@@ -522,6 +584,7 @@
     else onerror("The saved section is not yet indexed.");
   }
   export async function revealSource(line: number, fraction = 0) {
+    intentSerial++;
     activeAnchor = null;
     sourceTarget = { line, fraction };
     manualScroll = false;
@@ -569,10 +632,12 @@
       0,
       Math.min(1, (local - start + fraction) / Math.max(1, end - start)),
     );
-    host.scrollTop +=
-      node.getBoundingClientRect().top -
-      host.getBoundingClientRect().top +
-      ratio * node.getBoundingClientRect().height;
+    moveTo(
+      host.scrollTop +
+        node.getBoundingClientRect().top -
+        host.getBoundingClientRect().top +
+        ratio * node.getBoundingClientRect().height,
+    );
     syncUntil = performance.now() + 200;
   }
   function sourceAnchor(node: HTMLElement, clicked = false, ratio = 0) {
@@ -607,7 +672,11 @@
     }
   }
   async function copyDocument() {
-    if (!client || !complete || copying) return;
+    if (!client || !complete) {
+      notice = "Wait for document indexing before copying the whole document.";
+      return;
+    }
+    if (copying) return;
     copying = true;
     const current = client;
     const revision = contextEpoch;
@@ -690,12 +759,13 @@
               : event.key === "ArrowDown"
                 ? 40
                 : -40;
-        host.scrollTop =
+        moveTo(
           event.key === "Home"
             ? 0
             : event.key === "End"
               ? host.scrollHeight
-              : host.scrollTop + delta;
+              : host.scrollTop + delta,
+        );
         scheduleScroll();
       }
     }
@@ -809,8 +879,8 @@
     } else notice = "This anchor is not indexed.";
   }
   export async function exportHtml() {
-    if (!client || !complete) {
-      notice = "Wait for the document context scan before exporting.";
+    if (!client || !complete || !contextReady) {
+      notice = "Wait for the reading view to finalize before exporting.";
       return;
     }
     exporting = true;
@@ -850,10 +920,12 @@
       // A delayed font load must not undo scrolling since the first restore.
       if (restored && Math.abs(host.scrollTop - expected) > 1) return;
       if (node?.isConnected) {
-        host.scrollTop +=
-          node.getBoundingClientRect().top -
-          host.getBoundingClientRect().top -
-          offset;
+        moveTo(
+          host.scrollTop +
+            node.getBoundingClientRect().top -
+            host.getBoundingClientRect().top -
+            offset,
+        );
         expected = host.scrollTop;
         restored = true;
       }
@@ -901,7 +973,14 @@
         scanned = update.scanned;
         total = update.total;
         layout.resize(sections);
-        if (complete && !wasComplete) contextEpoch++;
+        if (complete && !wasComplete) {
+          contextEpoch++;
+          contextReady = false;
+        }
+        if (complete && !sections.length) {
+          contextReady = true;
+          ondisplay();
+        }
         for (const [key, value] of cache) {
           if ((complete && !wasComplete) || key >= (update.replaceFrom ?? 0)) {
             cacheBytes -= pageSize(value);
@@ -930,19 +1009,30 @@
                     h.title === restoreAnchor.replace(/^h-/, ""),
                 )
               : undefined;
-            if (heading) void goHeading(heading);
+            if (heading) void goHeading(heading, false);
             else void show(Math.max(0, found));
           }
         } else if (complete && !wasComplete) {
-          const restoredHeading = restoreAnchor
-            ? headings.find(
-                (h) =>
-                  h.id === restoreAnchor ||
-                  h.title === restoreAnchor.replace(/^h-/, ""),
-              )
-            : undefined;
-          if (restoredHeading) void goHeading(restoredHeading);
-          else void show(at, false, true);
+          const restoredHeading =
+            !manualScroll && restoreAnchor
+              ? headings.find(
+                  (h) =>
+                    h.id === restoreAnchor ||
+                    h.title === restoreAnchor.replace(/^h-/, ""),
+                )
+              : undefined;
+          if (restoredHeading) void goHeading(restoredHeading, false);
+          else {
+            const pending =
+              loadingJump && loadingIntent === intentSerial
+                ? loadingSection
+                : null;
+            void show(
+              pending ?? (pages.length ? viewportIndex() : at),
+              pending !== null,
+              true,
+            );
+          }
         }
       },
       onerror,
@@ -975,7 +1065,7 @@
     >
     <button
       onclick={exportHtml}
-      disabled={!complete || exporting || operationBusy}
+      disabled={!complete || !contextReady || exporting || operationBusy}
       >{exporting ? "Exporting…" : "Export HTML"}</button
     >
     {#if !focus}
@@ -1022,9 +1112,11 @@
         onclick={() => onedit?.(sections[at]?.start ?? 0)}
         disabled={operationBusy}>Edit here</button
       >{/if}
-    <span role="status"
+    <span role="status" data-context-ready={contextReady}
       >{complete
-        ? "Document ready"
+        ? contextReady
+          ? "Document ready"
+          : "Finalizing reading view…"
         : `Resolving document context · ${total ? Math.round((scanned / total) * 100) : 0}%`}</span
     >
   </div>
@@ -1075,7 +1167,7 @@
       bind:this={host}
       aria-label="Markdown reader"
       onclick={click}
-      onscroll={scheduleScroll}
+      onscroll={scrolled}
       tabindex="0"
       class:document-selected={allSelected}
       aria-describedby={whole ? undefined : helpId}
@@ -1101,9 +1193,6 @@
           class="reader-chunk"
           data-section={item.index}
         >
-          {#if item.page.provisional}<p class="context-note">
-              Provisional: forward definitions are still being indexed.
-            </p>{/if}
           {#if item.page.fallback}<p class="context-note">
               {item.page.fallback}
             </p>{/if}
@@ -1116,7 +1205,9 @@
         style:height={`${after}px`}
       ></div>
       {#if !pages.length}<p role="status">
-          {complete ? "This document is empty." : "Opening document…"}
+          {complete && !sections.length
+            ? "This document is empty."
+            : "Opening document…"}
         </p>{/if}
     </article>
   </div>

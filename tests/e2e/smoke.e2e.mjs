@@ -5912,6 +5912,76 @@ describe("Continuous reader", () => {
   it("scrolls long Arabic notes continuously, finds offscreen text and copies the whole native revision", async () => {
     const { readerFlowDocument } = await import("../fixtures/arabic.mjs");
     const fixture = await open(readerFlowDocument);
+    // Delay the actual worker transport to make a late viewport commit race
+    // deterministic. Parsing stays in the real WebView worker; document reads
+    // still use the native backend.
+    await browser.tauri.execute(() => {
+      const original = Worker.prototype.postMessage;
+      window.readerOriginalPost = original;
+      window.readerDelayedRequests = 0;
+      Worker.prototype.postMessage = function (message, ...args) {
+        const send = () => original.call(this, message, ...args);
+        if (message.type === "page") {
+          window.readerDelayedRequests++;
+          setTimeout(() => {
+            try {
+              send();
+            } catch {
+              /* Retired fixture worker. */
+            }
+          }, 120);
+        } else send();
+      };
+      const host = document.querySelector(
+        ".document-tab:not([hidden]) article",
+      );
+      const last = [...host.querySelectorAll("[data-section]")].at(-1);
+      window.readerInitialLast = Number(last.dataset.section);
+      host.scrollTop +=
+        last.getBoundingClientRect().top -
+        host.getBoundingClientRect().top +
+        10;
+      host.dispatchEvent(new Event("scroll"));
+    });
+    try {
+      await browser.waitUntil(() =>
+        browser.tauri.execute(() => window.readerDelayedRequests > 0),
+      );
+      await browser.tauri.execute(() => {
+        const host = document.querySelector(
+          ".document-tab:not([hidden]) article",
+        );
+        host.scrollTop = (host.scrollHeight - host.clientHeight) * 0.8;
+        host.dispatchEvent(new Event("scroll"));
+      });
+      await browser.waitUntil(
+        () =>
+          browser.tauri.execute(() => {
+            const host = document.querySelector(
+              ".document-tab:not([hidden]) article",
+            );
+            const top = host.getBoundingClientRect().top;
+            return [...host.querySelectorAll("[data-section]")].some(
+              (node) =>
+                Number(node.dataset.section) > window.readerInitialLast + 10 &&
+                node.getBoundingClientRect().bottom > top &&
+                node.getBoundingClientRect().top < top + host.clientHeight,
+            );
+          }),
+        {
+          timeout: 30000,
+          timeoutMsg:
+            "A delayed window commit rewound the newer scroll position",
+        },
+      );
+    } finally {
+      await browser.tauri.execute(() => {
+        Worker.prototype.postMessage = window.readerOriginalPost;
+        delete window.readerOriginalPost;
+        delete window.readerDelayedRequests;
+        delete window.readerInitialLast;
+      });
+    }
     const samples = [];
     for (const fraction of [0.2, 0.8, 1, 0.6, 0]) {
       const started = performance.now();
