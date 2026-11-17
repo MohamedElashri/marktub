@@ -19,6 +19,7 @@ class DependencyOverrides(unittest.TestCase):
         vendor.mkdir(parents=True)
         (vendor / "Cargo.toml").write_text('[package]\nname="example"\nversion="1.0.0"\n')
         (self.root / "src-tauri/Cargo.toml").write_text('[package]\nversion="0.1.0"\n[patch.crates-io]\nexample={path="vendor/example"}\n')
+        (self.root / "src-tauri/Cargo.lock").write_text('version=4\n')
         (self.root / "package.json").write_text('{"version":"0.1.0"}')
         (self.root / "src-tauri/tauri.conf.json").write_text('{}')
         (self.root / "patches").mkdir()
@@ -55,6 +56,11 @@ class DependencyOverrides(unittest.TestCase):
     def test_unreviewed_local_package_is_rejected(self):
         self.metadata["packages"].append({"name": "extra", "source": None, "manifest_path": str(self.root / "extra/Cargo.toml")})
         with self.assertRaisesRegex(AssertionError, "unreviewed local package"):
+            checker.validate(self.root, self.metadata)
+
+    def test_inactive_unmaintained_lock_entry_is_rejected(self):
+        (self.root / "src-tauri/Cargo.lock").write_text('version=4\n[[package]]\nname="chrono"\nversion="0.4.45"\n')
+        with self.assertRaisesRegex(AssertionError, "Unmaintained implementation returned to the lockfile"):
             checker.validate(self.root, self.metadata)
 
 

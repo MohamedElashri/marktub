@@ -55,3 +55,4 @@ glib = { path = "vendor/glib" }
 glib-macros = { path = "vendor/glib-macros" }
 gtk3-macros = { path = "vendor/gtk3-macros" }
 tauri-plugin-single-instance = { path = "vendor/tauri-plugin-single-instance" }
+serde_with = { path = "vendor/serde_with" }

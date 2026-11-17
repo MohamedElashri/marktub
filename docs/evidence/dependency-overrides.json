@@ -886,6 +886,292 @@
         "RUSTSEC-2026-0371",
         "RUSTSEC-2026-0372"
       ]
+    },
+    {
+      "name": "serde_with",
+      "version": "3.24.0",
+      "upstream": "https://crates.io/crates/serde_with/3.24.0",
+      "repository": "https://github.com/jonasbb/serde_with",
+      "archiveSha256": "df9adc193c780ef8f159aee8b61e2d5801aaa555e6eb0947fe45530ec506296f",
+      "vcs": "35ac84c8faf34d6822991bbf2397056994c9208b",
+      "path": "src-tauri/vendor/serde_with",
+      "patch": "patches/serde_with.patch",
+      "patchSha256": "72be12f3e7f6f35b3352940cb743e10a7df478d182af3b32e94f2b40e3b04bfc",
+      "files": [
+        {
+          "path": "Cargo.toml",
+          "upstreamPath": "Cargo.toml",
+          "upstreamSha256": "ec3188653ce42a7090c697617d67150c1dd141fb525e48d21774fc3883a0bd69",
+          "sha256": "561a87771fedbe8e952c27e52e42d5c4f3f4265a73fb0237c08274dffc9e21e1"
+        },
+        {
+          "path": "LICENSE-APACHE",
+          "upstreamPath": "LICENSE-APACHE",
+          "upstreamSha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "path": "LICENSE-MIT",
+          "upstreamPath": "LICENSE-MIT",
+          "upstreamSha256": "7576269ea71f767b99297934c0b2367532690f8c4badc695edf8e04ab6a1e545",
+          "sha256": "7576269ea71f767b99297934c0b2367532690f8c4badc695edf8e04ab6a1e545"
+        },
+        {
+          "path": "README.txt",
+          "upstreamPath": "README.md",
+          "upstreamSha256": "74b3eb13458961c0de8a11c83a7f5a51a502ea8f9bb9a04bed0865be9fa1d86e",
+          "sha256": "74b3eb13458961c0de8a11c83a7f5a51a502ea8f9bb9a04bed0865be9fa1d86e"
+        },
+        {
+          "path": "src/base58.rs",
+          "upstreamPath": "src/base58.rs",
+          "upstreamSha256": "00f2141dc4f7dfa5b75e162388441c52999de8e54dda646349b57d809773e867",
+          "sha256": "00f2141dc4f7dfa5b75e162388441c52999de8e54dda646349b57d809773e867"
+        },
+        {
+          "path": "src/base64.rs",
+          "upstreamPath": "src/base64.rs",
+          "upstreamSha256": "b1c17ed7517bfe4e79cfdd621dd543b661f53ac84d692c952a9380efe9261194",
+          "sha256": "b1c17ed7517bfe4e79cfdd621dd543b661f53ac84d692c952a9380efe9261194"
+        },
+        {
+          "path": "src/chrono_0_4.rs",
+          "upstreamPath": "src/chrono_0_4.rs",
+          "upstreamSha256": "b93cfa70eb4d10c8f611d031eae6f61debeeacba15720651477babf5bbb3a79d",
+          "sha256": "b93cfa70eb4d10c8f611d031eae6f61debeeacba15720651477babf5bbb3a79d"
+        },
+        {
+          "path": "src/content/de.rs",
+          "upstreamPath": "src/content/de.rs",
+          "upstreamSha256": "30c4011ad0fdf1be707cc6aab0c6800377d87a13a78b2e81627a2565c17cf118",
+          "sha256": "30c4011ad0fdf1be707cc6aab0c6800377d87a13a78b2e81627a2565c17cf118"
+        },
+        {
+          "path": "src/content/mod.rs",
+          "upstreamPath": "src/content/mod.rs",
+          "upstreamSha256": "3b59e68ce424b82432d8e72b74227c74de0a944485a828f20620b5e10427532b",
+          "sha256": "3b59e68ce424b82432d8e72b74227c74de0a944485a828f20620b5e10427532b"
+        },
+        {
+          "path": "src/content/ser.rs",
+          "upstreamPath": "src/content/ser.rs",
+          "upstreamSha256": "f7ae6c9c090fb00f16b6ab3f2d992e92d75b7bb604f0d5774df5820c0584e20c",
+          "sha256": "f7ae6c9c090fb00f16b6ab3f2d992e92d75b7bb604f0d5774df5820c0584e20c"
+        },
+        {
+          "path": "src/de/duplicates.rs",
+          "upstreamPath": "src/de/duplicates.rs",
+          "upstreamSha256": "3759417649846b4f4c94b5e711b3dd3b8d5ae2948f18740001b8ac9cc4ceb86c",
+          "sha256": "3759417649846b4f4c94b5e711b3dd3b8d5ae2948f18740001b8ac9cc4ceb86c"
+        },
+        {
+          "path": "src/de/impls.rs",
+          "upstreamPath": "src/de/impls.rs",
+          "upstreamSha256": "25a405638a60f64d36ec69b48799df196c9c8cb0490fbe6236447e836cafb823",
+          "sha256": "25a405638a60f64d36ec69b48799df196c9c8cb0490fbe6236447e836cafb823"
+        },
+        {
+          "path": "src/de/mod.rs",
+          "upstreamPath": "src/de/mod.rs",
+          "upstreamSha256": "4f159908016cdacdf6449ae19f2ae5be4652804501da013c3ddd092fe87cdaa2",
+          "sha256": "4f159908016cdacdf6449ae19f2ae5be4652804501da013c3ddd092fe87cdaa2"
+        },
+        {
+          "path": "src/de/skip_error.rs",
+          "upstreamPath": "src/de/skip_error.rs",
+          "upstreamSha256": "748e3770df07f003b3999aad4faa7ef67bcc7645c82e90551a98fc5a501b248d",
+          "sha256": "748e3770df07f003b3999aad4faa7ef67bcc7645c82e90551a98fc5a501b248d"
+        },
+        {
+          "path": "src/duplicate_key_impls/error_on_duplicate.rs",
+          "upstreamPath": "src/duplicate_key_impls/error_on_duplicate.rs",
+          "upstreamSha256": "4968370e589bc6675c1096991f4f4ed212f9b81cb11864a4dd87e508a4efeaee",
+          "sha256": "4968370e589bc6675c1096991f4f4ed212f9b81cb11864a4dd87e508a4efeaee"
+        },
+        {
+          "path": "src/duplicate_key_impls/first_value_wins.rs",
+          "upstreamPath": "src/duplicate_key_impls/first_value_wins.rs",
+          "upstreamSha256": "45d7fadb6749fe18ae920b12fe96034c416b560b2f44c5b3ec9e9c96a108793f",
+          "sha256": "45d7fadb6749fe18ae920b12fe96034c416b560b2f44c5b3ec9e9c96a108793f"
+        },
+        {
+          "path": "src/duplicate_key_impls/last_value_wins.rs",
+          "upstreamPath": "src/duplicate_key_impls/last_value_wins.rs",
+          "upstreamSha256": "528db664120a6d9e702640641c4c61b35b1fbd1bd91ef188eea704c1a95584f3",
+          "sha256": "528db664120a6d9e702640641c4c61b35b1fbd1bd91ef188eea704c1a95584f3"
+        },
+        {
+          "path": "src/duplicate_key_impls/mod.rs",
+          "upstreamPath": "src/duplicate_key_impls/mod.rs",
+          "upstreamSha256": "6b162013a3cbf6c09d2285fac14dc71930834e97065a2319aa56864838613449",
+          "sha256": "6b162013a3cbf6c09d2285fac14dc71930834e97065a2319aa56864838613449"
+        },
+        {
+          "path": "src/enum_map.rs",
+          "upstreamPath": "src/enum_map.rs",
+          "upstreamSha256": "e54e96ba703cd073edf3c3369c8f27b6ad5b1ed96e5866834aaefb338ed1e334",
+          "sha256": "e54e96ba703cd073edf3c3369c8f27b6ad5b1ed96e5866834aaefb338ed1e334"
+        },
+        {
+          "path": "src/flatten_maybe.rs",
+          "upstreamPath": "src/flatten_maybe.rs",
+          "upstreamSha256": "4f3d488d44299c782d44ff0f8001947bafdcb8e26504fda5e5c9ed237973cede",
+          "sha256": "4f3d488d44299c782d44ff0f8001947bafdcb8e26504fda5e5c9ed237973cede"
+        },
+        {
+          "path": "src/formats.rs",
+          "upstreamPath": "src/formats.rs",
+          "upstreamSha256": "e3cf084cb2bf9f8649e1cc923a920767b4baf957c491fe87fbfbec2abe0f0507",
+          "sha256": "e3cf084cb2bf9f8649e1cc923a920767b4baf957c491fe87fbfbec2abe0f0507"
+        },
+        {
+          "path": "src/guide.txt",
+          "upstreamPath": "src/guide.md",
+          "upstreamSha256": "67b999e2aee4c6453a080cbfd28554f4ae0028a6c5bf73f2ae9f2d77bf3735f2",
+          "sha256": "67b999e2aee4c6453a080cbfd28554f4ae0028a6c5bf73f2ae9f2d77bf3735f2"
+        },
+        {
+          "path": "src/guide/feature_flags.rs",
+          "upstreamPath": "src/guide/feature_flags.rs",
+          "upstreamSha256": "45545ab64923990bdc6a3f9bf5cf43b636638e8a4f4b57740916b199d5935793",
+          "sha256": "45545ab64923990bdc6a3f9bf5cf43b636638e8a4f4b57740916b199d5935793"
+        },
+        {
+          "path": "src/guide/serde_as.txt",
+          "upstreamPath": "src/guide/serde_as.md",
+          "upstreamSha256": "f5afe407820b5d4a25d9bf15e73d0ab6870cde94ca24035af7da17f9fc4f5603",
+          "sha256": "f5afe407820b5d4a25d9bf15e73d0ab6870cde94ca24035af7da17f9fc4f5603"
+        },
+        {
+          "path": "src/guide/serde_as_transformations.txt",
+          "upstreamPath": "src/guide/serde_as_transformations.md",
+          "upstreamSha256": "5199dcfcc17f0fa139a1cae71a6dce23b47deffa08184101fc4f11c1d7d2fcc8",
+          "sha256": "5199dcfcc17f0fa139a1cae71a6dce23b47deffa08184101fc4f11c1d7d2fcc8"
+        },
+        {
+          "path": "src/hex.rs",
+          "upstreamPath": "src/hex.rs",
+          "upstreamSha256": "003ee2988e3f1c37d173bc5f9c065dfa6c58bf5833afa3740d0090fe07eaabe2",
+          "sha256": "003ee2988e3f1c37d173bc5f9c065dfa6c58bf5833afa3740d0090fe07eaabe2"
+        },
+        {
+          "path": "src/jiff_0_2.rs",
+          "upstreamPath": "src/jiff_0_2.rs",
+          "upstreamSha256": "26b7d3b4376c98c14fb68792a0a4b6157f0c25309cde5ad8b6280eea1f51b3db",
+          "sha256": "26b7d3b4376c98c14fb68792a0a4b6157f0c25309cde5ad8b6280eea1f51b3db"
+        },
+        {
+          "path": "src/json.rs",
+          "upstreamPath": "src/json.rs",
+          "upstreamSha256": "3221fa36ee62ee6716a16961acf6fd5138f73a9ead66ae9e30c2ae957e769547",
+          "sha256": "3221fa36ee62ee6716a16961acf6fd5138f73a9ead66ae9e30c2ae957e769547"
+        },
+        {
+          "path": "src/key_value_map.rs",
+          "upstreamPath": "src/key_value_map.rs",
+          "upstreamSha256": "5f8e839c64081b473342f0158f243c5a0aec4a3b57c02043988ab652a520c794",
+          "sha256": "5f8e839c64081b473342f0158f243c5a0aec4a3b57c02043988ab652a520c794"
+        },
+        {
+          "path": "src/lib.rs",
+          "upstreamPath": "src/lib.rs",
+          "upstreamSha256": "9d0b7aaad3594797b8dbef5f601f3455d373a803ef900e710b6d1971bdc707a0",
+          "sha256": "c06ec75682e03931723292f812bfa49d14d19b457dbf22c35efd1c0a03aedb8c"
+        },
+        {
+          "path": "src/rust.rs",
+          "upstreamPath": "src/rust.rs",
+          "upstreamSha256": "f0e8d8f753d1ba4a98d92bc236b2ca611f24818fb6eb0db6e6b360bd9f85ff50",
+          "sha256": "f0e8d8f753d1ba4a98d92bc236b2ca611f24818fb6eb0db6e6b360bd9f85ff50"
+        },
+        {
+          "path": "src/schemars_0_8.rs",
+          "upstreamPath": "src/schemars_0_8.rs",
+          "upstreamSha256": "351727c88ac0bd9a62b18b71fda5fd38a0ef07ae9cc1cb68876cec68880036bc",
+          "sha256": "351727c88ac0bd9a62b18b71fda5fd38a0ef07ae9cc1cb68876cec68880036bc"
+        },
+        {
+          "path": "src/schemars_0_9.rs",
+          "upstreamPath": "src/schemars_0_9.rs",
+          "upstreamSha256": "fa188be3719e511dd074db966b3c585c6cedbb04027337e36e34f3cb7fa306db",
+          "sha256": "fa188be3719e511dd074db966b3c585c6cedbb04027337e36e34f3cb7fa306db"
+        },
+        {
+          "path": "src/schemars_1.rs",
+          "upstreamPath": "src/schemars_1.rs",
+          "upstreamSha256": "dd81725d6cf95dc64c99cbe3e2124d9ff53ca01c51be75aae0ab4d9cbe382429",
+          "sha256": "dd81725d6cf95dc64c99cbe3e2124d9ff53ca01c51be75aae0ab4d9cbe382429"
+        },
+        {
+          "path": "src/ser/duplicates.rs",
+          "upstreamPath": "src/ser/duplicates.rs",
+          "upstreamSha256": "fdca05efa0648c99222741e2680fd12bd8a3a92fa9fedbda7e8ab998cd411c93",
+          "sha256": "fdca05efa0648c99222741e2680fd12bd8a3a92fa9fedbda7e8ab998cd411c93"
+        },
+        {
+          "path": "src/ser/impls.rs",
+          "upstreamPath": "src/ser/impls.rs",
+          "upstreamSha256": "7670e7c73b10aaf4d0972f6255b2d5058d33a57888cd9b70d0303fb33a745a7f",
+          "sha256": "7670e7c73b10aaf4d0972f6255b2d5058d33a57888cd9b70d0303fb33a745a7f"
+        },
+        {
+          "path": "src/ser/mod.rs",
+          "upstreamPath": "src/ser/mod.rs",
+          "upstreamSha256": "af7f921311a1acd75aface918f0e472de9621b2d67aff98065480264fffb86bb",
+          "sha256": "af7f921311a1acd75aface918f0e472de9621b2d67aff98065480264fffb86bb"
+        },
+        {
+          "path": "src/ser/skip_error.rs",
+          "upstreamPath": "src/ser/skip_error.rs",
+          "upstreamSha256": "eb6289f6d82656df64ef8fbb44d54c68a6d894708691073e5467d1375303d95c",
+          "sha256": "eb6289f6d82656df64ef8fbb44d54c68a6d894708691073e5467d1375303d95c"
+        },
+        {
+          "path": "src/serde_conv.rs",
+          "upstreamPath": "src/serde_conv.rs",
+          "upstreamSha256": "0d3c5548ccf36424e56a614eb9bb0748ad125afc7cdfbc8a8d4ddc57836385e5",
+          "sha256": "0d3c5548ccf36424e56a614eb9bb0748ad125afc7cdfbc8a8d4ddc57836385e5"
+        },
+        {
+          "path": "src/time_0_3.rs",
+          "upstreamPath": "src/time_0_3.rs",
+          "upstreamSha256": "ced8526dfe78931accdc9bdeaa271fadf09d3caedd5e4703770dfddcf94f4f8e",
+          "sha256": "ced8526dfe78931accdc9bdeaa271fadf09d3caedd5e4703770dfddcf94f4f8e"
+        },
+        {
+          "path": "src/utils.rs",
+          "upstreamPath": "src/utils.rs",
+          "upstreamSha256": "cb11bc2d2e0a16bb1e58f69f71a025f41f3694d097c173d94eb5b2546ed968fb",
+          "sha256": "cb11bc2d2e0a16bb1e58f69f71a025f41f3694d097c173d94eb5b2546ed968fb"
+        },
+        {
+          "path": "src/utils/duration.rs",
+          "upstreamPath": "src/utils/duration.rs",
+          "upstreamSha256": "c0997976c65eb31e6709e0854f8aa4fdc9c31ead416255d47ef372790ef83b9c",
+          "sha256": "c0997976c65eb31e6709e0854f8aa4fdc9c31ead416255d47ef372790ef83b9c"
+        },
+        {
+          "path": "src/with_prefix.rs",
+          "upstreamPath": "src/with_prefix.rs",
+          "upstreamSha256": "57e2ab9e89070e57223cdcf8df729f1ad77d0c5a224307dc1cf5e09e76414929",
+          "sha256": "57e2ab9e89070e57223cdcf8df729f1ad77d0c5a224307dc1cf5e09e76414929"
+        },
+        {
+          "path": "src/with_suffix.rs",
+          "upstreamPath": "src/with_suffix.rs",
+          "upstreamSha256": "e03c01033e846a57633b406ae70031b4be9ab2daee2321de63c789e71e3ea867",
+          "sha256": "e03c01033e846a57633b406ae70031b4be9ab2daee2321de63c789e71e3ea867"
+        }
+      ],
+      "changes": [
+        "Remove the unused optional chrono dependency and weak feature propagation; legacy chrono feature names fail explicitly if requested. Std, alloc, macros and other serialization adapters retain upstream code.",
+        "Keep upstream source and required license notices. Upstream guide/README text uses .txt filenames to preserve the repository documentation layout; omit registry metadata, upstream integration-test targets and dev-only dependencies, following existing source overrides."
+      ],
+      "validation": [
+        "Exact upstream archive/file and local patch/source SHA-256 inventory.",
+        "Full lockfile and normal/E2E cross-target graphs must contain no chrono.",
+        "Native configuration serialization and a compiler-error fixture reject accidental chrono feature use."
+      ]
     }
   ]
 }
