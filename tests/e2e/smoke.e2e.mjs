@@ -3641,7 +3641,7 @@ describe("Export and local jobs", () => {
     const path = await import("node:path");
     const { execFileSync } = await import("node:child_process");
     const source =
-      "# Bundled fonts\n\nA local document with العربية and $a^2+b^2=c^2$.\n\n```text\nlocal code\n```\n";
+      "# Bundled fonts\n\nA local document with العربية and **كلمات عربية** and $a^2+b^2=c^2$.\n\n```text\nlocal code\n```\n";
     await seed(source);
     await open();
     await tool("pandoc", installedTool("pandoc"), "Choose Pandoc…");
@@ -3661,7 +3661,8 @@ describe("Export and local jobs", () => {
       await panel().$("button=Export PDF…").click();
       await browser.waitUntil(() => fs.existsSync(output), { timeout: 30000 });
       const fonts = execFileSync("pdffonts", [output], { encoding: "utf8" });
-      expect(fonts).toContain("NotoNaskhArabic");
+      expect(fonts).toContain("Amiri-Regular");
+      expect(fonts).toContain("Amiri-Bold");
       expect(fonts).toContain("Cousine");
       const text = execFileSync("pdftotext", [output, "-"], {
         encoding: "utf8",
