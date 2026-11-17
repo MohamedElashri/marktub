@@ -146,9 +146,17 @@ writeFileSync(
   `${output}/javascript-licenses.json`,
   await format(JSON.stringify(inventory), { parser: "json" }),
 );
+const typographyNotices = readdirSync("src/fonts")
+  .filter((name) => name.endsWith(".txt"))
+  .sort()
+  .map((name) => ({
+    component: `Riwaq typography — ${name}`,
+    text: readFileSync(join("src/fonts", name), "utf8"),
+  }));
 const frontendNotices = renderNotices([
   { component: "Marktub", text: readFileSync("LICENSE", "utf8") },
   ...notices,
+  ...typographyNotices,
   {
     component: "Bundled math fonts",
     text: readFileSync("src/renderers/font-notices.txt", "utf8"),
@@ -161,6 +169,7 @@ writeFileSync(
     { component: "Marktub", text: readFileSync("LICENSE", "utf8") },
     ...notices,
     ...rustNotices,
+    ...typographyNotices,
     {
       component: "Bundled math fonts",
       text: readFileSync("src/renderers/font-notices.txt", "utf8"),

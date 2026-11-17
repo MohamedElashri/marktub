@@ -1,16 +1,24 @@
 <script lang="ts">
   import { onMount, tick } from "svelte";
   import { ReaderClient } from "./client";
+  import { headingBoundary, matchingHeadings } from "./headings";
   import type { Read, Section, Heading, Page } from "./model";
   import { sanitizeReader, safeLink } from "./safe";
   import { hydrate, clearRichCache } from "../renderers/rich";
+  import { themes, type Values } from "../preferences";
   import { exportStandalone } from "./standalone";
+  import {
+    FlowLayout,
+    readerWindow,
+    WHOLE_SOURCE_LIMIT,
+    WHOLE_HTML_LIMIT,
+    WINDOW_HTML_LIMIT,
+  } from "./flow";
   let {
     read,
     embedded = false,
     onedit,
     ondisplay = () => {},
-    sourceLine = () => 1,
     onsource = () => {},
     start = 0,
     anchorId = null,
@@ -22,6 +30,8 @@
     title = "Document",
     revision = "Saved snapshot",
     operationBusy = false,
+    presentation = {},
+    dark = false,
     onpreference,
     preferences = { theme: "system", width: 760, size: 18 },
   }: {
@@ -29,8 +39,7 @@
     embedded?: boolean;
     ondisplay?: () => void;
     onedit?: (byte: number) => void | Promise<void>;
-    sourceLine?: (byte: number) => number;
-    onsource?: (line: number, clicked: boolean) => void;
+    onsource?: (line: number, clicked: boolean, fraction?: number) => void;
     start?: number;
     anchorId?: string | null;
     onposition: (byte: number, anchor: string | null) => void;
@@ -43,6 +52,8 @@
     title?: string;
     revision?: string;
     operationBusy?: boolean;
+    presentation?: Values;
+    dark?: boolean;
     onpreference: (key: string, value: string) => void;
     preferences?: { theme: string; width: number; size: number };
   } = $props();
@@ -54,6 +65,11 @@
     total = $state(0),
     at = $state(0),
     pages = $state<{ index: number; page: Page }[]>([]);
+  const contextReady = $derived(
+    complete &&
+      (pages.length > 0 || sections.length === 0) &&
+      pages.every((item) => !item.page.provisional),
+  );
   let focus = $state(true),
     outline = $state(false),
     query = $state(""),
@@ -65,13 +81,7 @@
   let request = 0,
     restored = false;
   let activeAnchor: string | null = null;
-  const filtered = $derived(
-    headings
-      .filter((h) =>
-        h.title.toLocaleLowerCase().includes(headingQuery.toLocaleLowerCase()),
-      )
-      .slice(0, 200),
-  );
+  const filtered = $derived(matchingHeadings(headings, headingQuery));
   $effect(() => {
     if (embedded) return;
     document.documentElement.dataset.readingFocus = String(focus);
@@ -79,61 +89,471 @@
       delete document.documentElement.dataset.readingFocus;
     };
   });
-  async function show(section: number) {
-    if (!client || !sections.length) return;
+  const helpId = `reader-help-${crypto.randomUUID()}`;
+  const layout = new FlowLayout();
+  let from = $state(0),
+    to = $state(0);
+  let before = $state(0),
+    after = $state(0);
+  let whole = $state(false),
+    copying = $state(false),
+    allSelected = $state(false);
+  let forceWindow = false;
+  let deferredRefresh = false;
+  let loadingSection: number | null = null;
+  let loadingJump = false,
+    loadingIntent = 0,
+    intentSerial = 0;
+  let observer: ResizeObserver | undefined;
+  let richObserver: IntersectionObserver | undefined;
+  let frame = 0,
+    refreshTimer: ReturnType<typeof setTimeout> | undefined;
+  let measuring = false;
+  // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Cache mutations do not drive the view.
+  const cache = new Map<number, Page>();
+  let cacheBytes = 0;
+  const pageSize = (page: Page) =>
+    2 * (page.html.length + page.rich.reduce((n, r) => n + r.source.length, 0));
+  async function page(index: number) {
+    const saved = cache.get(index);
+    if (saved) return saved;
+    const current = client!;
+    const epoch = contextEpoch;
+    const section = sections[index];
+    const value = await current.page(index);
+    if (
+      current !== client ||
+      epoch !== contextEpoch ||
+      sections[index]?.end !== section.end
+    )
+      throw Error("Reader context changed");
+    cache.set(index, value);
+    cacheBytes += pageSize(value);
+    while (cacheBytes > WHOLE_HTML_LIMIT && cache.size > 1) {
+      const key = cache.keys().next().value!;
+      cacheBytes -= pageSize(cache.get(key)!);
+      cache.delete(key);
+    }
+    return value;
+  }
+  let contextEpoch = 0;
+  function spacers() {
+    const space = whole ? { before: 0, after: 0 } : layout.spacers(from, to);
+    before = space.before;
+    after = space.after;
+  }
+  function visibleAnchor() {
+    if (!host) return null;
+    const { top, bottom } = host.getBoundingClientRect();
+    const intersects = (node: HTMLElement) => {
+      const rect = node.getBoundingClientRect();
+      return rect.bottom > top && rect.top < bottom;
+    };
+    const node =
+      [...host.querySelectorAll<HTMLElement>("[data-source-line]")].find(
+        intersects,
+      ) ??
+      [...host.querySelectorAll<HTMLElement>(".reader-chunk")].find(intersects);
+    return node
+      ? {
+          node,
+          section: node.closest<HTMLElement>("[data-section]")?.dataset.section,
+          line: node.dataset.sourceLine,
+          offset: node.getBoundingClientRect().top - top,
+        }
+      : null;
+  }
+  let expectedScroll = 0;
+  function moveTo(top: number) {
+    host.scrollTop = top;
+    expectedScroll = host.scrollTop;
+  }
+  function viewportIndex() {
+    const anchor = visibleAnchor();
+    if (anchor?.section !== undefined) return Number(anchor.section);
+    const padding = Number.parseFloat(getComputedStyle(host).paddingTop) || 0;
+    return layout.atScroll(Math.max(0, host.scrollTop - padding), from, to);
+  }
+  function scrolled() {
+    // Native scrollbar drags and external reveals have no wheel/key event.
+    // Distinguish them from our own Source/layout synchronization by position.
+    if (Math.abs(host.scrollTop - expectedScroll) > 1) intent();
+    expectedScroll = host.scrollTop;
+    scheduleScroll();
+  }
+  function restoreVisible(saved: ReturnType<typeof visibleAnchor>) {
+    if (!saved) return;
+    const block = host.querySelector(`[data-section="${saved.section}"]`);
+    const node = saved.node.isConnected
+      ? saved.node
+      : saved.line !== undefined
+        ? block?.querySelector(`[data-source-line="${saved.line}"]`)
+        : block;
+    if (node)
+      moveTo(
+        host.scrollTop +
+          node.getBoundingClientRect().top -
+          host.getBoundingClientRect().top -
+          saved.offset,
+      );
+  }
+  function selected() {
+    const selection = document.getSelection();
+    return (
+      !!selection &&
+      !selection.isCollapsed &&
+      selection.rangeCount > 0 &&
+      selection.getRangeAt(0).intersectsNode(host)
+    );
+  }
+  async function show(section: number, jump = true, refresh = false) {
+    if (!client || !sections.length) return false;
+    const target = Math.max(
+      0,
+      Math.min(
+        Number.isFinite(section) ? Math.trunc(section) : 0,
+        sections.length - 1,
+      ),
+    );
+    const full =
+      !forceWindow && total <= WHOLE_SOURCE_LIMIT && sections.length <= 128;
+    const range = full
+      ? { from: 0, to: sections.length }
+      : readerWindow(layout, target, host.clientHeight || 600);
+    // Keep the live browser selection intact while the user extends it. Full
+    // document copy is independent of this window and never copies a fragment.
+    if (!jump && selected()) {
+      range.from = Math.min(from, range.from);
+      range.to = Math.max(to, range.to);
+      if (range.to - range.from > 48) {
+        notice =
+          "Selection preserved. Copy or clear it to continue scrolling; Copy document Markdown includes the entire document.";
+        return;
+      }
+    }
+    if (
+      !refresh &&
+      full === whole &&
+      range.from === from &&
+      range.to === to &&
+      pages.length &&
+      pages.every((item) => item.page.provisional === !complete)
+    ) {
+      if (jump) scrollWithin(host.querySelector(`[data-section="${target}"]`));
+      return true;
+    }
     const epoch = ++request;
-    at = Math.max(0, Math.min(section, sections.length - 1));
     const current = client;
+    loadingSection = target;
+    loadingJump = jump;
+    const navigation = (loadingIntent = intentSerial);
+    let saved = jump ? null : visibleAnchor();
+    const scrollAtStart = host.scrollTop;
+    const atEnd = () =>
+      host.scrollTop > 0 &&
+      host.scrollHeight - host.clientHeight - host.scrollTop < 2;
+    let keepEnd = atEnd();
     const values: typeof pages = [];
+    let bytes = 0;
     try {
-      for (let i = at; i < Math.min(at + 3, sections.length); i++)
-        values.push({ index: i, page: await current.page(i) });
+      for (let i = range.from; i < range.to; i++) {
+        const value = await page(i);
+        if (epoch !== request || current !== client) return;
+        bytes += pageSize(value);
+        if (bytes > (full ? WHOLE_HTML_LIMIT : WINDOW_HTML_LIMIT)) {
+          if (full) {
+            forceWindow = true;
+            return await show(target, jump, true);
+          }
+          // A single source block remains intact. Restrict its neighbours if
+          // generated markup is unusually large rather than splitting words.
+          if (i <= target) {
+            values.length = 0;
+            bytes = pageSize(value);
+          } else break;
+        }
+        values.push({ index: i, page: value });
+      }
       if (epoch !== request || current !== client) return;
+      if (jump && navigation !== intentSerial) {
+        if (sourceTarget) return false;
+        return await show(viewportIndex(), false, refresh);
+      }
+      if (!jump && Math.abs(host.scrollTop - scrollAtStart) > 1) {
+        saved = visibleAnchor();
+        keepEnd = atEnd();
+        const destination = viewportIndex();
+        if (!values.some((value) => value.index === destination))
+          return await show(destination, false, refresh);
+      }
+      // Selection may begin while native reads are in flight. Revalidate at
+      // commit, not only when choosing the requested window.
+      if (!jump && selected()) {
+        if (range.from > from || range.to < to) {
+          return await show(target, false, refresh);
+        }
+        if (
+          pages.some(
+            (old) =>
+              !values.some(
+                (value) =>
+                  value.index === old.index &&
+                  value.page.html === old.page.html &&
+                  value.page.provisional === old.page.provisional,
+              ),
+          )
+        ) {
+          deferredRefresh = refresh;
+          notice = "Selection preserved. Clear it to refresh the reading view.";
+          return;
+        }
+      }
+      const focused = document.activeElement as HTMLElement | null;
+      const focusedBlock = focused?.closest<HTMLElement>("[data-section]");
+      if (
+        !jump &&
+        focusedBlock &&
+        host.contains(focusedBlock) &&
+        !values.some(
+          (value) => value.index === Number(focusedBlock.dataset.section),
+        )
+      )
+        host.focus({ preventScroll: true });
+      whole = full;
+      from = values[0]?.index ?? range.from;
+      to = (values.at(-1)?.index ?? from - 1) + 1;
       pages = values;
-      activeAnchor =
-        headings.find((h) => h.section === at)?.id ??
-        headings.filter((h) => h.section < at).at(-1)?.id ??
-        null;
-      onposition(sections[at].start, anchor());
+      spacers();
       await tick();
       if (epoch !== request || current !== client) return;
+      expectedScroll = host.scrollTop;
+      observeBlocks();
+      await measureBlocks(null);
+      if (epoch !== request || current !== client) return;
+      if (jump) {
+        at = target;
+        activeAnchor = null;
+        syncUntil = performance.now() + 200;
+        scrollWithin(host.querySelector(`[data-section="${target}"]`));
+        onposition(sections[target].start, anchor());
+      } else if (keepEnd) moveTo(host.scrollHeight);
+      else if (saved) restoreVisible(saved);
+      else scrollWithin(host.querySelector(`[data-section="${target}"]`));
+      rememberAnchor();
       ondisplay();
-      syncUntil = performance.now() + 200;
-      host.scrollTop = 0;
-      for (const value of values) {
+      await alignSource(false);
+      scheduleScroll();
+      return epoch === request && current === client;
+    } catch (e) {
+      if (
+        current === client &&
+        epoch === request &&
+        !String(e).includes("context changed")
+      )
+        onerror(String(e));
+    } finally {
+      if (epoch === request) {
+        loadingSection = null;
+        if (sourceTarget) void alignSource();
+      }
+    }
+  }
+  function observeBlocks() {
+    observer?.disconnect();
+    observer?.observe(host);
+    richObserver?.disconnect();
+    for (const block of host.querySelectorAll<HTMLElement>(".reader-chunk")) {
+      observer?.observe(block);
+      richObserver?.observe(block);
+      const html =
+        pages.find((item) => item.index === Number(block.dataset.section))?.page
+          .html ?? "";
+      if (richSources.get(block) !== html) richBytes.delete(block);
+      richSources.set(block, html);
+      restoreImages(block);
+    }
+  }
+  let lastAnchor: ReturnType<typeof visibleAnchor> = null;
+  let lastScroll = 0;
+  function rememberAnchor() {
+    lastAnchor = visibleAnchor();
+    lastScroll = host.scrollTop;
+  }
+  function measure() {
+    void measureBlocks(
+      Math.abs(host.scrollTop - lastScroll) < 1 ? lastAnchor : visibleAnchor(),
+    );
+  }
+  async function measureBlocks(saved = visibleAnchor()) {
+    if (measuring || !host) return;
+    measuring = true;
+    for (const block of host.querySelectorAll<HTMLElement>(".reader-chunk"))
+      layout.set(
+        Number(block.dataset.section),
+        block.getBoundingClientRect().height,
+      );
+    spacers();
+    await tick();
+    measuring = false;
+    if (!client) return;
+    expectedScroll = host.scrollTop;
+    restoreVisible(saved);
+    rememberAnchor();
+    scheduleScroll();
+  }
+  const richSources = new WeakMap<HTMLElement, string>();
+  // eslint-disable-next-line svelte/prefer-svelte-reactivity -- DOM retention accounting is not UI state.
+  const richBytes = new Map<HTMLElement, { html: string; bytes: number }>();
+  let hydrating = false,
+    hydrationPending = false;
+  async function hydrateVisible() {
+    if (!client || !host) return;
+    if (hydrating) {
+      hydrationPending = true;
+      return;
+    }
+    hydrating = true;
+    const current = client;
+    try {
+      const bounds = host.getBoundingClientRect();
+      for (const item of pages) {
         const block = host.querySelector<HTMLElement>(
-          `[data-section="${value.index}"]`,
+          `[data-section="${item.index}"]`,
         );
-        if (block)
-          void hydrate(
-            block,
-            value.page.rich,
-            () => request === epoch && current === client,
-            current.math,
-          ).catch((e) => onerror(String(e)));
+        if (!block) continue;
+        const rect = block.getBoundingClientRect();
+        if (
+          rect.bottom < bounds.top - host.clientHeight ||
+          rect.top > bounds.bottom + host.clientHeight
+        )
+          continue;
+        const eligible = (target: HTMLElement) => {
+          const rect = target.getBoundingClientRect();
+          return (
+            rect.bottom >= bounds.top - host.clientHeight &&
+            rect.top <= bounds.bottom + host.clientHeight
+          );
+        };
+        if (
+          ![
+            ...block.querySelectorAll<HTMLElement>(
+              '[data-rich]:not([data-hydrated="true"]),pre code:not([data-highlighted="true"])',
+            ),
+          ].some(
+            (node) =>
+              eligible(node) &&
+              (node.dataset.rich !== undefined ||
+                (!!node.textContent && node.textContent.length < 16000)),
+          )
+        )
+          continue;
+        const html = richBytes.get(block)?.html ?? block.innerHTML;
+        const saved = visibleAnchor();
+        const scrollAtStart = host.scrollTop;
+        await hydrate(
+          block,
+          item.page.rich,
+          () => current === client && block.isConnected,
+          current.math,
+          eligible,
+        );
+        if (current !== client) return;
+        richBytes.set(block, { html, bytes: block.innerHTML.length * 2 });
+        await measureBlocks(
+          Math.abs(host.scrollTop - scrollAtStart) < 1
+            ? saved
+            : visibleAnchor(),
+        );
+        await alignSource(false);
+      }
+      let retained = 0;
+      for (const [block, value] of richBytes) {
+        if (!block.isConnected) richBytes.delete(block);
+        else retained += value.bytes;
+      }
+      for (const [block, value] of richBytes) {
+        if (retained <= 8 * 1024 * 1024) break;
+        const rect = block.getBoundingClientRect();
+        if (
+          selected() ||
+          (rect.bottom >= bounds.top - host.clientHeight &&
+            rect.top <= bounds.bottom + host.clientHeight)
+        )
+          continue;
+        block.innerHTML = value.html;
+        richBytes.delete(block);
+        retained -= value.bytes;
+        restoreImages(block);
       }
     } catch (e) {
       if (current === client) onerror(String(e));
+    } finally {
+      hydrating = false;
+      if (hydrationPending && client) {
+        hydrationPending = false;
+        scheduleScroll();
+      }
     }
+  }
+  function scheduleScroll() {
+    if (frame) return;
+    frame = requestAnimationFrame(() => {
+      frame = 0;
+      if (!client || !pages.length) return;
+      rememberAnchor();
+      const top = host.getBoundingClientRect().top;
+      const blocks = [...host.querySelectorAll<HTMLElement>(".reader-chunk")];
+      const block = blocks.find((b) => b.getBoundingClientRect().bottom > top);
+      const inside =
+        block && block.getBoundingClientRect().top <= top + host.clientHeight;
+      const index = inside ? Number(block.dataset.section) : viewportIndex();
+      if (at !== index) {
+        at = index;
+        onposition(sections[index]?.start ?? 0, anchor());
+      }
+      if (!whole && loadingSection === null) {
+        const range = readerWindow(layout, index, host.clientHeight);
+        if (!inside || range.from < from || range.to > to)
+          void show(index, false);
+      }
+      void hydrateVisible();
+      authorScroll();
+    });
   }
   function scrollWithin(node: Element | null, center = false) {
     if (!node) return;
-    host.scrollTop +=
-      node.getBoundingClientRect().top -
-      host.getBoundingClientRect().top -
-      (center
-        ? host.clientHeight / 2 - node.getBoundingClientRect().height / 2
-        : 0);
+    moveTo(
+      host.scrollTop +
+        node.getBoundingClientRect().top -
+        host.getBoundingClientRect().top -
+        (center
+          ? host.clientHeight / 2 - node.getBoundingClientRect().height / 2
+          : 0),
+    );
   }
-  async function goHeading(heading: Heading) {
-    await show(heading.section);
+  async function goHeading(heading: Heading, interactive = true) {
+    if (interactive) intent();
+    if (!(await show(heading.section))) return;
     activeAnchor = heading.id;
-    scrollWithin(host.querySelector(`#${CSS.escape(heading.id)}`));
+    const destination = host.querySelector<HTMLElement>(
+      `#${CSS.escape(heading.id)}`,
+    );
+    if (destination) {
+      if (interactive) {
+        destination.tabIndex = -1;
+        destination.focus({ preventScroll: true });
+      }
+      scrollWithin(destination);
+    }
     onposition(sections[at].start, heading.id);
   }
   async function jumpMatch(section: number) {
-    await show(section);
-    const walker = document.createTreeWalker(host, NodeFilter.SHOW_TEXT);
+    intent();
+    if (!(await show(section))) return;
+    const walker = document.createTreeWalker(
+      host.querySelector(`[data-section="${section}"]`) ?? host,
+      NodeFilter.SHOW_TEXT,
+    );
     while (walker.nextNode()) {
       const node = walker.currentNode as Text;
       const at = node.data
@@ -149,61 +569,208 @@
       break;
     }
   }
-  let syncUntil = 0,
-    scrollIntent = 0;
+  let syncUntil = 0;
+  let manualScroll = false;
+  let sourceTarget: { line: number; fraction: number } | null = null;
   function intent() {
-    scrollIntent = performance.now() + 800;
+    intentSerial++;
+    syncUntil = 0;
+    sourceTarget = null;
+    manualScroll = true;
+    activeAnchor = null;
+    allSelected = false;
   }
   export async function revealByte(byte: number) {
+    intent();
     const index = sections.findIndex((s) => byte >= s.start && byte < s.end);
     if (index >= 0) await show(index);
     else onerror("The saved section is not yet indexed.");
   }
-  export async function revealSource(byte: number, line: number) {
-    const section = sections.findIndex((s) => byte >= s.start && byte < s.end);
-    if (section < 0) return;
+  export async function revealSource(line: number, fraction = 0) {
+    intentSerial++;
+    activeAnchor = null;
+    sourceTarget = { line, fraction };
+    manualScroll = false;
     syncUntil = performance.now() + 200;
-    if (section < at || section >= at + 3) await show(section);
+    await alignSource();
+  }
+  async function alignSource(load = true) {
+    const target = sourceTarget;
+    if (!target || !client) return;
+    const { line, fraction } = target;
+    let section = -1;
+    for (let i = sections.length - 1; i >= 0; i--) {
+      const s = sections[i];
+      if (
+        s.line !== undefined &&
+        line >= s.line &&
+        line <= Math.max(s.line, s.endLine ?? s.line)
+      ) {
+        section = i;
+        break;
+      }
+    }
+    if (section < 0) return;
+    if (load && loadingSection !== null) return;
+    if (!pages.some((page) => page.index === section)) {
+      if (load) await show(section);
+      return;
+    }
     await tick();
-    const local = line - sourceLine(sections[section].start);
+    if (sourceTarget !== target) return;
+    const local = line - sections[section].line!;
     const block = host.querySelector(`[data-section="${section}"]`);
     const node = [
       ...(block?.querySelectorAll<HTMLElement>("[data-source-line]") ?? []),
     ]
       .filter((n) => Number(n.dataset.sourceLine) <= local)
       .at(-1);
-    scrollWithin(node ?? block);
+    if (!node) {
+      scrollWithin(block);
+      return;
+    }
+    const start = Number(node.dataset.sourceLine);
+    const end = Number(node.dataset.sourceEndLine ?? start + 1);
+    const ratio = Math.max(
+      0,
+      Math.min(1, (local - start + fraction) / Math.max(1, end - start)),
+    );
+    moveTo(
+      host.scrollTop +
+        node.getBoundingClientRect().top -
+        host.getBoundingClientRect().top +
+        ratio * node.getBoundingClientRect().height,
+    );
+    syncUntil = performance.now() + 200;
   }
-  function sourceAnchor(node: HTMLElement, clicked = false) {
+  function sourceAnchor(node: HTMLElement, clicked = false, ratio = 0) {
     const section = node.closest<HTMLElement>("[data-section]");
     if (!section) return;
     const index = Number(section.dataset.section);
-    if (!sections[index]) return;
-    onsource(
-      sourceLine(sections[index].start) + Number(node.dataset.sourceLine ?? 0),
-      clicked,
-    );
+    if (sections[index]?.line === undefined) return;
+    const start = Number(node.dataset.sourceLine ?? 0);
+    const end = Number(node.dataset.sourceEndLine ?? start + 1);
+    const position =
+      start + Math.max(0, Math.min(0.999999, ratio)) * Math.max(1, end - start);
+    const line = sections[index].line! + Math.floor(position);
+    if (embedded) sourceTarget = { line, fraction: position % 1 };
+    onsource(line, clicked, position % 1);
   }
   function authorScroll() {
-    if (
-      !embedded ||
-      performance.now() < syncUntil ||
-      performance.now() > scrollIntent
-    )
-      return;
+    if (!embedded || performance.now() < syncUntil || !manualScroll) return;
     const top = host.getBoundingClientRect().top;
-    const node = [
-      ...host.querySelectorAll<HTMLElement>("[data-source-line]"),
-    ].find((n) => n.getBoundingClientRect().bottom > top);
-    if (node) sourceAnchor(node);
+    const nodes = [...host.querySelectorAll<HTMLElement>("[data-source-line]")];
+    // Prefer the innermost mapped block at the viewport edge (for lists/tables),
+    // rather than an ancestor spanning several unrelated source lines.
+    const crossing = nodes.filter((node) => {
+      const r = node.getBoundingClientRect();
+      return r.top <= top && r.bottom > top;
+    });
+    const node =
+      crossing.at(-1) ??
+      nodes.find((node) => node.getBoundingClientRect().bottom > top);
+    if (node) {
+      const r = node.getBoundingClientRect();
+      sourceAnchor(node, false, (top - r.top) / Math.max(1, r.height));
+    }
   }
-  async function copyShown() {
+  async function copyDocument() {
+    if (!client || !complete) {
+      notice = "Wait for document indexing before copying the whole document.";
+      return;
+    }
+    if (copying) return;
+    copying = true;
+    const current = client;
+    const revision = contextEpoch;
     try {
-      await navigator.clipboard.writeText(host.innerText);
-      notice = "Shown text copied.";
-    } catch {
+      // Read Markdown from the immutable native revision, independent of the
+      // viewport. Never use innerText as a substitute for an entire document.
+      const text = (async () => {
+        let cursor = 0;
+        const parts: string[] = [];
+        while (cursor < total) {
+          const part = await read(cursor);
+          if (current !== client || revision !== contextEpoch)
+            throw Error("Reader closed or changed");
+          if (part.end <= cursor) throw Error("Document read made no progress");
+          parts.push(part.text);
+          cursor = part.end;
+        }
+        return parts.join("").replace(/^\uFEFF/, "");
+      })();
+      void text.catch(() => {});
+      // Promise-backed ClipboardItem preserves the initiating user gesture in
+      // WebKit while the immutable native ranges are being read.
+      if (typeof ClipboardItem !== "undefined" && navigator.clipboard.write)
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            "text/plain": text.then(
+              (value) => new Blob([value], { type: "text/plain" }),
+            ),
+          }),
+        ]);
+      else await navigator.clipboard.writeText(await text);
+      notice = "Document Markdown copied.";
+    } catch (e) {
+      notice = `Could not copy the document: ${String(e).slice(0, 180)}`;
+    } finally {
+      copying = false;
+    }
+  }
+  function keydown(event: KeyboardEvent) {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "a") {
+      event.preventDefault();
+      if (whole) {
+        const range = document.createRange();
+        range.selectNodeContents(host);
+        const selection = document.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+        return;
+      }
+      allSelected = true;
       notice =
-        "Clipboard unavailable. Select text and use the system Copy command.";
+        "Entire document selected. Copy copies its Markdown, including text outside the viewport.";
+      return;
+    }
+    if (
+      allSelected &&
+      (event.ctrlKey || event.metaKey) &&
+      event.key.toLowerCase() === "c"
+    ) {
+      event.preventDefault();
+      void copyDocument();
+      return;
+    }
+    if (
+      ["ArrowDown", "ArrowUp", "PageDown", "PageUp", "Home", "End"].includes(
+        event.key,
+      )
+    ) {
+      intent();
+      const target = event.target as HTMLElement;
+      if (
+        !target.closest("a,button,input,textarea,select,[contenteditable=true]")
+      ) {
+        event.preventDefault();
+        const delta =
+          event.key === "PageDown"
+            ? host.clientHeight * 0.9
+            : event.key === "PageUp"
+              ? -host.clientHeight * 0.9
+              : event.key === "ArrowDown"
+                ? 40
+                : -40;
+        moveTo(
+          event.key === "Home"
+            ? 0
+            : event.key === "End"
+              ? host.scrollHeight
+              : host.scrollTop + delta,
+        );
+        scheduleScroll();
+      }
     }
   }
   async function find() {
@@ -213,7 +780,7 @@
       const result = await client.find(query);
       matches = result.matches;
       notice = result.complete
-        ? `${matches.length}${matches.length === 200 ? "+" : ""} matching sections`
+        ? `${matches.length}${matches.length === 200 ? "+" : ""} matching locations`
         : "Results cover the scanned portion; search again when indexing finishes.";
     } catch (e) {
       onerror(String(e));
@@ -245,21 +812,7 @@
         const src = image?.dataUrl;
         if (src && target.isConnected) {
           if (image) client?.approveImage(target.dataset.image!, image);
-          const img = document.createElement("img");
-          img.src = src;
-          img.alt = target.textContent ?? "Image";
-          img.decoding = "async";
-          img.onerror = () => {
-            const error = document.createElement("p");
-            error.textContent =
-              "Image decoding failed. The Markdown reference is preserved; choose another local image.";
-            img.replaceWith(error);
-          };
-          img.loading = "lazy";
-          img.style.maxWidth = "100%";
-          if (target.dataset.width) img.width = Number(target.dataset.width);
-          if (target.dataset.height) img.height = Number(target.dataset.height);
-          target.replaceWith(img);
+          replaceImage(target, src);
         }
       } catch (e) {
         onerror(String(e));
@@ -276,6 +829,32 @@
       await followAnchor(link.slice(1));
     } else onlink(link);
   }
+  function replaceImage(target: HTMLElement, src: string) {
+    const img = document.createElement("img");
+    img.src = src;
+    img.alt = target.textContent ?? "Image";
+    img.decoding = "async";
+    img.loading = "lazy";
+    img.style.maxWidth = "100%";
+    if (target.dataset.width) img.width = Number(target.dataset.width);
+    if (target.dataset.height) img.height = Number(target.dataset.height);
+    img.onload = measure;
+    img.onerror = () => {
+      const error = document.createElement("p");
+      error.textContent =
+        "Image decoding failed. The Markdown reference is preserved; choose another local image.";
+      img.replaceWith(error);
+    };
+    target.replaceWith(img);
+  }
+  function restoreImages(block: HTMLElement) {
+    for (const target of block.querySelectorAll<HTMLElement>(
+      "button[data-image]",
+    )) {
+      const src = client?.approvedImages.get(target.dataset.image!);
+      if (src) replaceImage(target, src);
+    }
+  }
   let requestedAnchor = $state<string | null>(null);
   $effect(() => {
     const anchor = requestedAnchor;
@@ -284,7 +863,8 @@
     void jumpAnchor(anchor);
   });
   export async function followAnchor(anchor: string) {
-    requestedAnchor = anchor;
+    if (complete) await jumpAnchor(anchor);
+    else requestedAnchor = anchor;
   }
   async function jumpAnchor(anchor: string) {
     let id: string;
@@ -302,13 +882,13 @@
     } else notice = "This anchor is not indexed.";
   }
   export async function exportHtml() {
-    if (!client || !complete) {
-      notice = "Wait for the document context scan before exporting.";
+    if (!client || !complete || !contextReady) {
+      notice = "Wait for the reading view to finalize before exporting.";
       return;
     }
     exporting = true;
     try {
-      await exportStandalone(client, title, revision);
+      await exportStandalone(client, title, revision, presentation, dark);
       notice = "HTML export completed.";
     } catch (e) {
       onerror(String(e));
@@ -337,12 +917,22 @@
       ...host.querySelectorAll("h1,h2,h3,p,pre,table,blockquote"),
     ].find((node) => node.getBoundingClientRect().bottom > top);
     const offset = node ? node.getBoundingClientRect().top - top : 0;
+    let restored = false,
+      expected = 0;
     return () => {
-      if (node?.isConnected)
-        host.scrollTop +=
-          node.getBoundingClientRect().top -
-          host.getBoundingClientRect().top -
-          offset;
+      if (!client || !host?.isConnected) return;
+      // A delayed font load must not undo scrolling since the first restore.
+      if (restored && Math.abs(host.scrollTop - expected) > 1) return;
+      if (node?.isConnected) {
+        moveTo(
+          host.scrollTop +
+            node.getBoundingClientRect().top -
+            host.getBoundingClientRect().top -
+            offset,
+        );
+        expected = host.scrollTop;
+        restored = true;
+      }
     };
   }
   export function navigation() {
@@ -350,7 +940,9 @@
   }
   export function anchor() {
     return (
-      activeAnchor ?? headings.filter((h) => h.section <= at).at(-1)?.id ?? null
+      activeAnchor ??
+      headings[headingBoundary(headings, at + 1) - 1]?.id ??
+      null
     );
   }
   export function position() {
@@ -358,6 +950,22 @@
   }
   onMount(() => {
     if (embedded) focus = false;
+    observer = new ResizeObserver(measure);
+    richObserver = new IntersectionObserver(
+      () => {
+        void hydrateVisible();
+      },
+      { root: host, rootMargin: "100% 0px" },
+    );
+    const selectionChanged = () => {
+      if (!selected()) {
+        if (deferredRefresh) {
+          deferredRefresh = false;
+          void show(at, false, true);
+        } else scheduleScroll();
+      }
+    };
+    document.addEventListener("selectionchange", selectionChanged);
     const restoreAnchor = anchorId;
     const current = new ReaderClient(
       read,
@@ -368,6 +976,30 @@
         complete = update.complete;
         scanned = update.scanned;
         total = update.total;
+        layout.resize(sections);
+        if (complete && !wasComplete) {
+          contextEpoch++;
+        }
+        if (complete && !sections.length) {
+          ondisplay();
+        }
+        for (const [key, value] of cache) {
+          if ((complete && !wasComplete) || key >= (update.replaceFrom ?? 0)) {
+            cacheBytes -= pageSize(value);
+            cache.delete(key);
+          }
+        }
+        if (refreshTimer) clearTimeout(refreshTimer);
+        if (!complete)
+          refreshTimer = setTimeout(() => {
+            if (client && restored) void show(at, false, true);
+          }, 120);
+        if (sourceTarget) {
+          restored = true;
+          if (complete && !wasComplete) void show(at, false, true);
+          void alignSource();
+          return;
+        }
         if (!restored && sections.length) {
           const found = sections.findIndex((s) => s.end > start);
           if (found >= 0 || complete) {
@@ -379,19 +1011,30 @@
                     h.title === restoreAnchor.replace(/^h-/, ""),
                 )
               : undefined;
-            if (heading) void goHeading(heading);
+            if (heading) void goHeading(heading, false);
             else void show(Math.max(0, found));
           }
         } else if (complete && !wasComplete) {
-          const restoredHeading = restoreAnchor
-            ? headings.find(
-                (h) =>
-                  h.id === restoreAnchor ||
-                  h.title === restoreAnchor.replace(/^h-/, ""),
-              )
-            : undefined;
-          if (restoredHeading) void goHeading(restoredHeading);
-          else void show(at);
+          const restoredHeading =
+            !manualScroll && restoreAnchor
+              ? headings.find(
+                  (h) =>
+                    h.id === restoreAnchor ||
+                    h.title === restoreAnchor.replace(/^h-/, ""),
+                )
+              : undefined;
+          if (restoredHeading) void goHeading(restoredHeading, false);
+          else {
+            const pending =
+              loadingJump && loadingIntent === intentSerial
+                ? loadingSection
+                : null;
+            void show(
+              pending ?? (pages.length ? viewportIndex() : at),
+              pending !== null,
+              true,
+            );
+          }
         }
       },
       onerror,
@@ -399,6 +1042,14 @@
     client = current;
     return () => {
       request++;
+      contextEpoch++;
+      if (frame) cancelAnimationFrame(frame);
+      if (refreshTimer) clearTimeout(refreshTimer);
+      document.removeEventListener("selectionchange", selectionChanged);
+      observer?.disconnect();
+      richObserver?.disconnect();
+      cache.clear();
+      richBytes.clear();
       client = undefined;
       current.destroy();
       clearRichCache();
@@ -416,23 +1067,22 @@
     >
     <button
       onclick={exportHtml}
-      disabled={!complete || exporting || operationBusy}
+      disabled={!complete || !contextReady || exporting || operationBusy}
       >{exporting ? "Exporting…" : "Export HTML"}</button
     >
     {#if !focus}
-      <button onclick={copyShown}>Copy shown text</button>
+      <button onclick={copyDocument} disabled={!complete || copying}
+        >{copying ? "Copying…" : "Copy document Markdown"}</button
+      >
       <label
         >Theme <select
           aria-label="Reading theme"
           value={preferences.theme}
           onchange={(e) => onpreference("theme", e.currentTarget.value)}
-          ><option value="system">Follow system</option><option value="light"
-            >Light</option
-          ><option value="paper">Parchment</option><option value="dark"
-            >Dark</option
-          ><option value="midnight">Ink</option><option value="custom"
-            >Custom</option
-          ></select
+          ><option value="system">Follow system</option
+          >{#each Object.entries(themes) as [key, theme] (key)}<option
+              value={key}>{theme.label}</option
+            >{/each}<option value="custom">Custom</option></select
         ></label
       >
       <label
@@ -462,11 +1112,13 @@
     {/if}
     {#if onedit}<button
         onclick={() => onedit?.(sections[at]?.start ?? 0)}
-        disabled={operationBusy}>Edit this section</button
+        disabled={operationBusy}>Edit here</button
       >{/if}
-    <span role="status"
+    <span role="status" data-context-ready={contextReady}
       >{complete
-        ? `${sections.length.toLocaleString()} sections`
+        ? contextReady
+          ? "Document ready"
+          : "Finalizing reading view…"
         : `Resolving document context · ${total ? Math.round((scanned / total) * 100) : 0}%`}</span
     >
   </div>
@@ -506,62 +1158,59 @@
           </p>{/if}
       </aside>{/if}
     <!-- Navigation is delegated; document links never navigate the WebView. -->
-    <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+    <span id={helpId} class="sr-only"
+      >Large document: nearby text loads as you scroll. Outline and find
+      searches the whole document. Export HTML provides the complete reading
+      text; Copy document Markdown includes offscreen text.</span
+    >
+    <!-- svelte-ignore a11y_no_noninteractive_element_interactions, a11y_no_noninteractive_tabindex -->
     <article
       class="reader-scroll prose"
       bind:this={host}
       aria-label="Markdown reader"
       onclick={click}
-      onscroll={authorScroll}
+      onscroll={scrolled}
+      tabindex="0"
+      class:document-selected={allSelected}
+      aria-describedby={whole ? undefined : helpId}
       onwheel={intent}
       ontouchmove={intent}
-      onpointerdown={intent}
-      onkeydown={(e) => {
-        if (
-          [
-            "ArrowDown",
-            "ArrowUp",
-            "PageDown",
-            "PageUp",
-            "Home",
-            "End",
-          ].includes(e.key)
-        )
-          intent();
+      onpointerdown={(event) => {
+        if (event.button === 0) intent();
       }}
+      oncopy={(event) => {
+        if (allSelected) {
+          event.preventDefault();
+          void copyDocument();
+        }
+      }}
+      onkeydown={keydown}
     >
-      {#each pages as item (item.index)}<section data-section={item.index}>
-          {#if item.page.provisional}<p class="context-note">
-              Provisional: forward definitions are still being indexed.
-            </p>{/if}
+      <div
+        class="reader-spacer"
+        aria-hidden="true"
+        style:height={`${before}px`}
+      ></div>
+      {#each pages as item (`${item.index}:${item.page.provisional}`)}<div
+          class="reader-chunk"
+          data-section={item.index}
+        >
           {#if item.page.fallback}<p class="context-note">
               {item.page.fallback}
             </p>{/if}
           <!-- eslint-disable-next-line svelte/no-at-html-tags -->
           {@html sanitizeReader(item.page.html)}
-        </section>{/each}
+        </div>{/each}
+      <div
+        class="reader-spacer"
+        aria-hidden="true"
+        style:height={`${after}px`}
+      ></div>
       {#if !pages.length}<p role="status">
-          {complete ? "This document is empty." : "Opening the first section…"}
+          {complete && !sections.length
+            ? "This document is empty."
+            : "Opening document…"}
         </p>{/if}
     </article>
   </div>
-  <nav class="section-navigation" aria-label="Reader sections">
-    <button onclick={() => show(at - 3)} disabled={at === 0}
-      >Previous sections</button
-    >
-    <label
-      >Section <input
-        aria-label="Go to section"
-        type="number"
-        min="1"
-        max={sections.length}
-        value={at + 1}
-        onchange={(e) => show(Number(e.currentTarget.value) - 1)}
-      />
-      / {sections.length.toLocaleString()}</label
-    >
-    <button onclick={() => show(at + 3)} disabled={at + 3 >= sections.length}
-      >Next sections</button
-    >
-  </nav>
 </div>

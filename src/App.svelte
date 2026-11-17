@@ -4,6 +4,7 @@
   import { listen } from "@tauri-apps/api/event";
   import type GitWorkbench from "./git/Workbench.svelte";
   import type Preferences from "./Preferences.svelte";
+  import type Updates from "./Updates.svelte";
   import type CommandPalette from "./CommandPalette.svelte";
   import {
     definitions,
@@ -39,6 +40,13 @@
   ]);
   let active = $state(0),
     serial = 0;
+  let UpdatesComponent = $state<typeof Updates | null>(null);
+  let updatesPanel = $state<Updates>();
+  async function showUpdates() {
+    UpdatesComponent ??= (await import("./Updates.svelte")).default;
+    await tick();
+    await updatesPanel?.show();
+  }
   let PreferencesComponent = $state<typeof Preferences | null>(null),
     PaletteComponent = $state<typeof CommandPalette | null>(null);
   let GitComponent = $state<typeof GitWorkbench | null>(null),
@@ -175,6 +183,8 @@
           return showReviewArchive();
         case "git":
           return showGit();
+        case "updates":
+          return showUpdates();
         case "preferences":
           return showPreferences();
         case "palette":
@@ -498,25 +508,30 @@
       closingTab = null;
     }
   }
-  async function closeAll() {
-    if (closing) return;
+  async function closeAll(update = false): Promise<boolean> {
+    if (closing || nativeOpening || openingTabs.size) return false;
     closing = true;
     try {
+      if (update) await bridge.prepareApplicationUpdate();
       if ((await library.state()).job) {
         message =
           "Cancel the library job and wait for its result before quitting.";
         await showLibrary();
-        return;
+        return false;
       }
       await saveSession();
       for (let i = 0; i < tabs.length; i++) {
         active = i;
         await tick();
-        if (!(await tabs[i].pane?.requestClose())) return;
+        if (!(await tabs[i].pane?.requestClose())) return false;
       }
-      await bridge.closeApplication();
+      if (update) await bridge.installApplicationUpdate();
+      else await bridge.closeApplication();
+      return true;
     } catch (error) {
       message = bridge.errorMessage(error);
+      if (update) throw error;
+      return false;
     } finally {
       closing = false;
     }
@@ -804,6 +819,7 @@
 
 {#if PreferencesComponent}<PreferencesComponent
     bind:this={preferencesPanel}
+    onupdates={showUpdates}
     onpreview={(values) => (previewValues = values)}
     oncommit={async () => {
       await refreshPreferences();
@@ -841,3 +857,8 @@
     });
   }}
 />
+
+{#if UpdatesComponent}<UpdatesComponent
+    bind:this={updatesPanel}
+    onrestart={() => closeAll(true)}
+  />{/if}

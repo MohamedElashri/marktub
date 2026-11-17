@@ -171,3 +171,27 @@ it("indexes a long definition-only tail with continuation titles without guessin
     .join("");
   expect(actual).toBe(md.render(text, { ...emptyContext(), beginning: true }));
 });
+
+it("records native logical line boundaries across BOM, Unicode and mixed EOL chunks", async () => {
+  let ending = 0;
+  const text =
+    "\uFEFF" +
+    Array.from(
+      { length: 100 },
+      (_, i) =>
+        `## Section ${i}\n\n${"العربية 日本語 🦀 text ".repeat(12)}\n\n`,
+    )
+      .join("")
+      .replace(/\n/g, () => ["\r\n", "\n", "\r"][ending++ % 3]);
+  const index = await buildIndex(source(text, 257), () => {});
+  const bytes = new TextEncoder().encode(text);
+  const decoder = new TextDecoder("utf-8", { ignoreBOM: true });
+  const lineAt = (byte: number) =>
+    1 +
+    (decoder.decode(bytes.subarray(0, byte)).match(/\r\n|\r|\n/g)?.length ?? 0);
+  expect(index.sections.length).toBeGreaterThan(2);
+  for (const section of index.sections.filter((s) => !s.note)) {
+    expect(section.line).toBe(lineAt(section.start));
+    expect(section.endLine).toBe(lineAt(section.end));
+  }
+});

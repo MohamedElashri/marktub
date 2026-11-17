@@ -30,6 +30,13 @@ pnpm test:e2e
 generates resources needed by native checks. Native e2e needs the converters and
 desktop packages listed in [CI](.github/workflows/check.yml). Serialize Cargo/Tauri
 builds. For dependency changes, also run CI's audit and source-override checks.
+Development file filters treat repeated `+(...)` and `*(...)` globs as literals;
+use braces or `@(...)` alternatives instead. Reviewed local backports and raw
+upstream advisory findings are checked in CI.
+
+On Linux, `xvfb-run -a dbus-run-session -- python3 scripts/e2e-wayland.py` reuses
+the E2E build under Weston to check actual Wayland focus and rendering. It needs
+Weston and Xvfb; it does not certify physical input or a particular desktop shell.
 
 ## Build packages
 
@@ -46,6 +53,19 @@ macOS needs both desktop Rust targets:
 `src-tauri/target/`, including the universal target directory on macOS. Rebuild
 normally after e2e testing before packaging. Build-generated attribution belongs
 under `artifacts/`; keep required upstream license texts in source.
+
+Update packages are signed in CI after package checks, using the dedicated Actions
+secret and the public key pinned in source. macOS uses the same universal app.
+For a release, download both `update-*.json` manifests and their signed packages
+from the same successful CI run, then combine them with plain-text release notes:
+
+```sh
+python3 scripts/update-manifest.py combine update-*.json --notes release-notes.txt --output latest.json
+```
+
+Upload `latest.json` and the exact versioned packages alongside the normal release
+assets. Never commit the private signing key or put it in build logs. The initial
+version with update support must be installed using the existing installer.
 
 Run `pnpm check:repository` before `pnpm source:archive`. Scoped release validation
 and known limits are recorded in [release-status.json](docs/evidence/release-status.json).

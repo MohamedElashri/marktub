@@ -58,6 +58,11 @@ preview before applying it. Turn off document preview to compare with your saved
 appearance. **Revert changes** restores the draft; **Cancel** leaves saved
 settings alone.
 
+Riwaq Day and Night offer cream or navy with gold accents. **Use Riwaq typography**
+sets reading, heading, interface and code fonts separately from the color scheme.
+Open Arabic fonts are bundled; installed Thmanyah is supported. HTML export keeps
+the reading theme and embeds the bundled fonts. PDF uses the converter’s print layout.
+
 Choose whether settings apply to the app, a selected workspace, one file, or
 only this session. The Markdown document stays unchanged. Shortcuts and library
 width are app-wide or session-only. Reading and Source have separate typography
@@ -165,10 +170,14 @@ not create sample repositories or change files on your behalf.
 - **More → Export & run → PDF** uses your selected local Pandoc and Typst or
   XeLaTeX. Choose a saved or acknowledged working revision, review warnings,
   then export to a new native destination.
-- Copy shown text from Read when you need a short excerpt.
+- Select text in Read for an excerpt, or use **Copy document Markdown** for the
+  entire document. Long notes scroll continuously; **Outline & find** searches
+  beyond the visible text.
 
 PDF conversion tools are separate installations. Inspect the result for fonts,
-page breaks and layout before sharing or printing.
+page breaks and layout before sharing or printing. If Typst is slow to scan
+installed fonts, choose **PDF fonts → Bundled fonts** for Arabic, Latin and math.
+Keep **System fonts** when other scripts or installed families are needed.
 
 ## Optional local tools
 

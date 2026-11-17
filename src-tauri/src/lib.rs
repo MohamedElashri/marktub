@@ -34,6 +34,8 @@ mod review;
 mod scoped_file;
 #[cfg(not(feature = "blank-baseline"))]
 pub mod settings;
+#[cfg(not(feature = "blank-baseline"))]
+mod updates;
 
 #[cfg(not(feature = "blank-baseline"))]
 pub use app::run;

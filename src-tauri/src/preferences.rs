@@ -44,6 +44,7 @@ pub const COMMANDS: &[(&str, &str, &str)] = &[
     ("open", "Open file", "Mod+O"),
     ("save", "Save", "Mod+S"),
     ("save_as", "Save As", "Mod+Shift+S"),
+    ("updates", "Check for application updates", "none"),
     ("preferences", "Preferences", "Mod+Comma"),
     ("palette", "Command palette", "Mod+Shift+P"),
     ("quick_open", "Quick open", "Mod+P"),
@@ -98,7 +99,16 @@ pub fn catalogue() -> Vec<Spec> {
             "system",
             None,
             None,
-            &["system", "light", "paper", "dark", "midnight", "custom"],
+            &[
+                "system",
+                "light",
+                "paper",
+                "dark",
+                "midnight",
+                "riwaq_day",
+                "riwaq_night",
+                "custom",
+            ],
         ),
         spec(
             "theme.custom_mode",
@@ -166,6 +176,16 @@ pub fn catalogue() -> Vec<Spec> {
             "Reading",
             "font",
             "\"Palatino\"",
+            None,
+            None,
+            &[],
+        ),
+        spec(
+            "reader.heading_font",
+            "Heading font",
+            "Reading",
+            "font",
+            "\"Same as body\"",
             None,
             None,
             &[],
@@ -506,6 +526,24 @@ mod tests {
         for spec in catalogue() {
             assert!(settings.get(&spec.key).is_some());
         }
+    }
+    #[test]
+    fn riwaq_and_heading_typography_use_the_native_typed_catalogue() {
+        for theme in ["riwaq_day", "riwaq_night"] {
+            let text = format!(
+                "$theme={theme}\n$reader.heading_font=\"Amiri\"\n$reader.font=\"Noto Naskh Arabic\""
+            );
+            let layer = Settings::parse(text.as_bytes()).unwrap();
+            let empty = Settings::parse(b"").unwrap();
+            let resolved = Settings::resolve(&layer, &empty, &empty, &empty);
+            assert!(effective(&resolved.values()).is_empty());
+            assert_eq!(
+                resolved.get("reader.heading_font"),
+                Some(&Value::Text("Amiri".into()))
+            );
+        }
+        assert!(Settings::parse(b"$theme=riwaq_unknown").is_err());
+        assert!(Settings::parse(b"$reader.heading_font=42").is_err());
     }
     #[test]
     fn rejects_reserved_duplicate_and_cross_platform_aliases() {

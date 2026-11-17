@@ -42,12 +42,20 @@ assert(
   ),
   "test permission in main capability",
 );
+assert(
+  capability.permissions.every(
+    (permission) =>
+      typeof permission !== "string" || !/^(updater|process):/.test(permission),
+  ),
+  "updates must use the app's closed manual commands, without generic plugin installation/restart permissions",
+);
 const chunks = readdirSync("dist/assets").filter((file) =>
   file.endsWith(".js"),
 );
 for (const chunk of chunks) {
   const source = readFileSync(`dist/assets/${chunk}`, "utf8");
   for (const marker of [
+    "MARKTUB_TEST_READER_COST",
     "marktubPierreProbe",
     "wdioTauri",
     "__wdio_mocks__",

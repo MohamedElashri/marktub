@@ -472,6 +472,15 @@ pub struct Request {
     pub pandoc: Option<String>,
     pub mode: Mode,
     pub toc: bool,
+    #[serde(default)]
+    pub pdf_fonts: PdfFonts,
+}
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PdfFonts {
+    #[default]
+    System,
+    Bundled,
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -622,6 +631,11 @@ impl Powers {
         self.prepared.retain(|_, p| p.request.capture != id);
     }
     pub fn prepare(&mut self, r: Request) -> Result<(String, String), FileError> {
+        if r.pdf_fonts == PdfFonts::Bundled && r.mode != Mode::Pdf {
+            return Err(err(
+                "Bundled fonts are available for Typst PDF export only.",
+            ));
+        }
         if self.prepared.len() >= 8 {
             return Err(err(
                 "Too many pending confirmations; close and reopen Export & run.",
@@ -722,6 +736,18 @@ impl Powers {
             None
         };
         let summary=format!("{:?}\nDocument: {}\n{}\nSHA-256: {}\nFolder: {}\nTool: {}\nDatabase: {}\n\n{}\n\n{}",r.mode,c.view.name,c.view.origin,c.view.revision,root.as_ref().map(|r|r.path.display().to_string()).unwrap_or_else(||"Private export staging".into()),tool.as_ref().map(|t|format!("{} ({})",t.path.display(),t.view.version)).unwrap_or_else(||"Built-in SQLite".into()),database.as_ref().map(|d|d.path.display().to_string()).unwrap_or_else(||"None".into()),block.as_ref().map(|b|b.execution_code()).unwrap_or_else(||"Convert this captured revision to PDF. Raw document commands, remote links and unapproved images are excluded.".into()),if kind.is_some(){"Shell/TeX retain normal user privileges. Folder trust is not an OS sandbox. Executable fence copies normalize line endings to LF; Markdown bytes are unchanged. SQLite write mode commits only a successful, uncanceled DML transaction."}else{"PDF tools are trusted local executables. PDF conversion does not enable block execution."});
+        let summary = if r.mode == Mode::Pdf {
+            format!(
+                "{summary}\n\nPDF fonts: {}",
+                match r.pdf_fonts {
+                    PdfFonts::System => "System (all installed fonts)",
+                    PdfFonts::Bundled =>
+                        "Bundled (no system font scan; other scripts may need System fonts)",
+                }
+            )
+        } else {
+            summary
+        };
         let token = uid();
         self.prepared.insert(
             token.clone(),
@@ -883,6 +909,29 @@ mod tests {
     }
     use super::*;
     #[test]
+    fn pdf_font_choices_default_to_system_and_reject_paths_and_other_runners() {
+        let mut value = serde_json::json!({"capture":"test","block":null,"root":null,"database":null,"tool":null,"pandoc":null,"mode":"pdf","toc":false});
+        assert_eq!(
+            serde_json::from_value::<Request>(value.clone())
+                .unwrap()
+                .pdf_fonts,
+            PdfFonts::System
+        );
+        value["pdfFonts"] = serde_json::json!("/tmp/custom-fonts");
+        assert!(serde_json::from_value::<Request>(value.clone()).is_err());
+        value["pdfFonts"] = serde_json::json!("bundled");
+        value["mode"] = serde_json::json!("shell");
+        let request = serde_json::from_value::<Request>(value).unwrap();
+        let t = tempfile::tempdir().unwrap();
+        assert!(
+            Powers::new(t.path().into(), vec![])
+                .prepare(request)
+                .unwrap_err()
+                .message
+                .contains("Typst PDF export only")
+        );
+    }
+    #[test]
     fn fences_preserve_raw_coordinates_and_never_offer_nested_or_unclosed_code() {
         let s = "\u{feff}# Test\r\n```sh\rprintf exact\n```\r\n````text\n```sh\nevil\n```\n````\n    ```sh\nno\n    ```\n~~~sql\rSELECT 1;\r~~~\r```tex\nunclosed";
         let b = blocks(s).unwrap();
@@ -921,6 +970,7 @@ mod tests {
             pandoc: None,
             mode: Mode::SqliteRead,
             toc: false,
+            pdf_fonts: PdfFonts::System,
         };
         assert!(service.prepare(r.clone()).is_err());
         service.enable(Kind::Sqlite, true);

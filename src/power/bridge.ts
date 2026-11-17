@@ -56,6 +56,7 @@ export interface Request {
   pandoc: string | null;
   mode: Mode;
   toc: boolean;
+  pdfFonts: "system" | "bundled";
 }
 export interface Input {
   document: string | null;

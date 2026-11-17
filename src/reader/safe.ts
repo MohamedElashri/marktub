@@ -1,4 +1,5 @@
 import DOMPurify from "dompurify";
+import { readingDirections } from "./direction";
 const forbidden = [
   "script",
   "iframe",
@@ -23,20 +24,25 @@ const forbidden = [
 export function sanitizeReader(html: string) {
   const clean = DOMPurify.sanitize(html, {
     USE_PROFILES: { html: true },
+    RETURN_DOM_FRAGMENT: true,
     FORBID_TAGS: [...forbidden, "img"],
     FORBID_ATTR: ["style", "name", "src", "srcset", "target"],
     ALLOW_DATA_ATTR: true,
     SANITIZE_NAMED_PROPS: false,
   });
   const host = document.createElement("template");
-  host.innerHTML = clean;
+  host.content.append(clean);
   for (const el of host.content.querySelectorAll<HTMLElement>("*")) {
     if (el.id && !/^h-[\p{L}\p{N}_-]+$/u.test(el.id)) el.removeAttribute("id");
+    const align = el.getAttribute("align");
+    if (align && !["left", "center", "right"].includes(align))
+      el.removeAttribute("align");
     const href = el.getAttribute("href");
     if (href && !safeLink(href)) el.removeAttribute("href");
     else if (href?.startsWith("#") && !href.startsWith("#h-"))
       el.setAttribute("href", "#h-" + href.slice(1));
   }
+  readingDirections(host.content);
   return host.innerHTML;
 }
 export function safeLink(href: string) {

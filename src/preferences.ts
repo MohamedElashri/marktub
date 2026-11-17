@@ -1,3 +1,4 @@
+import { portableFamily } from "./fonts/catalogue";
 import { invoke } from "@tauri-apps/api/core";
 import { readable } from "svelte/store";
 import type { SettingsResult, SettingValue } from "./bridge";
@@ -114,6 +115,50 @@ export const themes: Record<
       "#43272d",
     ]),
   },
+  riwaq_day: {
+    label: "Riwaq Day",
+    mode: "light",
+    colors: palette([
+      "#faf6ee",
+      "#2d2a24",
+      "#6d6253",
+      "#825f08",
+      "#ffffff",
+      "#d4c8a8",
+      "#eee5d6",
+      "#ead5a4",
+      "#eee5d6",
+      "#744069",
+      "#345c36",
+      "#7a481c",
+      "#24532b",
+      "#e3efde",
+      "#8c2930",
+      "#fae6df",
+    ]),
+  },
+  riwaq_night: {
+    label: "Riwaq Night",
+    mode: "dark",
+    colors: palette([
+      "#1a1a2e",
+      "#e0d8c8",
+      "#aaa0b6",
+      "#d4a853",
+      "#1a1a2e",
+      "#474358",
+      "#24243a",
+      "#444058",
+      "#24243a",
+      "#d6b9f5",
+      "#bad8c4",
+      "#edc99a",
+      "#ace2b8",
+      "#1e3a29",
+      "#ffbdc3",
+      "#43272d",
+    ]),
+  },
   midnight: {
     label: "Ink",
     mode: "dark",
@@ -169,15 +214,22 @@ export function fontStack(name: string, mono = false) {
     ? '"SFMono-Regular", Menlo, "DejaVu Sans Mono", "Noto Sans Mono", monospace'
     : ui;
   const special: Record<string, string> = {
-    "System UI": ui,
-    "System Mono": '"SFMono-Regular", Menlo, "DejaVu Sans Mono", monospace',
-    Serif: "serif",
-    "Sans Serif": "sans-serif",
+    "system ui": ui,
+    "system mono": '"SFMono-Regular", Menlo, "DejaVu Sans Mono", monospace',
+    serif: "serif",
+    "sans serif": "sans-serif",
   };
-  return `${special[name] ?? JSON.stringify(name)}, "Noto Naskh Arabic", "Geeza Pro", "Noto Sans Hebrew", "Arial Hebrew", "Noto Sans CJK SC", "Hiragino Sans", "PingFang SC", "Apple Color Emoji", "Noto Color Emoji", ${mono ? "monospace" : fallback}`;
+  const family = portableFamily(name);
+  const face =
+    family.toLowerCase() !== name.toLowerCase()
+      ? `${JSON.stringify(name)}, ${JSON.stringify(family)}`
+      : JSON.stringify(family);
+  return `${special[name.toLowerCase()] ?? face}, "Marktub Arabic", "Geeza Pro", "Noto Sans Hebrew", "Arial Hebrew", "Noto Sans CJK SC", "Hiragino Sans", "PingFang SC", "Apple Color Emoji", "Noto Color Emoji", ${mono ? "monospace" : fallback}`;
 }
 export function appearance(values: Values, dark = false) {
   const p = currentPalette(values, dark);
+  const body = String(value(values, "reader.font", "Palatino"));
+  const heading = String(value(values, "reader.heading_font", "Same as body"));
   const color = (k: string) =>
     /^#[0-9a-f]{6}$/i.test(p.colors[k]) ? p.colors[k] : themes.light.colors[k];
   const number = (k: string, f: number, min: number, max: number) =>
@@ -185,7 +237,7 @@ export function appearance(values: Values, dark = false) {
   const css = keys
     .map((key) => `--${key.replaceAll("_", "-")}:${color(key)}`)
     .join(";");
-  return `${css};color-scheme:${p.mode};--reader-font:${fontStack(String(value(values, "reader.font", "Palatino")))};--ui-font:${fontStack(String(value(values, "ui.font", "System UI")))};--source-font:${fontStack(String(value(values, "editor.font", "System Mono")), true)};--reader-size:${number("reader.font_size", 18, 12, 40)}px;--reader-width:${number("reader.width", 760, 400, 1600)}px;--reader-line-height:${number("reader.line_height", 175, 120, 240) / 100};--source-size:${number("editor.font_size", 14, 11, 32)}px;--source-line-height:${number("editor.line_height", 165, 120, 220) / 100};--ui-factor:${number("ui.scale", 100, 80, 150) / 100};font-family:var(--ui-font);`;
+  return `${css};color-scheme:${p.mode};--reader-font:${fontStack(body)};--reader-heading-font:${fontStack(heading.toLowerCase() === "same as body" ? body : heading)};--ui-font:${fontStack(String(value(values, "ui.font", "System UI")))};--source-font:${fontStack(String(value(values, "editor.font", "System Mono")), true)};--reader-size:${number("reader.font_size", 18, 12, 40)}px;--reader-width:${number("reader.width", 760, 400, 1600)}px;--reader-line-height:${number("reader.line_height", 175, 120, 240) / 100};--source-size:${number("editor.font_size", 14, 11, 32)}px;--source-line-height:${number("editor.line_height", 165, 120, 220) / 100};--ui-factor:${number("ui.scale", 100, 80, 150) / 100};font-family:var(--ui-font);`;
 }
 // Keep unknown/duplicate literal lines visible for native diagnostics; never evaluate text.
 export function put(text: string, key: string, literal: string | null) {
@@ -207,4 +259,22 @@ export function literals(text: string) {
     if (match) result[match[1]] = match[2];
   }
   return result;
+}
+
+export function riwaqTypography(text: string, installed: readonly string[]) {
+  for (const [key, preferred] of [
+    ["reader.font", "Thmanyah Serif Text"],
+    ["reader.heading_font", "Thmanyah Serif Display"],
+    ["ui.font", "Thmanyah Sans"],
+    ["editor.font", "Cousine"],
+  ]) {
+    const family = installed.some(
+      (name) => name.toLowerCase() === preferred.toLowerCase(),
+    )
+      ? preferred
+      : portableFamily(preferred);
+    text = put(text, key, JSON.stringify(family));
+  }
+  text = put(text, "reader.line_height", "190");
+  return text;
 }

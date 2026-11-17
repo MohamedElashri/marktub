@@ -128,6 +128,16 @@
       operationBusy = false;
     }
   }
+  async function saveRunnerCopy() {
+    const previous = realDocument();
+    if (!session) await switchMode("source");
+    if (!session || !editor || busy)
+      throw Error("The editor is not ready to save a copy.");
+    await save(true);
+    if (!realDocument() || realDocument() === previous || session.needsSaveAs)
+      return null;
+    return capturePower(false);
+  }
   async function openPower() {
     if (busy || !document) return;
     PowerComponent ??= (await import("./power/Panel.svelte")).default;
@@ -275,8 +285,8 @@
   let splitPercent = $state(50),
     writingFocus = $state(false),
     windowStart = $state(0);
-  let syncUntil = 0,
-    renderRequest = 0;
+  let renderRequest = 0;
+  let syncedSplitEpoch = -1;
   let visual = $state(false),
     dirty = $state(false),
     durable = $state(true),
@@ -334,7 +344,16 @@
         value("theme", "system"),
       );
     }
-    void tick().then(() => restore?.());
+    let canceled = false;
+    void tick().then(async () => {
+      if (canceled) return;
+      restore?.();
+      await window.document.fonts.ready;
+      if (!canceled) restore?.();
+    });
+    return () => {
+      canceled = true;
+    };
   });
   export async function sourceLineAt(line: number) {
     await switchMode("source");
@@ -467,15 +486,13 @@
     editor?.assetDrop(image.id);
     return true;
   }
-  function sourceAnchor(line: number) {
-    if (mode !== "split" || performance.now() < syncUntil || !editor) return;
-    syncUntil = performance.now() + 160;
-    void reader?.revealSource(editor.byteAtLine(line), line);
+  function sourceAnchor(line: number, fraction = 0) {
+    if (mode !== "split" || !editor) return;
+    void reader?.revealSource(line, fraction);
   }
-  function previewAnchor(line: number, clicked: boolean) {
-    if (mode !== "split" || performance.now() < syncUntil) return;
-    syncUntil = performance.now() + 160;
-    editor?.revealLine(line, clicked);
+  function previewAnchor(line: number, clicked: boolean, fraction = 0) {
+    if (mode !== "split") return;
+    editor?.revealLine(line, clicked, fraction);
   }
   function resizeSplit(event: PointerEvent) {
     const target = event.currentTarget as HTMLElement;
@@ -1189,6 +1206,7 @@
       bind:this={powerPanel}
       oncapture={capturePower}
       onsettle={settlePower}
+      oncopy={saveRunnerCopy}
       hasSaved={!!realDocument()}
       hasWorking={!!session}
     />{/if}
@@ -1474,9 +1492,10 @@
                       await switchMode("source");
                     }
                   : undefined}
-                sourceLine={(byte) => editor?.lineAtByte(byte) ?? 1}
                 onsource={previewAnchor}
                 operationBusy={busy}
+                presentation={displayed}
+                dark={$osDark}
                 start={readerStart}
                 anchorId={readerAnchor}
                 onpreference={preference}
@@ -1490,6 +1509,12 @@
                   ? `Working revision ${editor?.controller().revision ?? 0}`
                   : `Saved snapshot ${document.revision}`}
                 ondisplay={() => {
+                  if (mode === "split" && syncedSplitEpoch !== readerEpoch) {
+                    syncedSplitEpoch = readerEpoch;
+                    const position = editor?.viewportAnchor();
+                    if (position)
+                      sourceAnchor(position.line, position.fraction);
+                  }
                   reviewDisplayed = true;
                   void reviewPanel
                     ?.markDisplayed()

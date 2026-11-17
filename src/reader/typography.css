@@ -1,0 +1,39 @@
+.prose :is(h1, h2, h3, h4, h5, h6) {
+  font-family: var(--reader-heading-font, inherit);
+}
+.prose em {
+  /* Arabic faces often lack italics; retain explicit Markdown emphasis. */
+  font-synthesis: style;
+}
+.prose [dir] {
+  text-align: start;
+}
+.prose h1:dir(rtl),
+.prose h2:dir(rtl) {
+  letter-spacing: normal;
+}
+.prose ul,
+.prose ol {
+  padding-inline: 0;
+}
+.prose li {
+  padding-inline: 0;
+  padding-inline-start: 5px;
+  margin-inline-start: 2em;
+}
+.prose blockquote {
+  border-inline: 0;
+  border-inline-start: 2px solid var(--accent, #3d55b4);
+  padding-inline: 0;
+  padding-inline-start: 22px;
+}
+
+.prose :is(th, td)[align="left"] {
+  text-align: left;
+}
+.prose :is(th, td)[align="center"] {
+  text-align: center;
+}
+.prose :is(th, td)[align="right"] {
+  text-align: right;
+}

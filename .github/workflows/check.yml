@@ -50,7 +50,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential libxdo-dev libssl-dev librsvg2-dev libayatana-appindicator3-dev patchelf xvfb openbox dbus-x11 desktop-file-utils texlive-xetex fonts-noto-core poppler-utils python3-gi gir1.2-atspi-2.0 at-spi2-core evince
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential libxdo-dev libssl-dev librsvg2-dev libayatana-appindicator3-dev patchelf xvfb openbox weston dbus-x11 desktop-file-utils texlive-xetex fonts-noto-core poppler-utils python3-gi gir1.2-atspi-2.0 at-spi2-core evince
       - name: Universal desktop macOS targets and SDK
         if: runner.os == 'macOS'
         run: |
@@ -82,6 +82,11 @@ jobs:
       - name: Native Linux app smoke under X11
         if: runner.os == 'Linux'
         run: xvfb-run -a dbus-run-session -- sh -c 'openbox > /tmp/marktub-window-manager.log 2>&1 & exec pnpm test:e2e'
+      - name: Native Wayland focus, editing and Arabic layout
+        if: runner.os == 'Linux'
+        env:
+          MARKTUB_E2E_GREP: "OS file open and accessibility|Preferences and commands|syncs actual viewport positions both ways|keeps narrow panes and secondary actions reachable|Arabic reading layout|Continuous reader|exports Arabic with bundled PDF fonts"
+        run: xvfb-run -a dbus-run-session -- python3 scripts/e2e-wayland.py
       - name: Production macOS bundle
         if: runner.os == 'macOS'
         run: python3 scripts/build-macos.py
@@ -130,6 +135,23 @@ jobs:
         run: |
           mkdir -p artifacts
           tar -czf artifacts/Marktub.app.tar.gz -C src-tauri/target/universal-apple-darwin/release/bundle/macos Marktub.app
+      - name: Sign checked update packages
+        if: github.event_name != 'pull_request'
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
+        shell: bash
+        run: |
+          version=$(node -p 'require("./package.json").version')
+          if [ "$RUNNER_OS" = macOS ]; then
+            platform=darwin-universal
+            package="artifacts/Marktub_${version}_universal.app.tar.gz"
+            cp artifacts/Marktub.app.tar.gz "$package"
+          else
+            platform=linux-x86_64-deb
+            package="src-tauri/target/release/bundle/deb/Marktub_${version}_amd64.deb"
+          fi
+          python3 scripts/update-manifest.py sign --platform "$platform" --package "$package" --output "artifacts/update-${platform}.json"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
         with:
@@ -139,8 +161,11 @@ jobs:
             artifacts/native-*.png
             artifacts/*installed*.app.log
             artifacts/wdio/*.log
+            artifacts/wayland-compositor.log
             artifacts/*.pdf
             artifacts/*.tar.gz
+            artifacts/*.sig
+            src-tauri/target/release/bundle/deb/*.sig
             src-tauri/target/release/bundle/deb/*.deb
             src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
           if-no-files-found: warn
@@ -165,6 +190,12 @@ jobs:
         continue-on-error: true
         id: javascript
         run: pnpm audit --json > artifacts/all-advisories.json
+      - name: Reviewed JavaScript backports and visible upstream advisories
+        continue-on-error: true
+        id: javascriptBackports
+        run: |
+          node scripts/check-javascript-overrides.mjs --audit
+          node --test tests/tooling/picomatch-mitigation.test.mjs
       - name: Install pinned Rust audit tool
         run: cargo install cargo-audit --version 0.23.0 --locked
       - name: Rust advisories including unsound/unmaintained warnings
@@ -177,5 +208,5 @@ jobs:
           name: release-advisories
           path: artifacts/*advisories.json
       - name: Enforce unresolved advisory gate
-        if: steps.javascript.outcome == 'failure' || steps.rust.outcome == 'failure'
+        if: steps.javascript.outcome == 'failure' || steps.javascriptBackports.outcome == 'failure' || steps.rust.outcome == 'failure'
         run: exit 1

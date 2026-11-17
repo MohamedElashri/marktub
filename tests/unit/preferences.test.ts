@@ -6,6 +6,7 @@ import {
   put,
   literals,
   fontStack,
+  riwaqTypography,
   type Values,
 } from "../../src/preferences";
 import { matches, score, definitions } from "../../src/commands";
@@ -22,12 +23,12 @@ const contrast = (a: string, b: string) => {
   );
 };
 describe("presentation and command contracts", () => {
-  it("ships four readable light/dark palettes including syntax and diff specimens", () => {
+  it("ships readable light/dark palettes including syntax and diff specimens", () => {
     expect(
       Object.values(themes).filter((t) => t.mode === "light"),
-    ).toHaveLength(2);
+    ).toHaveLength(3);
     expect(Object.values(themes).filter((t) => t.mode === "dark")).toHaveLength(
-      2,
+      3,
     );
     for (const theme of Object.values(themes)) {
       for (const [a, b] of [
@@ -67,6 +68,8 @@ describe("presentation and command contracts", () => {
     expect(fontStack("System Mono", true)).toContain("Noto Color Emoji");
     expect(fontStack("System UI", true)).toMatch(/^-apple-system/);
     expect(fontStack("Serif")).toContain("Noto Sans Hebrew");
+    expect(fontStack("serif")).toBe(fontStack("Serif"));
+    expect(fontStack("system ui")).toBe(fontStack("System UI"));
   });
   it("edits one literal override without hiding duplicate/invalid diagnostics", () => {
     const text = '# original\n$reader.width=760\n$unknown="keep"';
@@ -76,6 +79,40 @@ describe("presentation and command contracts", () => {
       "$theme=paper\n$theme=light",
     );
     expect(put(text, "reader.width", null)).not.toContain("reader.width");
+  });
+  it("keeps color choices independent and applies portable typography only on request", () => {
+    const original =
+      '$theme=riwaq_night\n$reader.font_size=23\n$reader.width=640\n$reader.font="My font"\n$unknown="keep"';
+    const selected = literals(riwaqTypography(original, []));
+    expect(selected.theme).toBe("riwaq_night");
+    expect(selected["reader.font_size"]).toBe("23");
+    expect(selected["reader.width"]).toBe("640");
+    expect(selected.unknown).toBe('"keep"');
+    expect(selected["reader.font"]).toBe('"Noto Naskh Arabic"');
+    expect(selected["reader.heading_font"]).toBe('"Amiri"');
+    expect(selected["editor.font"]).toBe('"Cousine"');
+    expect(selected["reader.line_height"]).toBe("190");
+    const installed = literals(
+      riwaqTypography(original, [
+        "Thmanyah Serif Text",
+        "Thmanyah Sans",
+        "Thmanyah Serif Display",
+      ]),
+    );
+    expect(installed["reader.font"]).toBe('"Thmanyah Serif Text"');
+    expect(installed["reader.heading_font"]).toBe('"Thmanyah Serif Display"');
+    expect(installed["ui.font"]).toBe('"Thmanyah Sans"');
+    const values: Values = {
+      theme: { type: "enum", value: "riwaq_day" },
+      "reader.font": { type: "text", value: "My font" },
+    };
+    const css = appearance(values);
+    expect(css).toContain('--reader-font:"My font"');
+    expect(css).toContain('--reader-heading-font:"My font"');
+    expect(fontStack("Thmanyah Serif Display")).toContain(
+      '"Thmanyah Serif Display", "Amiri"',
+    );
+    expect(css).not.toContain("direction:");
   });
   it("matches physical letters, portable modifiers and suppresses IME/AltGraph", () => {
     expect(

@@ -1,6 +1,8 @@
 export interface Section {
   start: number;
   end: number;
+  line?: number;
+  endLine?: number;
   fallback?: string;
   note?: string;
   mathStart?: number;

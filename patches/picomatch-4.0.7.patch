@@ -1,0 +1,10 @@
+--- a/lib/parse.js
++++ b/lib/parse.js
+@@ -542 +542,6 @@
+-    const analysis = analyzeRepeatedExtglob(body, opts);
++    // Marktub development tools do not admit repeated extglobs. Keep the
++    // upstream escaped-literal fallback for every +(...) and *(...) instead
++    // of constructing nested, unbounded quantifiers (GHSA-fc5q-39xc-vjpf).
++    const analysis = token.type === 'plus' || token.type === 'star'
++      ? { risky: true }
++      : analyzeRepeatedExtglob(body, opts);

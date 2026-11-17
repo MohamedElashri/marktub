@@ -11,15 +11,21 @@
     currentPalette,
     osDark,
     themes,
+    riwaqTypography,
     type Spec,
     type Values,
   } from "./preferences";
+  import { readyFontChoices } from "./fonts/catalogue";
   import { chord } from "./commands";
   let {
     onpreview,
     oncommit,
-  }: { onpreview: (v: Values | null) => void; oncommit: () => Promise<void> } =
-    $props();
+    onupdates,
+  }: {
+    onpreview: (v: Values | null) => void;
+    oncommit: () => Promise<void>;
+    onupdates: () => Promise<void>;
+  } = $props();
   let dialog: HTMLDialogElement;
   let body: HTMLDivElement;
   let specs = $state<Spec[]>([]),
@@ -72,12 +78,14 @@
     "ui.scale": "Make the interface more compact or easier to read.",
     "library.width":
       "Drag the library divider to resize it, or enter a width here. Global or session-only.",
-    "reader.font": "Choose an installed font for document text.",
+    "reader.font": "Choose a bundled or installed font for document text.",
+    "reader.heading_font":
+      "Choose a heading font, or Same as body to follow the reading font.",
     "reader.font_size": "Text size in Read and the Split preview.",
     "reader.width":
       "Maximum text width; narrower columns keep long lines comfortable.",
     "reader.line_height": "Space between lines of document text.",
-    "editor.font": "Choose an installed font for Markdown source.",
+    "editor.font": "Choose a bundled or installed font for Markdown source.",
     "editor.font_size": "Text size in Source, Split and Visual.",
     "editor.line_height": "Space between lines in the editor.",
     "editor.tab_width":
@@ -101,6 +109,8 @@
           dark: "Dark",
           paper: "Parchment",
           midnight: "Ink",
+          riwaq_day: "Riwaq Day",
+          riwaq_night: "Riwaq Night",
           custom: "Custom",
         }[option] ?? option)
       : option;
@@ -217,6 +227,8 @@
       diagnostics = result.diagnostics;
       error = "";
       if (!diagnostics.length) {
+        await readyFontChoices(result.resolved);
+        if (request !== version) return false;
         effective = result.resolved;
         if (previewDocument) onpreview(effective);
         return true;
@@ -256,6 +268,10 @@
   }
   function chooseTheme(theme: string) {
     text = put(text, "theme", theme);
+    changed();
+  }
+  function chooseTypography() {
+    text = riwaqTypography(text, families);
     changed();
   }
   function customize() {
@@ -376,6 +392,16 @@
     >
   </header>
   <div class="preferences-top">
+    <button
+      disabled={busy || committing || dirty}
+      title={dirty
+        ? "Apply or cancel preference changes first"
+        : "Manage manual application updates"}
+      onclick={() => {
+        cancel();
+        void onupdates();
+      }}>Application updates…</button
+    >
     <input
       aria-label="Search preferences"
       placeholder="Search preferences…"
@@ -474,6 +500,16 @@
             }}
           />
           <button onclick={customize}>All theme colors</button>
+        </div>
+      {/if}
+      {#if (category === "Appearance" || category === "Reading") && !query}
+        <div class="riwaq-typography">
+          <button onclick={chooseTypography}>Use Riwaq typography</button>
+          <p class="preference-hint">
+            Set reading, heading, interface and code fonts, plus reading line
+            spacing. Uses installed Thmanyah when available; otherwise bundled
+            Noto and Amiri. Colors and text size stay as chosen.
+          </p>
         </div>
       {/if}
       {#if category === "Workspace" && !query}<p class="preference-hint">
@@ -584,7 +620,9 @@
                 />
               {:else if spec.kind === "font"}<input
                   id={`pref-${spec.key}`}
-                  list="installed-fonts"
+                  list={spec.key === "reader.heading_font"
+                    ? "heading-fonts"
+                    : "installed-fonts"}
                   maxlength="128"
                   value={String(controlValue(spec))}
                   oninput={(event) => set(spec, event.currentTarget.value)}
@@ -623,12 +661,19 @@
     >{#each families as family (family)}<option value={family}
       ></option>{/each}</datalist
   >
+  <datalist id="heading-fonts"
+    ><option value="Same as body"
+    ></option>{#each families as family (family)}<option value={family}
+      ></option>{/each}</datalist
+  >
   <aside
     class="preferences-specimen"
     style={appearance(effective, $osDark)}
     aria-label="Live theme specimen"
   >
-    <span class="specimen-title">A sentence worth keeping.</span><span
+    <span class="specimen-title" dir="auto"
+      >كلمات تستحق البقاء · A sentence worth keeping.</span
+    ><span dir="auto" class="specimen-body"
       >العربية · עברית · 漢字 · 🦀 <a
         href="#specimen"
         onclick={(e) => e.preventDefault()}>A local link</a

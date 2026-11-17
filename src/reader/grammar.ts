@@ -77,12 +77,9 @@ export function grammar() {
   md.renderer.rules.frontmatter = (tokens, i) =>
     `<details class="frontmatter"><summary>Front matter (preserved as source)</summary><pre>${escape(tokens[i].content)}</pre></details>`;
   md.renderer.rules.blockquote_open = (tokens, i) => {
-    const inline = tokens.slice(i + 1, i + 4).find((t) => t.type === "inline");
-    const m = /^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]/.exec(
-      inline?.content ?? "",
-    );
-    return m
-      ? `<blockquote class="callout callout-${m[1].toLowerCase()}"><strong>${m[1].toLowerCase()}</strong>`
+    const label = tokens[i].meta?.callout as string | undefined;
+    return label
+      ? `<blockquote class="callout callout-${label}"><strong class="callout-label" dir="ltr">${label}</strong>`
       : "<blockquote>";
   };
   md.block.ruler.before("reference", "note", (state, start, end, silent) => {
@@ -206,7 +203,7 @@ export function grammar() {
     html: string,
   ) =>
     token.attrGet("data-source-line") !== null
-      ? `<div data-source-line="${escape(String(token.attrGet("data-source-line")))}">${html}</div>`
+      ? `<div data-source-line="${escape(String(token.attrGet("data-source-line")))}" data-source-end-line="${escape(String(token.attrGet("data-source-end-line")))}">${html}</div>`
       : html;
   md.renderer.rules.math = (t, i, _o, e) =>
     mapped(t[i], placeholder("math", t[i].content, !!t[i].meta?.display, e));
@@ -246,19 +243,65 @@ export function grammar() {
         }
     }
   });
-  const inline = md.renderer.rules.inline;
-  md.renderer.rules.inline = (tokens, i, o, env, self) => {
-    const children = tokens[i].children ?? [];
-    // Task checkboxes are inert text; no document-controlled form surface.
-    if (/^\[[ xX]\]\s/.test(tokens[i].content) && children[0]?.type === "text")
-      children[0].content = children[0].content.replace(
-        /^\[([ xX])\]\s/,
-        (_m, c) => (c === " " ? "☐ " : "☑ "),
-      );
-    return inline
-      ? inline(tokens, i, o, env, self)
-      : self.renderInline(children, o, env);
-  };
+  md.core.ruler.after("inline", "reading_blocks", (state) => {
+    for (let i = 0; i < state.tokens.length; i++) {
+      const block = state.tokens[i];
+      if (block.type === "th_open" || block.type === "td_open") {
+        const align = /^text-align:(left|center|right);?$/.exec(
+          String(block.attrGet("style") ?? ""),
+        );
+        if (align) block.attrSet("align", align[1]);
+      }
+      if (
+        block.type === "blockquote_open" &&
+        state.tokens[i + 1]?.type === "paragraph_open"
+      ) {
+        const inline = state.tokens[i + 2];
+        const marker =
+          /^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\](?=\s|$)/.exec(
+            inline?.content ?? "",
+          );
+        const children = inline?.children;
+        if (inline?.type === "inline" && marker && children) {
+          block.meta = { ...block.meta, callout: marker[1].toLowerCase() };
+          block.attrJoin("class", `callout callout-${marker[1].toLowerCase()}`);
+          // Keep inline.content and math source offsets untouched. Only remove
+          // the rendered marker, including a marker parsed as a reference link.
+          if (children[0]?.type === "text") {
+            children[0].content = children[0].content
+              .slice(marker[0].length)
+              .replace(/^[ \t]+/, "");
+            if (!children[0].content) children.shift();
+          } else if (
+            children[0]?.type === "link_open" &&
+            children[1]?.content === `!${marker[1]}` &&
+            children[2]?.type === "link_close"
+          ) {
+            children.splice(0, 3);
+          }
+          if (
+            children[0]?.type === "softbreak" ||
+            children[0]?.type === "hardbreak"
+          )
+            children.shift();
+        }
+      }
+      if (i < 2) continue;
+      const first = block.children?.[0];
+      if (
+        block.type === "inline" &&
+        state.tokens[i - 2].type === "list_item_open" &&
+        state.tokens[i - 1].type === "paragraph_open" &&
+        first?.type === "text" &&
+        /^\[[ xX]\]\s/.test(block.content)
+      )
+        // Keep checkboxes inert. Replace Markdown syntax before rendering so
+        // the checked marker's Latin x cannot determine an Arabic item's dir.
+        first.content = first.content.replace(/^\[([ xX])\]\s/, (_m, c) =>
+          c === " " ? "☐ " : "☑ ",
+        );
+    }
+  });
   md.renderer.rules.heading_open = (tokens, i, _o, env) => {
     const title = tokens[i + 1]?.content ?? "";
     const id = (env as unknown as Environment).heading?.(

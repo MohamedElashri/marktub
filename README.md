@@ -30,7 +30,8 @@
   and editing stay local, with no telemetry.
 - **Make technical writing readable.** Use math, equation references, diagrams,
   tables, images and highlighted code. Switch between Read, Source, Split and
-  Visual to read comfortably or work on the Markdown itself.
+  Visual to read comfortably or work on the Markdown itself. Arabic and mixed
+  RTL/LTR text use paragraph-level reading direction.
 - **Review changes and share your work.** Inspect Git diffs, stage selected hunks
   and leave optional feedback on saved revisions. Export a standalone HTML copy
   or create a PDF with your selected local tools.
@@ -80,7 +81,8 @@ append `-s -- --download-only` after `bash`.
 
 **Try a complete workflow:** open a Markdown file or folder, choose **Split** to
 write beside the preview, then **Save** your Markdown or **Export HTML** to share
-a copy. Use **Git** for saved-file diffs and **Review** for feedback on saved
+a copy. Reading stays continuous in long notes; **Outline & find** reaches the
+whole document. Use **Git** for saved-file diffs and **Review** for feedback on saved
 revisions. Quick open is Cmd/Ctrl+P; open and save are Cmd/Ctrl+O and Cmd/Ctrl+S.
 
 Start a **New note** with Cmd/Ctrl+N, or choose a starter template from the empty
@@ -94,7 +96,10 @@ and file operations. Quick Open filters filenames as you type; choose **File
 contents** to search text, then use the arrow keys and Enter to open a result.
 
 Drag tabs to arrange them, resize the Library with its divider, and use **Settings**
-to preview themes, fonts and layout changes before applying them. The built-in
+to preview themes, fonts and layout changes before applying them. Riwaq Day/Night
+add cream or navy with gold accents; **Use Riwaq typography** applies Arabic fonts
+separately. Open fonts are bundled; installed Thmanyah is supported. HTML exports
+preserve the reading appearance. The built-in
 **Guide** demonstrates formatting, math, diagrams, images, review and local tools.
 
 <details>
@@ -114,6 +119,18 @@ to preview themes, fonts and layout changes before applying them. The built-in
 - Marktub does not change system trust or quarantine settings.
 
 </details>
+
+### Updates
+
+Open **Settings → Application updates** to check for a newer stable release.
+Checking, downloading and installing are separate actions; nothing runs
+automatically. Reading and editing stay offline; only an explicit update action
+contacts GitHub. Downloads are verified with Marktub’s pinned signing key.
+
+On macOS, choose **Install and restart** after downloading. On Ubuntu/Zorin,
+choose **Open system installer**, approve the DEB installation there, then choose
+**Restart after installation**. Marktub asks how to handle unsaved work before
+restarting. You can also use the installer above to get the latest release.
 
 ## Contributing
 
