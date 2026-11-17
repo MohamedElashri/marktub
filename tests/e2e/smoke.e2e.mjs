@@ -4344,7 +4344,15 @@ describe("Everyday workflows", () => {
     await file.waitForEnabled({ timeout: 60000 });
     await file.click();
     await readDocument("Scratch");
-    await browser.$(".library-views").$("button=File details").click();
+    const details = browser.$(".library-views").$("button=File details");
+    await details.waitForEnabled();
+    await details.click();
+    await expect(details).toHaveAttribute("aria-pressed", "true");
+    const detailsRoot = browser
+      .$(".root-list")
+      .$(`button*=${root.split("/").at(-1)}`);
+    await detailsRoot.waitForEnabled();
+    await detailsRoot.click();
     await expect(browser.$(".library-controls")).toBeDisplayed();
     await browser.$(".library-views").$("button=Files").click();
     await expect(
@@ -5719,5 +5727,48 @@ describe("Manual application updates", () => {
       await rm(directory, { recursive: true, force: true });
     }
     expect((await invoke("application_update_status")).phase).toBe("idle");
+  });
+});
+
+describe("TeX guide rendering", () => {
+  it("renders an extra formula after the guide's existing rich examples", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const guide = await readFile("tests/fixtures/specimen.md", "utf8");
+    const extra =
+      "\\documentclass{article}\n\\begin{document}\nA small local document: $a^2+b^2=c^2$.\n\\end{document}\n";
+    const source = guide.replace(
+      "\nTrusted TeX uses",
+      `\n${extra}\nTrusted TeX uses`,
+    );
+    await browser.tauri.execute(
+      ({ core }, text) => core.invoke("e2e_fixture", { action: "seed", text }),
+      source,
+    );
+    await browser.$("button.open-button").waitForEnabled();
+    await browser.$("button.open-button").click();
+    const discard = browser.$('dialog[open] [id$="-discard-title"]');
+    if (await discard.isDisplayed())
+      await browser.$("button=Discard edits").click();
+    await browser.waitUntil(
+      () =>
+        browser.tauri.execute(
+          () =>
+            document.querySelectorAll(
+              '.reader-scroll svg[aria-label="TeX math: a^2+b^2=c^2"]',
+            ).length === 1,
+        ),
+      { timeout: 60000 },
+    );
+    const state = await browser.tauri.execute(() => ({
+      rendered: document.querySelectorAll(".reader-scroll [data-rich-kind]")
+        .length,
+      errors: [
+        ...document.querySelectorAll(".reader-scroll .render-error"),
+      ].map((node) => node.textContent),
+    }));
+    expect(state.rendered).toBeGreaterThan(4);
+    expect(
+      state.errors.some((text) => /budget reached|section limit/.test(text)),
+    ).toBe(false);
   });
 });
