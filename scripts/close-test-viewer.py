@@ -18,7 +18,7 @@ def main():
     document = Path(sys.argv[1]).resolve(strict=True)
     assert re.fullmatch(r"marktub-e2e-[0-9a-f-]{36}", document.parent.name)
     assert document.parent.parent == Path(tempfile.gettempdir()).resolve()
-    assert document.name == "marktub-export-export.pdf"
+    assert document.name in {"marktub-export-export.pdf", "marktub-bundled-fonts.pdf"}
     bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
 
     def call(name, path, interface, method, signature=None, values=None):
