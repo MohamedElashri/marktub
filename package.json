@@ -31,7 +31,7 @@
     "check:release": "node scripts/check-release.mjs",
     "check:repository": "node scripts/check-repository.mjs",
     "source:archive": "python3 scripts/source-archive.py",
-    "check:dependencies": "python3 scripts/check-dependencies.py",
+    "check:dependencies": "node scripts/check-javascript-overrides.mjs && python3 scripts/check-dependencies.py",
     "licenses:generate": "node scripts/licenses.mjs"
   },
   "dependencies": {
@@ -69,6 +69,7 @@
     "expect-webdriverio": "7.0.1",
     "globals": "16.5.0",
     "jsdom": "26.1.0",
+    "picomatch": "file:vendor/picomatch-4.0.7",
     "prettier": "3.9.10",
     "prettier-plugin-svelte": "3.5.2",
     "svelte-check": "4.7.8",
