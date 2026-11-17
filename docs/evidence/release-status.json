@@ -2,7 +2,7 @@
   "schemaVersion": 5,
   "date": "2026-11-17",
   "version": "0.2.0",
-  "status": "Versioned main-branch release qualification in progress",
+  "status": "Desktop, package and advisory checks passed; release assets verified",
   "changes": [
     "Add continuous reading for long notes, whole-document search and Markdown copy.",
     "Add Riwaq Day/Night themes, bundled open Arabic fonts and improved mixed RTL/LTR layout.",
@@ -17,19 +17,114 @@
     ],
     "priorQualifiedCommit": "28945987033d4aa10f2df4bdb8da37a314b59b0a",
     "priorQualification": "https://github.com/MohamedElashri/marktub/actions/runs/44174998812",
-    "scope": "All PR heads are preserved in main. The versioned release requires its own full main-branch CI; previous candidate binaries are not relabeled as release packages."
+    "scope": "Packages and automated checks bind to this versioned main commit. The final release-record-only edit and checked source archive retain identical runtime source, manifests, dependency locks and bundled resources.",
+    "qualifiedCommit": "abf7d02740b856fc5e68ed5faa45efa058c294ab",
+    "qualifiedTree": "0545f807b837878597b637f40ee19bcdc657498a"
   },
   "checks": {
-    "local": "pending",
     "hostedCI": {
-      "status": "pending; run after the versioned source is on main"
+      "run": 44185320868,
+      "url": "https://github.com/MohamedElashri/marktub/actions/runs/44185320868",
+      "status": "pass",
+      "linux": "pass",
+      "macOS": "pass",
+      "advisories": "pass"
+    },
+    "frontend": {
+      "tests": 827,
+      "nodeTooling": 22,
+      "pythonTooling": 37,
+      "typecheck": "pass",
+      "lint": "pass",
+      "format": "pass"
+    },
+    "rust": {
+      "linux": 172,
+      "macOS": 163,
+      "ignoredPerPlatform": 6,
+      "fmt": "pass",
+      "clippyWarningsDenied": "pass",
+      "nativeBackportRegressions": "pass"
+    },
+    "nativeWebView": {
+      "linuxX11": 72,
+      "linuxWayland": 14,
+      "macOS": 71,
+      "waylandScope": "Actual GDK Wayland under isolated Weston with an X11-backed input seat; native focus assertions remain mandatory. Not physical input/IME/accessibility or GNOME activation-policy certification."
+    },
+    "arabic": {
+      "variantsPerPlatform": 12,
+      "readAndSplit": true,
+      "splitWords": 0,
+      "clippedWords": 0,
+      "overflow": false
+    },
+    "local": {
+      "host": "Zorin OS 18.1 amd64",
+      "frontendSerial": 827,
+      "initialParallelRun": "825 passed; two MathJax five-second startup timeouts retained. Same suite passed serially with unchanged timeouts; both clean-host CI suites passed normally.",
+      "nodeTooling": 22,
+      "pythonTooling": 37,
+      "typecheckLintFormatRepository": "pass; 453 publication files",
+      "normalDebug": {
+        "sourceCommit": "abf7d02740b856fc5e68ed5faa45efa058c294ab",
+        "binarySha256": "86f1d774b71825b863189e6673b5bc66d43a301decc8340ab72a1c04aae229b4",
+        "isolation": "pass; normal frontend, permissions, executable and dependency graph contain no test hooks; not release-package qualification"
+      }
+    },
+    "processChecks": "pass; documents unchanged, finite counters, complete measured intervals and observed helper lifecycles confirmed. Finite hosted samples are not broad performance claims."
+  },
+  "packages": {
+    "ubuntu": {
+      "file": "Marktub_0.2.0_amd64.deb",
+      "debSha256": "c313290ad388be7a923b2a3d7f08664c7efe35c397d0f490d182a3b6745fa49e",
+      "binarySha256": "814714eef54856efb37995b8bba211515fa563010a2fc622d0087745a6bbaa79",
+      "version": "0.2.0",
+      "architecture": "amd64",
+      "iconsVerified": 5,
+      "portableLoaderAndLibraries": true,
+      "resourcesByteIdentical": true,
+      "desktopId": "Marktub.desktop",
+      "installedUI": "pass; native isolated hosted desktop"
+    },
+    "macOS": {
+      "file": "Marktub_0.2.0_universal.dmg",
+      "updateArchive": "Marktub_0.2.0_universal.app.tar.gz",
+      "dmgSha256": "fbf48699b7f8edcd954be1084e2dae583e5088b4a82362880d83dec4f1ae2fcb",
+      "archiveSha256": "99b18736ca6e9f22b8f780ff48f6c0529e341f488bd9a648bc5d85fab78fa6c4",
+      "binarySha256": "667d686a3f2b3306e3eec1719244b0fdd39d1e4d8fa1943f9d78dbdabca511d2",
+      "version": "0.2.0",
+      "buildVersion": "0.2.0",
+      "architectures": ["x86_64", "arm64"],
+      "platform": "MACOS",
+      "minimumSystemVersion": "13.0",
+      "strictAdHocSignature": "pass",
+      "resourcesByteIdentical": true,
+      "runtimeScope": "runner-native ARM64 only; both desktop slices compile and validate"
     }
   },
-  "packages": {},
   "security": {
-    "status": "pending current release audits",
+    "status": "pass; zero unreviewed findings",
     "localOverrides": "Registry audits do not certify local source dependencies. Exact source/patch provenance and mandatory native/JavaScript regressions remain enforced; raw upstream JavaScript findings remain visible. See dependency-overrides.json.",
-    "licenses": "Required source licenses, patched dependency notices and bundled font notices remain; build-generated attributions stay in artifacts and packages."
+    "licenses": "Required source licenses, patched dependency notices and bundled font notices remain; build-generated attributions stay in artifacts and packages.",
+    "javascriptProduction": 0,
+    "javascriptAllRegistry": 0,
+    "upstreamJavaScript": {
+      "visibleFindings": 1,
+      "unreviewed": 0,
+      "scope": "Raw upstream identity findings remain visible; mitigation is bound to exact reviewed source, finding fingerprint and mandatory regressions."
+    },
+    "rustVulnerabilities": 0,
+    "rustWarnings": {},
+    "rustAuditVersion": "0.23.0",
+    "rustAdvisoryDatabase": {
+      "advisory-count": 1527,
+      "last-commit": "233155b4025b854c68a4b199c0e32d7fd53291a2",
+      "last-updated": "2026-11-17T11:14:35+01:00"
+    },
+    "deny": ["unsound", "unmaintained"],
+    "ignores": [],
+    "updateSignatures": "Both packages verified with minisign against the pinned public key, including signed version; manifests match exact sidecar signatures and expected version-bound URLs."
   },
   "manualUpdates": {
     "policy": "No startup checks, automatic downloads, installation or restart; each step requires an explicit action.",
@@ -39,7 +134,8 @@
     },
     "security": "Fixed HTTPS GitHub feed and asset hosts; bounded downloads; no document paths or text transmitted; closed native commands; production private key held outside source and in encrypted Actions secret.",
     "bootstrap": "This is the first update-capable release. Existing installations need one manual upgrade using the installer or release downloads.",
-    "installedUpgradeQualification": "Actual privileged DEB approval/restart and macOS replacement/restart require a controlled installed-release upgrade. Test fixtures never update this workstation."
+    "installedUpgradeQualification": "Actual privileged DEB approval/restart and macOS replacement/restart require a controlled installed-release upgrade. Test fixtures never update this workstation.",
+    "status": "Both platform signatures verified and combined feed prepared; all actions remain manual."
   },
   "continuousReader": {
     "behavior": "One continuous reader with whole-note semantic text for ordinary documents, measured buffered content for large documents, lazy nearby rich output and whole-document Markdown copy. Parser context, native byte provenance, grants and Source undo remain unchanged.",
