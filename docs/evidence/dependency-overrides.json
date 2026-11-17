@@ -1307,6 +1307,7 @@
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
       }
     },
-    "advisorySha256": "0b3c3126665f837950f1a1f25f261b7347694453033eb410ea7c83945f7f198a"
+    "advisorySha256": "0b3c3126665f837950f1a1f25f261b7347694453033eb410ea7c83945f7f198a",
+    "peerDiagnostic": "The pinned package manager reports the file-backed optional fdir peer as a non-semver locator. Mandatory consumer checks verify the actual 4.0.7 manifest and exact reviewed source; no peer or advisory ignores are configured."
   }
 }
