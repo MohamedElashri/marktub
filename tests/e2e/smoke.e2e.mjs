@@ -4236,7 +4236,10 @@ describe("Everyday workflows", () => {
     await file.waitForEnabled({ timeout: 60000 });
     await file.click();
     await readDocument("Scratch");
-    await browser.$(".library-views").$("button=File details").click();
+    const details = browser.$(".library-views").$("button=File details");
+    await details.waitForEnabled();
+    await details.click();
+    await expect(details).toHaveAttribute("aria-pressed", "true");
     const detailsRoot = browser
       .$(".root-list")
       .$(`button*=${root.split("/").at(-1)}`);
