@@ -4237,6 +4237,11 @@ describe("Everyday workflows", () => {
     await file.click();
     await readDocument("Scratch");
     await browser.$(".library-views").$("button=File details").click();
+    const detailsRoot = browser
+      .$(".root-list")
+      .$(`button*=${root.split("/").at(-1)}`);
+    await detailsRoot.waitForEnabled();
+    await detailsRoot.click();
     await expect(browser.$(".library-controls")).toBeDisplayed();
     await browser.$(".library-views").$("button=Files").click();
     await expect(
