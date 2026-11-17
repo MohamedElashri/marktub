@@ -15,6 +15,13 @@ fn main() {
         }
     }
     let mut commands = vec![
+        "prepare_application_update",
+        "application_update_status",
+        "cancel_application_update",
+        "check_application_update",
+        "download_application_update",
+        "open_application_installer",
+        "install_application_update",
         "take_os_open",
         "power_state",
         "power_enable",

@@ -176,3 +176,47 @@ impl Fixtures {
         Some(f.folder.join("copy.txt"))
     }
 }
+
+pub fn verify_update(app: &tauri::AppHandle, text: &str) -> Result<FixtureResult, FileError> {
+    use base64::Engine;
+    use tauri_plugin_updater::UpdaterExt;
+    #[derive(serde::Deserialize)]
+    #[serde(rename_all = "camelCase", deny_unknown_fields)]
+    struct Verification {
+        public_key: String,
+        manifest: serde_json::Value,
+        payload: String,
+    }
+    let input: Verification = serde_json::from_str(text)
+        .map_err(|_| FileError::new("test", "Invalid verification fixture."))?;
+    let update = app
+        .updater_builder()
+        .pubkey(input.public_key)
+        .target(if cfg!(target_os = "macos") {
+            "darwin-universal"
+        } else {
+            "linux-x86_64-deb"
+        })
+        .endpoints(vec![
+            "https://github.com/MohamedElashri/marktub/releases/latest/download/latest.json"
+                .parse()
+                .unwrap(),
+        ])
+        .unwrap()
+        .build()
+        .map_err(|_| FileError::new("test", "Fixture updater unavailable."))?
+        .restore_update(input.manifest)
+        .map_err(|_| FileError::new("test", "Invalid fixture manifest."))?
+        .ok_or_else(|| FileError::new("test", "Fixture version is not newer."))?;
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(input.payload)
+        .map_err(|_| FileError::new("test", "Invalid fixture payload."))?;
+    update
+        .verify(&bytes)
+        .map_err(|_| FileError::new("test", "Fixture signature or signed version rejected."))?;
+    Ok(FixtureResult {
+        text: "verified".into(),
+        path: String::new(),
+        pid: std::process::id(),
+    })
+}

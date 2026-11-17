@@ -7,6 +7,7 @@ export type CommandId =
   | "open"
   | "save"
   | "save_as"
+  | "updates"
   | "preferences"
   | "palette"
   | "quick_open"
@@ -42,6 +43,7 @@ export interface Command {
   run: () => void | Promise<void>;
 }
 export const definitions: [CommandId, string, string, string][] = [
+  ["updates", "Check for application updates", "Application", "none"],
   ["power", "Export PDF and local jobs", "Document", "none"],
   ["review_records", "Manage stored reviews", "Review", "none"],
   ["review", "Toggle document review", "Review", "none"],

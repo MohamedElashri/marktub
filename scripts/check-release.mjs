@@ -42,6 +42,13 @@ assert(
   ),
   "test permission in main capability",
 );
+assert(
+  capability.permissions.every(
+    (permission) =>
+      typeof permission !== "string" || !/^(updater|process):/.test(permission),
+  ),
+  "updates must use the app's closed manual commands, without generic plugin installation/restart permissions",
+);
 const chunks = readdirSync("dist/assets").filter((file) =>
   file.endsWith(".js"),
 );
