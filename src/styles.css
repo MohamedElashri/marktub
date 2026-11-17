@@ -1,4 +1,5 @@
 :root {
+  line-height: 1.5;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: #24262d;
   background: #ffffff;
@@ -1709,6 +1710,7 @@ textarea {
 }
 .cm-author-em {
   font-style: italic;
+  font-synthesis: style;
 }
 .cm-author-code {
   font-family: var(--source-font);

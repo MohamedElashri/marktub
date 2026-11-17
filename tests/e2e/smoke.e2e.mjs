@@ -4903,67 +4903,115 @@ describe("Everyday workflows", () => {
     await expect(recoveries.$("button=Restore")).toBeDisplayed();
     await recoveries.$("summary").click();
     const observations = [];
+    const priorSession = await invoke("get_settings", {
+      id: null,
+      scope: "session",
+    });
     try {
-      for (const width of [960, 640]) {
-        await browser.tauri.execute((_api, width) => {
-          const host = document.querySelector(".document-host");
-          host.style.maxWidth = `${width}px`;
-          host.style.maxHeight = "555px";
-        }, width);
-        await pane().$(".document-actions summary").click();
-        const geometry = await browser.tauri.execute(() => {
-          const pane = document.querySelector(".document-tab:not([hidden])");
-          const rect = pane.getBoundingClientRect();
-          const toolbar = pane
-            .querySelector(".toolbar")
-            .getBoundingClientRect();
-          const popup = pane
-            .querySelector(".document-actions-list")
-            .getBoundingClientRect();
-          const editor = pane
-            .querySelector(".cm-editor")
-            .getBoundingClientRect();
-          return {
-            width: rect.width,
-            height: rect.height,
-            recoveryCollapsed: !pane.querySelector(".recovery-list").open,
-            toolbarHeight: toolbar.height,
-            popupWithinPane:
-              popup.left >= rect.left && popup.right <= rect.right,
-            bodyOverflow: document.documentElement.scrollWidth > innerWidth,
-            editorHeight: editor.height,
-            toolsWithinPane: [
-              ...pane.querySelectorAll(".author-controls button"),
-            ].every((button) => {
-              const b = button.getBoundingClientRect();
-              return (
-                b.width >= 30 &&
-                b.height >= 30 &&
-                b.left >= rect.left &&
-                b.right <= rect.right &&
-                !!button.getAttribute("aria-label")
-              );
-            }),
-            toolsOverflow:
-              pane.querySelector(".author-controls").scrollWidth >
-              pane.querySelector(".author-controls").clientWidth,
-          };
+      for (const uiFont of ["System UI", "Noto Sans Arabic"]) {
+        await invoke("update_settings", {
+          id: null,
+          scope: "session",
+          text: `$theme=riwaq_night\n$ui.scale=110\n$ui.font=${JSON.stringify(uiFont)}`,
         });
-        expect(geometry.recoveryCollapsed).toBe(true);
-        expect(geometry.popupWithinPane).toBe(true);
-        expect(geometry.toolsWithinPane).toBe(true);
-        expect(geometry.toolsOverflow).toBe(false);
-        expect(geometry.bodyOverflow).toBe(false);
-        expect(geometry.editorHeight).toBeGreaterThan(200);
-        observations.push(geometry);
-        await browser.saveScreenshot(`artifacts/workflow-source-${width}.png`);
-        await browser.keys("Escape");
+        await browser.waitUntil(() =>
+          browser.tauri.execute(
+            (_api, uiFont) =>
+              document
+                .querySelector(".document-tab:not([hidden]) .window-shell")
+                .style.getPropertyValue("--ui-font")
+                .includes(uiFont === "System UI" ? "-apple-system" : uiFont),
+            uiFont,
+          ),
+        );
+        await browser.tauri.execute(async () => {
+          document
+            .querySelector(".document-tab:not([hidden])")
+            .getBoundingClientRect();
+          await document.fonts.ready;
+        });
+        for (const width of [960, 640]) {
+          await browser.tauri.execute((_api, width) => {
+            const host = document.querySelector(".document-host");
+            host.style.maxWidth = `${width}px`;
+            host.style.maxHeight = "555px";
+          }, width);
+          await pane().$(".document-actions summary").click();
+          const geometry = await browser.tauri.execute(async () => {
+            await new Promise((done) =>
+              requestAnimationFrame(() => requestAnimationFrame(done)),
+            );
+            const pane = document.querySelector(".document-tab:not([hidden])");
+            const rect = pane.getBoundingClientRect();
+            const toolbar = pane
+              .querySelector(".toolbar")
+              .getBoundingClientRect();
+            const popup = pane
+              .querySelector(".document-actions-list")
+              .getBoundingClientRect();
+            const editor = pane
+              .querySelector(".cm-editor")
+              .getBoundingClientRect();
+            return {
+              uiFont: getComputedStyle(pane).fontFamily,
+              uiLineHeight: getComputedStyle(pane).lineHeight,
+              loadedFonts: [...document.fonts]
+                .filter((f) => f.status === "loaded")
+                .map((f) => f.family.replaceAll('"', "")),
+              width: rect.width,
+              height: rect.height,
+              recoveryCollapsed: !pane.querySelector(".recovery-list").open,
+              toolbarHeight: toolbar.height,
+              popupWithinPane:
+                popup.left >= rect.left && popup.right <= rect.right,
+              bodyOverflow: document.documentElement.scrollWidth > innerWidth,
+              editorHeight: editor.height,
+              toolsWithinPane: [
+                ...pane.querySelectorAll(".author-controls button"),
+              ].every((button) => {
+                const b = button.getBoundingClientRect();
+                return (
+                  b.width >= 30 &&
+                  b.height >= 30 &&
+                  b.left >= rect.left &&
+                  b.right <= rect.right &&
+                  !!button.getAttribute("aria-label")
+                );
+              }),
+              toolsOverflow:
+                pane.querySelector(".author-controls").scrollWidth >
+                pane.querySelector(".author-controls").clientWidth,
+            };
+          });
+          observations.push(geometry);
+          await writeFile(
+            "artifacts/workflow-layout-observations.json",
+            JSON.stringify(observations, null, 2),
+          );
+          if (uiFont === "Noto Sans Arabic")
+            expect(geometry.loadedFonts).toContain(uiFont);
+          expect(geometry.recoveryCollapsed).toBe(true);
+          expect(geometry.popupWithinPane).toBe(true);
+          expect(geometry.toolsWithinPane).toBe(true);
+          expect(geometry.toolsOverflow).toBe(false);
+          expect(geometry.bodyOverflow).toBe(false);
+          expect(geometry.editorHeight).toBeGreaterThan(200);
+          await browser.saveScreenshot(
+            `artifacts/native-workflow-source-${uiFont === "System UI" ? "system" : "arabic"}-${width}.png`,
+          );
+          await browser.keys("Escape");
+        }
       }
     } finally {
       await browser.tauri.execute(() => {
         const host = document.querySelector(".document-host");
         host.style.maxWidth = "";
         host.style.maxHeight = "";
+      });
+      await invoke("update_settings", {
+        id: null,
+        scope: "session",
+        text: priorSession.text,
       });
     }
     if (!(await browser.$(".library-host").isDisplayed()))
