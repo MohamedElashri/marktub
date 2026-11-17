@@ -226,24 +226,25 @@
   },
   "continuousReader": {
     "date": "2026-11-17",
-    "status": "local qualification passed; unreleased; hosted results are tracked by the pull request checks",
+    "status": "reader-specific local qualification passed; unreleased; final hosted desktop results are tracked by the pull request checks",
     "behavior": "One continuous reader with whole-note semantic text for ordinary documents, measured buffered content for large documents, lazy nearby rich output and whole-document Markdown copy. Parser context, native byte provenance, grants and Source undo remain unchanged.",
     "localValidation": {
       "host": "Zorin OS 18.1 amd64; WebKitGTK 2.52.6",
       "frontend": 827,
-      "nodeTooling": 18,
+      "nodeTooling": 22,
       "pythonTooling": 37,
-      "nativeWayland": 21,
-      "nativeWaylandBinarySha256": "024d48d9c8a56b8f81e085260f7c01deb74a3d2f19c6253c5f050590cf5e3f0e",
-      "waylandScope": "Actual GDK Wayland under isolated Weston with an X11-backed input seat; includes native focus, selection, keyboard scroll, offscreen search/copy, math, HTML/PDF export and Split checks.",
+      "nativeWayland": 11,
+      "nativeWaylandBinarySha256": "67ba9976e4ad469ad25e3e9b786daaa15fddca35e406dbd6581a35bf3a9df1e1",
+      "waylandScope": "Fresh actual GDK Wayland WebView under isolated Weston with an X11-backed input seat: continuous scrolling/selection/copy, large-file End navigation, full-document math/export, HTML safety, reload/relative navigation and guide TeX. Twelve Arabic Read/Split typography variants passed with no split/clipped words or overflow. The later detached-layout callback guard is outside this local binary’s scope and requires hosted qualification.",
       "arabicVariants": 12,
       "arabicSplitWords": 0,
       "arabicClippedWords": 0,
       "arabicOverflow": false,
       "normalDebug": {
-        "binarySha256": "8a5dc9338fa631bdb70265c1f4ceb99ad82816ca6119f0f6f34cc5c6f750d34e",
+        "binarySha256": "2ecf6cf3a5b4426da962c10dd6eda3109b781467362e2722021d0752bb0237c2",
         "isolation": "pass; normal frontend, ACL, executable and dependency graph contain no test hooks; not release-package qualification"
-      }
+      },
+      "broaderRun": "A broader local run passed 18 checks but failed 4 editor lifecycle/preferences, narrow-layout and settings-script checks. Evidence was retained; native-operation waits were aligned with the existing 60-second bound. These broader cases require final hosted qualification."
     },
     "limits": [
       "Virtual large-document views expose nearby semantic text. Complete standalone HTML remains available; physical screen-reader/IME certification and GNOME activation policy are Not Run.",

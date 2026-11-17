@@ -48,7 +48,7 @@ before(async () => {
     window.marktubTestErrors = [];
     const record = (error) => {
       window.marktubTestErrors.push(
-        String(error?.stack ?? error).slice(0, 2000),
+        `${error}${error?.stack ? `\n${error.stack}` : ""}`.slice(0, 2000),
       );
       window.marktubTestErrors = window.marktubTestErrors.slice(-20);
     };
