@@ -1,183 +1,53 @@
 {
-  "schemaVersion": 4,
-  "date": "2026-11-16",
-  "version": "0.1.2",
-  "status": "Desktop, package and advisory checks passed",
-  "candidateQualification": {
-    "date": "2026-11-17",
-    "status": "pass; unreleased candidate",
-    "sourceCommit": "47771673470b9a3aa1beacb98a394bfa0632e2f1",
-    "hostedCI": {
-      "run": 44130422519,
-      "url": "https://github.com/MohamedElashri/marktub/actions/runs/44130422519",
-      "linux": "pass",
-      "macOS": "pass",
-      "advisories": "pass"
-    },
-    "tests": {
-      "frontend": 820,
-      "nodeTooling": 18,
-      "pythonTooling": 37,
-      "rustLinux": 172,
-      "rustMacOS": 163,
-      "rustIgnoredPerPlatform": 6,
-      "nativeLinuxX11": 71,
-      "nativeLinuxWayland": 12,
-      "nativeMacOS": 70
-    },
-    "security": {
-      "javascriptProduction": 0,
-      "javascriptAll": 0,
-      "rustVulnerabilities": 0,
-      "rustWarnings": {},
-      "deny": ["unsound", "unmaintained"],
-      "ignores": [],
-      "rustAdvisoryDatabaseCommit": "233155b4025b854c68a4b199c0e32d7fd53291a2",
-      "dependencyOverrides": "pass; reviewed source/patch hashes, native serialization and compiler diagnostics"
-    },
-    "waylandScope": "Actual GDK Wayland/WebKitGTK under Weston 13 with an X11-backed input seat and Pixman renderer. Existing native keyboard-focus assertions remain mandatory. Does not certify GNOME activation policy, physical input/IME/accessibility or input-to-paint latency.",
-    "pdfFonts": "Native export validates embedded static Amiri regular/bold and Cousine, preserved Markdown bytes and focus after closing the owned viewer. Isolated Linux Typst 0.14.2/0.15.1 font probes pass without warnings. System fonts remain the default; bundled mode is explicit and process/output limits are unchanged.",
-    "packages": {
-      "ubuntu": {
-        "status": "pass; production DEB, installation, native desktop integration and normal-release isolation",
-        "binarySha256": "2ac0c50264a4a5143b407dbdbdbd0b0a3d11444d757ed31a88358587a4fd79ad"
-      },
-      "macOS": {
-        "status": "pass; universal desktop app/DMG, strict ad-hoc signature, resource/platform checks and normal-release isolation",
-        "binarySha256": "1b927e5d43a6f9db7aa128e43a1508f573dd361286fd4e69fc0e9d3fd232efde",
-        "architectures": ["x86_64", "arm64"],
-        "platform": "MACOS",
-        "runtimeScope": "runner-native ARM64 only"
-      }
-    },
-    "localNormalDebug": {
-      "status": "pass; rebuilt after E2E and checked for test hooks, permissions and dependencies; not release-package qualification",
-      "binarySha256": "a3c13899ef1e47eec1341d3bb43ab4b45d70f6ca8b9785b78eabcc5a155a815b"
-    },
-    "scope": "Results bind to the referenced tested candidate. This later qualification-record edit changes no runtime source, manifests, dependency locks or bundled resources. Published-release facts and remainingQualifications elsewhere in this record retain their original scope."
-  },
-  "source": {
-    "qualifiedCommit": "eea4a6dfeed2b0e5d375805371ce04f2690c4ccd",
-    "qualifiedTree": "1abb7624b60156b04b0dc370a9e6f288256abde0",
-    "scope": "Hosted packages and checks bind to this commit. Final README copy and qualification-record edits are included in the checked release source archive; runtime code, manifests and dependency locks remain identical."
-  },
+  "schemaVersion": 5,
+  "date": "2026-11-17",
+  "version": "0.2.0",
+  "status": "Versioned main-branch release qualification in progress",
   "changes": [
-    "Add note templates, wikilinks and backlinks.",
-    "Improve folder browsing and search, with up to 16 reorderable tabs.",
-    "Add a resizable Library, clearer settings, neutral themes and a built-in guide.",
-    "Keep recovery accessible without crowding small writing panes."
+    "Add continuous reading for long notes, whole-document search and Markdown copy.",
+    "Add Riwaq Day/Night themes, bundled open Arabic fonts and improved mixed RTL/LTR layout.",
+    "Add manual signed update checks, downloads and explicit installation/restart.",
+    "Fix TeX rendering, Shell/SQLite guide setup, two-way Split scrolling and PDF font discovery.",
+    "Address reviewed dependency advisories with checked source provenance and regressions."
   ],
+  "source": {
+    "integrationCommit": "2be42f56f8825d54c82fcd71b1854e676d997376",
+    "includedPullRequests": [
+      14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26
+    ],
+    "priorQualifiedCommit": "28945987033d4aa10f2df4bdb8da37a314b59b0a",
+    "priorQualification": "https://github.com/MohamedElashri/marktub/actions/runs/44174998812",
+    "scope": "All PR heads are preserved in main. The versioned release requires its own full main-branch CI; previous candidate binaries are not relabeled as release packages."
+  },
   "checks": {
+    "local": "pending",
     "hostedCI": {
-      "run": 43955561520,
-      "url": "https://github.com/MohamedElashri/marktub/actions/runs/43955561520",
-      "status": "pass",
-      "linux": "pass",
-      "macOS": "pass",
-      "advisories": "pass"
-    },
-    "frontend": {
-      "tests": 798,
-      "testFiles": 21,
-      "typecheck": "pass; zero errors or warnings",
-      "lintAndFormatting": "pass"
-    },
-    "tooling": {
-      "nodeTests": 17,
-      "pythonTests": 34
-    },
-    "nativeRust": {
-      "linuxTests": 166,
-      "macOSTests": 157,
-      "ignoredPerPlatform": 6,
-      "rustfmtAndStrictClippy": "pass",
-      "ignoredScope": "Existing subprocess helper entries and separately selected environment fixtures retain their explicit scope; no new ignores."
-    },
-    "nativeWebView": {
-      "linuxTests": 61,
-      "macOSTests": 60,
-      "linuxBackend": "Actual X11/WebKitGTK on Ubuntu amd64",
-      "macOSBackend": "Actual WKWebView in the universal desktop app; runner-native slice",
-      "focusedWaylandBeforeVersionBump": {
-        "passed": 4,
-        "seconds": 7.7,
-        "sourceCommit": "2135a85ec835a4fffc566a5ee40f055ef7ba61ef",
-        "binarySha256": "bc54962b6053b3ba753dc12b7b822865b91eb8d96fb184d13edc2946cb79f0de",
-        "scope": "Actual GNOME Wayland/WebKitGTK: wikilinks/backlinks, drafts/templates, settings/divider and retained-recovery narrow layout; feature-identical normal workflow before the version-only release bump"
-      }
-    },
-    "dependencyBackports": {
-      "status": "pass; provenance, optimized soundness and native compiler regressions",
-      "record": "dependency-overrides.json"
-    },
-    "releaseIsolation": "pass on Linux and macOS; normal frontend, ACL, executable and Rust graph exclude test fixture/server/evaluator hooks",
-    "installedLinux": {
-      "status": "pass; clean-profile UI, bundled guide and native desktop/icon lookup",
-      "desktopId": "Marktub.desktop",
-      "allIconSizesPresent": true,
-      "documentsUnchanged": true,
-      "observedHelperLifecyclesConfirmed": true
-    },
-    "processChecks": "pass; documents unchanged, finite counters, complete measured intervals and observed helpers exited; finite hosted samples are not broad performance claims",
-    "readmeScreenshots": {
-      "scope": "normal Linux app; native AT-SPI actions and direct client-area captures; isolated X11 profile with a synthetic notebook; unreleased note workflows; captured before the version-only bump",
-      "sourceCommit": "2135a85ec835a4fffc566a5ee40f055ef7ba61ef",
-      "binarySha256": "7b26fcd2df3b7297478a6fd1949ffd73c8463d88cabd89d434e63daf8666c831",
-      "images": [
-        {
-          "path": "docs/assets/read.png",
-          "sha256": "96203a2e952ef5a8e068f9e02d0146c8e62762fc4e0738e1fcd7fb6bc61808a2",
-          "width": 1080,
-          "height": 760
-        },
-        {
-          "path": "docs/assets/split.png",
-          "sha256": "cd700d66cddc80c0f0226a78f084d06cf297e3a56c0f634389103eb66e3182cf",
-          "width": 1080,
-          "height": 760
-        }
-      ]
+      "status": "pending; run after the versioned source is on main"
     }
   },
-  "packages": {
-    "ubuntu": {
-      "file": "Marktub_0.1.2_amd64.deb",
-      "version": "0.1.2",
-      "debSha256": "cc530b1391b5a22a0b7af132ec0bd6a653b78532902d2c27a2a6a90673526411",
-      "binarySha256": "567ade01d9876cdcd230d52b17f3e4ae351dae1e071c512dbb218af1e68ad24b",
-      "portableLoaderAndLibraries": true,
-      "resourcesByteIdentical": true
-    },
-    "macOS": {
-      "file": "Marktub_0.1.2_universal.dmg",
-      "embeddedVersion": "0.1.2",
-      "embeddedBuildVersion": "0.1.2",
-      "versionVerification": "Info.plist from the corresponding signed normal-app archive; executable hash matches the mounted and signature-verified DMG app",
-      "dmgSha256": "6a1a668333242331b0e9a4ec1ea6982b36bde0e3e8308a609ba7c0415a02012d",
-      "binarySha256": "eb1ebde9edbc9a2a01cb92f4f52efb01858dcee589be4e0db2b78a2909e920c5",
-      "architectures": ["x86_64", "arm64"],
-      "platform": "MACOS",
-      "minimumSystemVersion": "13.0",
-      "strictAdHocSignature": "pass",
-      "resourcesByteIdentical": true,
-      "scope": "Both desktop slices compile and validate; runtime checks cover only the runner-native architecture"
-    }
-  },
+  "packages": {},
   "security": {
-    "javascriptProduction": 0,
-    "javascriptAll": 0,
-    "rustVulnerabilities": 0,
-    "rustWarnings": {},
-    "rustAuditVersion": "0.23.0",
-    "rustAdvisoryDatabase": {
-      "advisory-count": 1509,
-      "last-commit": "02e2517f457a359fc6d3440ea4560c8ea188fee8",
-      "last-updated": "2026-11-15T10:59:21+01:00"
-    },
-    "deny": ["unsound", "unmaintained"],
-    "ignores": [],
-    "localOverrides": "Registry audit excludes path dependencies. Exact source/patch provenance and optimized native regressions pass; see dependency-overrides.json.",
+    "status": "pending current release audits",
+    "localOverrides": "Registry audits do not certify local source dependencies. Exact source/patch provenance and mandatory native/JavaScript regressions remain enforced; raw upstream JavaScript findings remain visible. See dependency-overrides.json.",
     "licenses": "Required source licenses, patched dependency notices and bundled font notices remain; build-generated attributions stay in artifacts and packages."
+  },
+  "manualUpdates": {
+    "policy": "No startup checks, automatic downloads, installation or restart; each step requires an explicit action.",
+    "channels": {
+      "macOS": "Pinned, version-bound signature; universal app archive; explicit install and restart.",
+      "Linux": "Pinned, version-bound signature; amd64 DEB; OS installer approval and explicit version-checked restart."
+    },
+    "security": "Fixed HTTPS GitHub feed and asset hosts; bounded downloads; no document paths or text transmitted; closed native commands; production private key held outside source and in encrypted Actions secret.",
+    "bootstrap": "This is the first update-capable release. Existing installations need one manual upgrade using the installer or release downloads.",
+    "installedUpgradeQualification": "Actual privileged DEB approval/restart and macOS replacement/restart require a controlled installed-release upgrade. Test fixtures never update this workstation."
+  },
+  "continuousReader": {
+    "behavior": "One continuous reader with whole-note semantic text for ordinary documents, measured buffered content for large documents, lazy nearby rich output and whole-document Markdown copy. Parser context, native byte provenance, grants and Source undo remain unchanged.",
+    "limits": [
+      "Virtual large-document views expose nearby semantic text. Complete standalone HTML remains available; physical screen-reader/IME certification and GNOME activation policy are Not Run.",
+      "Live manual selections retain a bounded window. A notice preserves the selection before further scrolling would discard it; Select All/Copy and Copy document Markdown include the full native revision.",
+      "Parser/context/output admission limits and bounded source fallbacks remain in force. Debug scroll observations include WebDriver/IPC polling and are not physical paint or input-latency measurements."
+    ]
   },
   "remainingQualifications": [
     "Native Intel runtime and minimum-supported macOS verification; both universal slices compile and validate as desktop MACOS, while hosted runtime coverage is ARM64",
@@ -185,7 +55,8 @@
     "Full installed Ubuntu desktop qualification; installed-package UI checks use isolated hosted and offline runtime desktops",
     "Sustained large Source, multitab, Git/Review resource distributions and compositor/input-to-paint/DOM/IPC measurements",
     "Broader filesystem/Git/storage/crash faults, converters/fonts/layout and tool-version combinations",
-    "Downloaded macOS opening/Gatekeeper and clean-machine channel verification"
+    "Downloaded macOS opening/Gatekeeper and clean-machine channel verification",
+    "Actual installed-release update approval/replacement and restart on each supported OS; automated signature, cancellation and version-bound checks do not certify privileged OS installation."
   ],
   "distributionDecision": {
     "macOS": "ad-hoc signing; no paid Apple Developer account",
@@ -193,63 +64,9 @@
     "opening": "macOS may block downloaded apps; per-app user trust decision remains necessary; no automatic Gatekeeper/quarantine bypass"
   },
   "evidencePolicy": "Results apply only to their recorded executable, source, host and scope. Raw local traces and failed runs remain in ignored artifacts; maintained tests, provenance and legal notices remain in source. No ignored advisory, release evaluator or physical-input inference.",
-  "historicalEvidence": "Prior binary-bound measurements and release qualifications remain at https://github.com/MohamedElashri/marktub/blob/v0.1.1/docs/evidence/release-status.json; they are not relabeled as current-release performance.",
-  "manualUpdates": {
-    "status": "in development; not part of the published release qualification above",
-    "policy": "No startup checks, automatic downloads, installation or restart; each step requires an explicit action.",
-    "channels": {
-      "macOS": "Pinned, version-bound signature; universal app archive; explicit install and restart.",
-      "Linux": "Pinned, version-bound signature; amd64 DEB; OS installer approval and explicit version-checked restart."
-    },
-    "security": "Fixed HTTPS GitHub feed and asset hosts; bounded downloads; no document paths or text transmitted; closed native commands; production private key held outside source and in encrypted Actions secret.",
-    "validation": {
-      "frontend": "798 passed; 17 Node and 36 Python tooling tests passed",
-      "nativeRust": "169 passed, 6 ignored on Linux before final configuration/TLS/preflight changes; final four updater regressions passed, including real TLS client construction without network",
-      "audits": {
-        "javascriptProduction": 0,
-        "javascriptAll": 0,
-        "rust": 0,
-        "rustWarnings": 0,
-        "rustDatabaseCommit": "02e2517f457a359fc6d3440ea4560c8ea188fee8"
-      },
-      "webview": {
-        "linuxX11": "8 passed: update controls, cancellation, real version-bound signatures, existing close/settings guards",
-        "linuxWayland": "Same eight checks passed under actual GNOME Wayland/WebKitGTK",
-        "binarySha256": "18369e7099af82c297f09d38a332a2208655d5e83819d82cc99c33db396beacd",
-        "macOS": "Pending hosted CI"
-      }
-    },
-    "remaining": [
-      "Publish the first update-capable release with both signed packages and latest.json; existing installations need one manual bootstrap upgrade.",
-      "Actual privileged DEB approval/restart and macOS replacement/restart require a controlled installed-release upgrade; test fixtures must never update this workstation."
-    ]
-  },
-  "continuousReader": {
-    "date": "2026-11-17",
-    "status": "reader-specific local qualification passed; unreleased; final hosted desktop results are tracked by the pull request checks",
-    "behavior": "One continuous reader with whole-note semantic text for ordinary documents, measured buffered content for large documents, lazy nearby rich output and whole-document Markdown copy. Parser context, native byte provenance, grants and Source undo remain unchanged.",
-    "localValidation": {
-      "host": "Zorin OS 18.1 amd64; WebKitGTK 2.52.6",
-      "frontend": 827,
-      "nodeTooling": 22,
-      "pythonTooling": 37,
-      "nativeWayland": 11,
-      "nativeWaylandBinarySha256": "67ba9976e4ad469ad25e3e9b786daaa15fddca35e406dbd6581a35bf3a9df1e1",
-      "waylandScope": "Fresh actual GDK Wayland WebView under isolated Weston with an X11-backed input seat: continuous scrolling/selection/copy, large-file End navigation, full-document math/export, HTML safety, reload/relative navigation and guide TeX. Twelve Arabic Read/Split typography variants passed with no split/clipped words or overflow. The later detached-layout callback guard is outside this local binary’s scope and requires hosted qualification.",
-      "arabicVariants": 12,
-      "arabicSplitWords": 0,
-      "arabicClippedWords": 0,
-      "arabicOverflow": false,
-      "normalDebug": {
-        "binarySha256": "2ecf6cf3a5b4426da962c10dd6eda3109b781467362e2722021d0752bb0237c2",
-        "isolation": "pass; normal frontend, ACL, executable and dependency graph contain no test hooks; not release-package qualification"
-      },
-      "broaderRun": "A broader local run passed 18 checks but failed 4 editor lifecycle/preferences, narrow-layout and settings-script checks. Evidence was retained; native-operation waits were aligned with the existing 60-second bound. These broader cases require final hosted qualification."
-    },
-    "limits": [
-      "Virtual large-document views expose nearby semantic text. Complete standalone HTML remains available; physical screen-reader/IME certification and GNOME activation policy are Not Run.",
-      "Live manual selections retain a bounded window. A notice preserves the selection before further scrolling would discard it; Select All/Copy and Copy document Markdown include the full native revision.",
-      "Parser/context/output admission limits and bounded source fallbacks remain in force. Debug scroll observations include WebDriver/IPC polling and are not physical paint or input-latency measurements."
-    ]
+  "historicalEvidence": {
+    "previousRelease": "https://github.com/MohamedElashri/marktub/blob/v0.1.2/docs/evidence/release-status.json",
+    "priorCandidate": "https://github.com/MohamedElashri/marktub/blob/28945987033d4aa10f2df4bdb8da37a314b59b0a/docs/evidence/release-status.json",
+    "scope": "Prior binary-bound measurements and failed local traces keep their original scope and are not relabeled as current-release performance."
   }
 }
