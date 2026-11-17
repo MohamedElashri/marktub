@@ -47,14 +47,65 @@ def validate(root, metadata):
         assert digest(root / package["patch"]) == package["patchSha256"], f"Override patch changed: {name}"
     local = {Path(p["manifest_path"]).resolve() for p in metadata["packages"] if p["source"] is None}
     assert local == expected_local, "Resolved graph contains an unreviewed local package"
-    removed = {"proc-macro-error", "proc-macro-error-attr", "proc-macro-error2", "proc-macro-error-attr2", "zvariant", "zvariant_derive", "zbus_names"}
+    removed = {"proc-macro-error", "proc-macro-error-attr", "proc-macro-error2", "proc-macro-error-attr2", "zvariant", "zvariant_derive", "zbus_names", "chrono"}
     assert not removed.intersection(p["name"] for p in metadata["packages"]), "Unmaintained implementation returned to the graph"
+    locked = tomllib.loads((root / "src-tauri/Cargo.lock").read_text())
+    assert not removed.intersection(p["name"] for p in locked.get("package", [])), "Unmaintained implementation returned to the lockfile"
     return version, len(packages)
 
 
 def native(root):
     subprocess.run(["cargo", "test", "--manifest-path", str(root / "src-tauri/Cargo.toml"), "--locked", "--release", "--lib", "dependency_tests::glib_string_variant_iteration_is_sound_under_optimization", "--", "--exact"], check=True)
     diagnostics(root)
+    serialization(root)
+
+
+def serialization(root):
+    """Exercise Tauri's used adapters and refuse the removed integration."""
+    logs = root / "artifacts/dependency-diagnostics"
+    logs.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="marktub-serde-diagnostics-") as directory:
+        fixture = Path(directory)
+        (fixture / "src").mkdir()
+        (fixture / "Cargo.toml").write_text(
+            '[package]\nname="marktub-serde-diagnostics"\nversion="0.0.0"\nedition="2024"\n'
+            '[dependencies]\nserde={version="1",features=["derive"]}\nserde_json="1"\n'
+            'serde_with={path=' + json.dumps(str(root / "src-tauri/vendor/serde_with")) + '}\n'
+        )
+        (fixture / "Cargo.lock").write_bytes((root / "src-tauri/Cargo.lock").read_bytes())
+        (fixture / "src/main.rs").write_text('''
+use serde::{Deserialize, Serialize};
+use serde_with::{serde_as, skip_serializing_none, DisplayFromStr};
+#[serde_as]
+#[skip_serializing_none]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+struct Config {
+    #[serde_as(as = "Vec<DisplayFromStr>")]
+    ids: Vec<u64>,
+    title: String,
+    optional: Option<String>,
+}
+fn main() {
+    let config: Config = serde_json::from_str(r#"{"ids":["42","18446744073709551615"],"title":"العربية <>&"}"#).unwrap();
+    assert_eq!(config.ids, [42, u64::MAX]);
+    let json = serde_json::to_value(&config).unwrap();
+    assert_eq!(json["title"], "العربية <>&");
+    assert_eq!(json["ids"][0], "42");
+    assert!(json.get("optional").is_none());
+    assert_eq!(serde_json::from_value::<Config>(json).unwrap(), config);
+    assert!(serde_json::from_str::<Config>(r#"{"ids":["-1"],"title":"bad"}"#).is_err());
+}
+''')
+        command = ["cargo", "run", "--offline", "--manifest-path", str(fixture / "Cargo.toml"), "--target-dir", str(root / "src-tauri/target")]
+        run = subprocess.run(command, capture_output=True, text=True)
+        (logs / "serde-valid.log").write_text(run.stdout + run.stderr)
+        assert run.returncode == 0, "Tauri serialization adapters failed"
+        for feature in ["chrono", "chrono_0_4"]:
+            run = subprocess.run(command + ["--features", "serde_with/" + feature], capture_output=True, text=True)
+            output = run.stdout + run.stderr
+            (logs / ("serde-" + feature + ".log")).write_text(output)
+            assert run.returncode != 0 and "Marktub excludes serde_with chrono integration" in output, "Removed chrono integration did not fail explicitly"
+    print("PASS: serde adapters roundtrip Unicode, optional fields and bounded integers; both chrono feature names fail explicitly")
 
 
 def diagnostics(root):
