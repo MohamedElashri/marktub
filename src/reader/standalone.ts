@@ -12,7 +12,14 @@ export async function exportStandalone(
   presentation: Values = {},
   dark = false,
 ) {
-  const settings = structuredClone(presentation);
+  // Svelte values can be proxies. Copy the validated primitive records rather
+  // than passing those proxies to structuredClone, which rejects them.
+  const settings: Values = Object.fromEntries(
+    Object.entries(presentation).map(([key, record]) => [
+      key,
+      { type: record.type, value: record.value },
+    ]),
+  );
   // CSS strings may contain a literal HTML end tag. Escape '<' before the
   // style element is serialized into standalone HTML's raw-text context.
   const css = appearance(settings, dark).replaceAll("<", "\\3c ");

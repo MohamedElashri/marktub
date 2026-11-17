@@ -32,7 +32,16 @@ it("exports captured Riwaq appearance and approved fonts without external resour
       rich: [],
     }),
   } as unknown as ReaderClient;
-  await exportStandalone(client, "<A title>", "Saved revision", settings);
+  const reactive = new Proxy(
+    Object.fromEntries(
+      Object.entries(settings).map(([key, record]) => [
+        key,
+        new Proxy(record, {}),
+      ]),
+    ),
+    {},
+  );
+  await exportStandalone(client, "<A title>", "Saved revision", reactive);
   expect(invoke).toHaveBeenLastCalledWith("export_html", expect.any(Object));
   const content = invoke.mock.lastCall![1].content as string;
   const doc = new DOMParser().parseFromString(content, "text/html");

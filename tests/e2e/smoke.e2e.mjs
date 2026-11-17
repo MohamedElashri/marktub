@@ -5337,7 +5337,13 @@ describe("Arabic reading layout", () => {
     ).toBe("rtl");
     await invoke("e2e_fixture", { action: "export" });
     await pane().$("button=Export HTML").click();
-    await pane().$("button=Export HTML").waitForEnabled({ timeout: 60000 });
+    await browser.waitUntil(
+      async () =>
+        (await pane().$(".reader-notice").isExisting()) &&
+        (await pane().$(".reader-notice").getText()) ===
+          "HTML export completed.",
+      { timeout: 60000, timeoutMsg: "Standalone HTML export did not complete" },
+    );
     const { readFile } = await import("node:fs/promises");
     const output = await invoke("e2e_fixture", { action: "read-export" });
     const html = await readFile(output.path, "utf8");
