@@ -5568,7 +5568,7 @@ describe("Arabic reading layout", () => {
           await invoke("update_settings", {
             id: null,
             scope: "session",
-            text: `$theme=${theme}\n$reader.font_size=${size}\n$reader.line_height=${size === 18 ? 175 : 200}${theme === "light" ? "" : '\n$reader.font="Noto Naskh Arabic"\n$reader.heading_font="Amiri"\n$ui.font="Noto Sans Arabic"\n$editor.font="Cousine"'}`,
+            text: `$theme=${theme}\n$reader.font_size=${size}\n$reader.line_height=${size === 18 ? 175 : 200}${theme === "light" ? '\n$reader.font="Palatino"\n$reader.heading_font="Same as body"\n$ui.font="System UI"\n$editor.font="System Mono"' : '\n$reader.font="Noto Naskh Arabic"\n$reader.heading_font="Amiri"\n$ui.font="Noto Sans Arabic"\n$editor.font="Cousine"'}`,
           });
           await browser.waitUntil(() =>
             browser.tauri.execute(
@@ -5878,7 +5878,7 @@ describe("Arabic editing layout", () => {
     await call("update_settings", {
       id: null,
       scope: "session",
-      text: "$theme=light",
+      text: '$theme=light\n$reader.font="Palatino"\n$reader.heading_font="Same as body"\n$editor.font="System Mono"',
     });
     await pane().$("button.open-button").waitForEnabled({ timeout: 60000 });
     await pane().$("button.open-button").click();
