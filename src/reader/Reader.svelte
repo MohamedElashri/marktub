@@ -775,19 +775,29 @@
       }
     }
   }
+  let findRequest = 0;
+  function cancelFind() {
+    findRequest++;
+    finding = false;
+    matches = [];
+    client?.cancelFind();
+  }
   async function find() {
     if (!client || !query.trim()) return;
+    const current = client;
+    const request = ++findRequest;
     finding = true;
     try {
-      const result = await client.find(query);
+      const result = await current.find(query);
+      if (current !== client || request !== findRequest) return;
       matches = result.matches;
       notice = result.complete
         ? `${matches.length}${matches.length === 200 ? "+" : ""} matching locations`
         : "Results cover the scanned portion; search again when indexing finishes.";
     } catch (e) {
-      onerror(String(e));
+      if (current === client && request === findRequest) onerror(String(e));
     } finally {
-      finding = false;
+      if (current === client && request === findRequest) finding = false;
     }
   }
   async function click(event: MouseEvent) {
@@ -1132,6 +1142,7 @@
             aria-label="Find in document"
             type="search"
             bind:value={query}
+            oninput={cancelFind}
             onkeydown={(e) => {
               if (e.key === "Enter") void find();
             }}

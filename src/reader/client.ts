@@ -40,7 +40,7 @@ export class ReaderClient {
   private serial = 0;
   private pending = new Map<
     number,
-    { resolve: (v: unknown) => void; reject: (e: Error) => void }
+    { type: string; resolve: (v: unknown) => void; reject: (e: Error) => void }
   >();
   sections: Section[] = [];
   headings: Heading[] = [];
@@ -116,6 +116,7 @@ export class ReaderClient {
     return new Promise((resolve, reject) => {
       const id = ++this.serial;
       this.pending.set(id, {
+        type,
         resolve: resolve as (v: unknown) => void,
         reject,
       });
@@ -126,10 +127,23 @@ export class ReaderClient {
     return this.request<Page>("page", { section });
   }
   find(query: string) {
+    this.retireSearches();
     return this.request<{
       matches: { section: number; excerpt: string }[];
       complete: boolean;
     }>("find", { query });
+  }
+  private retireSearches() {
+    for (const [id, request] of this.pending)
+      if (request.type === "find") {
+        this.pending.delete(id);
+        request.reject(new DOMException("Search superseded.", "AbortError"));
+      }
+  }
+  cancelFind() {
+    if (this.dead) return;
+    this.retireSearches();
+    this.worker.postMessage({ type: "cancel-find" });
   }
   destroy() {
     this.dead = true;
