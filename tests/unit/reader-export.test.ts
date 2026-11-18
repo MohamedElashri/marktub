@@ -22,6 +22,23 @@ const settings: Values = {
   "editor.font": { type: "text", value: "cousine" },
 };
 
+it("exports the same steady Arabic fallback face used by the app", async () => {
+  const css = await exportFontCSS({
+    "reader.font": { type: "text", value: "Noto Sans Arabic" },
+  });
+  const faces = [
+    ...css.matchAll(
+      /@font-face\{font-family:"([^"]+)"[^}]+src:url\(([^)]+)\)/g,
+    ),
+  ];
+  expect(faces.map((face) => face[1])).toEqual([
+    "Noto Sans Arabic",
+    "Marktub Arabic",
+  ]);
+  expect(faces[0][2]).toBe(faces[1][2]);
+  expect(css).toContain("unicode-range:U+0600-06FF");
+});
+
 it("exports captured Riwaq appearance and approved fonts without external resources or active content", async () => {
   const client = {
     complete: true,

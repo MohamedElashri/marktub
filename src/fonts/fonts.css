@@ -46,7 +46,7 @@
   font-style: normal;
   font-weight: 400 700;
   font-display: swap;
-  src: url("./assets/NotoNaskhArabic[wght].ttf") format("truetype");
+  src: url("./assets/NotoSansArabic[wdth,wght].ttf") format("truetype");
   unicode-range:
     U+0600-06FF, U+0750-077F, U+0870-08FF, U+FB50-FDFF, U+FE70-FEFF,
     U+10EC0-10EFF, U+1EE00-1EEFF;

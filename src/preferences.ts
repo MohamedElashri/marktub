@@ -224,7 +224,13 @@ export function fontStack(name: string, mono = false) {
     family.toLowerCase() !== name.toLowerCase()
       ? `${JSON.stringify(name)}, ${JSON.stringify(family)}`
       : JSON.stringify(family);
-  return `${special[name.toLowerCase()] ?? face}, "Marktub Arabic", "Geeza Pro", "Noto Sans Hebrew", "Arial Hebrew", "Noto Sans CJK SC", "Hiragino Sans", "PingFang SC", "Apple Color Emoji", "Noto Color Emoji", ${mono ? "monospace" : fallback}`;
+  // Generic/system families can already cover Arabic. Put the script-limited
+  // bundled face first for these choices, while honoring an explicit typeface.
+  const system = special[name.toLowerCase()];
+  const primary = system
+    ? `"Marktub Arabic", ${system}`
+    : `${face}, "Marktub Arabic"`;
+  return `${primary}, "Geeza Pro", "Noto Sans Hebrew", "Arial Hebrew", "Noto Sans CJK SC", "Hiragino Sans", "PingFang SC", "Apple Color Emoji", "Noto Color Emoji", ${mono ? "monospace" : fallback}`;
 }
 export function appearance(values: Values, dark = false) {
   const p = currentPalette(values, dark);

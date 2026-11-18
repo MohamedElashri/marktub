@@ -16,7 +16,7 @@ export async function exportFontCSS(values: Values) {
     ...fontFaces.filter((face) => families.has(face.family)),
     {
       family: "Marktub Arabic",
-      file: "NotoNaskhArabic[wght].ttf",
+      file: "NotoSansArabic[wdth,wght].ttf",
       weight: "400 700",
     },
   ];
