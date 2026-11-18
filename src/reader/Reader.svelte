@@ -175,6 +175,7 @@
     return layout.atScroll(Math.max(0, host.scrollTop - padding), from, to);
   }
   function scrolled() {
+    if (!host || !client) return;
     // Native scrollbar drags and external reveals have no wheel/key event.
     // Distinguish them from our own Source/layout synchronization by position.
     if (Math.abs(host.scrollTop - expectedScroll) > 1) intent();
@@ -380,6 +381,7 @@
     lastScroll = host.scrollTop;
   }
   function measure() {
+    if (!host || !client) return;
     void measureBlocks(
       Math.abs(host.scrollTop - lastScroll) < 1 ? lastAnchor : visibleAnchor(),
     );
