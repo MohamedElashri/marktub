@@ -6021,6 +6021,43 @@ describe("Continuous reader", () => {
     await pane().$("button=Export HTML").waitForEnabled({ timeout: 60000 });
     return fixture;
   }
+  it("ignores queued reader scroll events when switching to Source", async () => {
+    await open(
+      "# Queued scroll\n\n" +
+        Array.from(
+          { length: 100 },
+          (_, i) => `Paragraph ${i}: ` + "readable local text ".repeat(30),
+        ).join("\n\n"),
+    );
+    const errorsBefore = await browser.tauri.execute(
+      () => window.marktubTestErrors.length,
+    );
+    for (let i = 0; i < 4; i++) {
+      await browser.tauri.execute(() => {
+        const pane = document.querySelector(".document-tab:not([hidden])");
+        const host = pane.querySelector("article");
+        host.scrollTop = host.scrollHeight / 2;
+        [...pane.querySelectorAll("button")]
+          .find((button) => button.textContent.trim() === "Source")
+          .click();
+      });
+      await pane().$(".cm-content").waitForDisplayed();
+      await browser.tauri.execute(
+        () =>
+          new Promise((resolve) =>
+            requestAnimationFrame(() => requestAnimationFrame(resolve)),
+          ),
+      );
+      await pane().$("button=Read").click();
+      await pane().$("button=Export HTML").waitForEnabled({ timeout: 60000 });
+    }
+    expect(
+      await browser.tauri.execute(
+        (_api, start) => window.marktubTestErrors.slice(start),
+        errorsBefore,
+      ),
+    ).toEqual([]);
+  });
   it("keeps an ordinary note whole for native selection and preserves text on resize", async () => {
     const text =
       "# Continuous note\n\n" +
