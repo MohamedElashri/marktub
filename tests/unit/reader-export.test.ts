@@ -1,9 +1,12 @@
 // @vitest-environment jsdom
-import { expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { exportStandalone } from "../../src/reader/standalone";
 import type { ReaderClient } from "../../src/reader/client";
 import type { Values } from "../../src/preferences";
 import { exportFontCSS } from "../../src/fonts/export";
+import * as bundledFonts from "../../src/fonts/export";
+import { renderRich } from "../../src/renderers/rich";
+import type { Page } from "../../src/reader/model";
 const { invoke } = vi.hoisted(() => ({
   invoke: vi.fn<
     (command: string, args: { content: string }) => Promise<boolean>
@@ -14,6 +17,11 @@ vi.mock("../../src/renderers/rich", () => ({ renderRich: vi.fn() }));
 vi.mock("virtual:marktub-notices", () => ({
   default: "Retained font notices",
 }));
+beforeEach(() => {
+  invoke.mockClear();
+  vi.mocked(renderRich).mockReset();
+});
+afterEach(() => vi.restoreAllMocks());
 
 const settings: Values = {
   theme: { type: "enum", value: "riwaq_night" },
@@ -131,4 +139,120 @@ it("keeps font assets consistent with the appearance captured before page assemb
   expect(content).toContain("--paper:#1a1a2e");
   expect(content).toContain('font-family:"Amiri"');
   expect(content).not.toContain('font-family:"Cousine"');
+});
+
+function exportClient() {
+  return {
+    dead: false,
+    complete: true,
+    sections: [{}, {}],
+    approvedImages: new Map(),
+    page: vi.fn<ReaderClient["page"]>(async () => ({
+      html: "<p>Kept source</p>",
+      rich: [],
+      provisional: false,
+    })),
+  };
+}
+
+it("never opens a save dialog when the reader closes during a page read", async () => {
+  const client = exportClient();
+  let finish!: (value: Page) => void;
+  client.page.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const pending = exportStandalone(
+    client as unknown as ReaderClient,
+    "Title",
+    "Saved",
+  );
+  const stopped = expect(pending).rejects.toMatchObject({ name: "AbortError" });
+  client.dead = true;
+  client.sections.length = 0;
+  finish({ html: "<p>Partial content</p>", rich: [], provisional: false });
+  await stopped;
+  expect(invoke).not.toHaveBeenCalled();
+});
+
+it("does not turn canceled rich rendering into a partial saved document", async () => {
+  const client = exportClient();
+  client.page.mockResolvedValueOnce({
+    html: '<span data-rich="0"></span>',
+    rich: [{ kind: "math", source: "x", display: true }],
+    provisional: false,
+  });
+  let cancel!: (error: Error) => void;
+  vi.mocked(renderRich).mockImplementationOnce(
+    () =>
+      new Promise((_resolve, reject) => {
+        cancel = reject;
+      }),
+  );
+  const pending = exportStandalone(
+    client as unknown as ReaderClient,
+    "Title",
+    "Saved",
+  );
+  const stopped = expect(pending).rejects.toMatchObject({ name: "AbortError" });
+  await vi.waitFor(() => expect(renderRich).toHaveBeenCalled());
+  client.dead = true;
+  client.sections.length = 0;
+  cancel(new DOMException("Reader closed", "AbortError"));
+  await stopped;
+  expect(invoke).not.toHaveBeenCalled();
+});
+
+it("checks the reader again after asynchronously loading export fonts", async () => {
+  const client = exportClient();
+  client.sections.length = 0;
+  let finish!: (css: string) => void;
+  const fonts = vi.spyOn(bundledFonts, "exportFontCSS").mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const pending = exportStandalone(
+    client as unknown as ReaderClient,
+    "Title",
+    "Saved",
+  );
+  const stopped = expect(pending).rejects.toMatchObject({ name: "AbortError" });
+  await vi.waitFor(() => expect(fonts).toHaveBeenCalled());
+  client.dead = true;
+  finish("");
+  await stopped;
+  expect(invoke).not.toHaveBeenCalled();
+});
+
+it("refuses to export an already closed reader", async () => {
+  const client = exportClient();
+  client.dead = true;
+  client.sections.length = 0;
+  await expect(
+    exportStandalone(client as unknown as ReaderClient, "Title", "Saved"),
+  ).rejects.toMatchObject({ name: "AbortError" });
+  expect(invoke).not.toHaveBeenCalled();
+});
+
+it("retains the entire document when a live reader contains an unsupported formula", async () => {
+  const client = exportClient();
+  client.page.mockResolvedValueOnce({
+    html: '<span data-rich="0"></span>',
+    rich: [{ kind: "math", source: "unsupported-source", display: true }],
+    provisional: false,
+  });
+  client.page.mockResolvedValueOnce({
+    html: "<p>Final paragraph</p>",
+    rich: [],
+    provisional: false,
+  });
+  vi.mocked(renderRich).mockRejectedValueOnce(Error("Unsupported formula"));
+  await exportStandalone(client as unknown as ReaderClient, "Title", "Saved");
+  const content = invoke.mock.lastCall![1].content;
+  expect(content).toContain("unsupported-source");
+  expect(content).toContain("Final paragraph");
 });

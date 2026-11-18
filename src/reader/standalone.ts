@@ -12,6 +12,12 @@ export async function exportStandalone(
   presentation: Values = {},
   dark = false,
 ) {
+  const sections = client.sections.length;
+  const checkCurrent = () => {
+    if (client.dead || client.sections.length !== sections)
+      throw new DOMException("Export reader closed or changed.", "AbortError");
+  };
+  checkCurrent();
   // Svelte values can be proxies. Copy the validated primitive records rather
   // than passing those proxies to structuredClone, which rejects them.
   const settings: Values = Object.fromEntries(
@@ -27,8 +33,9 @@ export async function exportStandalone(
   const parts: string[] = [];
   let cost = 0,
     hasKatex = false;
-  for (let i = 0; i < client.sections.length; i++) {
+  for (let i = 0; i < sections; i++) {
     const page = await client.page(i);
+    checkCurrent();
     const host = document.createElement("div");
     host.innerHTML = sanitizeReader(page.html);
     for (const target of host.querySelectorAll<HTMLElement>("[data-rich]")) {
@@ -41,8 +48,10 @@ export async function exportStandalone(
           () => !client.dead,
           client.math,
         );
+        checkCurrent();
         hasKatex ||= !!target.querySelector(".katex");
       } catch (error) {
+        checkCurrent();
         target.textContent = `${String(error)}\n${rich.source}`;
       }
     }
@@ -78,7 +87,9 @@ export async function exportStandalone(
   let fonts = "";
   if (hasKatex) {
     const css = (await import("katex/dist/katex.min.css?raw")).default;
+    checkCurrent();
     const assets = (await import("virtual:marktub-export-fonts")).default;
+    checkCurrent();
     fonts = css.replace(/src:[^;}]+/g, (declaration) => {
       const name = /fonts\/([^)'"\s]+\.woff2)/.exec(declaration)?.[1];
       return name ? `src:url(__FONT_${name}__) format('woff2')` : "";
@@ -88,7 +99,10 @@ export async function exportStandalone(
     if (fonts.includes("__FONT_"))
       throw Error("Export font mapping incomplete.");
   }
-  fonts += await (await import("../fonts/export")).exportFontCSS(settings);
+  const fontAssets = await import("../fonts/export");
+  checkCurrent();
+  fonts += await fontAssets.exportFontCSS(settings);
+  checkCurrent();
   const doc = document.implementation.createHTMLDocument(title);
   doc.body.className = "prose";
   const csp = doc.createElement("meta");
@@ -118,11 +132,13 @@ export async function exportStandalone(
   summary.textContent = "Renderer and embedded-font licenses";
   const licenses = doc.createElement("pre");
   licenses.textContent = (await import("virtual:marktub-notices")).default;
+  checkCurrent();
   credits.append(summary, licenses);
   doc.body.append(credits);
   const content = "<!doctype html>\n" + doc.documentElement.outerHTML;
   if (content.length * 2 > 64 * 1024 * 1024)
     throw Error("Self-contained export exceeds the 64 MiB output budget.");
+  checkCurrent();
   const saved = await invoke<boolean>("export_html", { content });
   if (!saved) throw Error("Export canceled.");
 }
