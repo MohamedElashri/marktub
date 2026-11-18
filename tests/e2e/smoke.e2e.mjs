@@ -5578,7 +5578,11 @@ describe("Reader search recovery", () => {
         2,
       ),
     );
-    expect((await call("e2e_fixture", { action: "read" })).text).toBe(text);
+    const fixture = await call("e2e_fixture", { action: "read" });
+    const original = await (
+      await import("node:fs/promises")
+    ).readFile(fixture.path);
+    expect(original.equals(Buffer.from(text))).toBe(true);
   });
 });
 
