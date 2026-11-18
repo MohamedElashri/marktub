@@ -214,7 +214,14 @@ export async function hydrate(
       )
     : 0;
   let exhausted = false;
+  let sliceStarted = performance.now();
   for (const target of targets) {
+    // Cached renders resolve as microtasks. Yield between batches so input and
+    // scrolling can retire work before the entire section has been hydrated.
+    if (performance.now() - sliceStarted >= 8) {
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+      sliceStarted = performance.now();
+    }
     if (!current() || !target.isConnected) return;
     if (visible && (!visible(target) || target.dataset.hydrated === "true"))
       continue;
@@ -283,7 +290,12 @@ export async function hydrate(
   if (code.length) {
     const { highlight } = await import("./highlight");
     for (const block of code) {
+      if (performance.now() - sliceStarted >= 8) {
+        await new Promise<void>((resolve) => setTimeout(resolve, 0));
+        sliceStarted = performance.now();
+      }
       if (!current()) return;
+      if (!block.isConnected || (visible && !visible(block))) continue;
       block.dataset.highlighted = "true";
       block.innerHTML = sanitizeReader(
         highlight(

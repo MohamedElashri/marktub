@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 const engine = vi.hoisted(() => ({ render: vi.fn() }));
 vi.mock("mermaid", () => ({
   default: { initialize() {}, render: engine.render },
@@ -9,6 +9,7 @@ beforeEach(() => {
   clearRichCache();
   engine.render.mockReset();
 });
+afterEach(() => vi.restoreAllMocks());
 const diagram = (n: number) => ({
   kind: "mermaid" as const,
   source: `graph LR\nA-->B${n}`,
@@ -140,6 +141,115 @@ it("defers offscreen rich output and hydrates it once when it becomes visible", 
     );
     expect(engine.render).toHaveBeenCalledTimes(2);
   } finally {
+    host.remove();
+  }
+});
+
+it("lets queued input retire a batch of cached rich output", async () => {
+  engine.render.mockResolvedValue({ svg: "<svg><text>cached</text></svg>" });
+  await renderRich(diagram(0));
+  const host = document.createElement("div");
+  const items = Array.from({ length: 40 }, () => diagram(0));
+  host.innerHTML = items
+    .map((_, i) => `<span data-rich="${i}"></span>`)
+    .join("");
+  document.body.append(host);
+  let live = true;
+  let clock = 0;
+  vi.spyOn(performance, "now").mockImplementation(() => (clock += 2));
+  const input = setTimeout(() => {
+    live = false;
+  }, 0);
+  try {
+    await hydrate(host, items, () => live);
+    expect(host.querySelectorAll("svg").length).toBeLessThan(items.length);
+    expect(live).toBe(false);
+    expect(engine.render).toHaveBeenCalledTimes(1);
+  } finally {
+    clearTimeout(input);
+    host.remove();
+  }
+});
+
+it("leaves rich blocks retryable when queued scrolling moves them offscreen", async () => {
+  engine.render.mockResolvedValue({ svg: "<svg><text>cached</text></svg>" });
+  await renderRich(diagram(0));
+  const host = document.createElement("div");
+  const items = Array.from({ length: 40 }, () => diagram(0));
+  host.innerHTML = items
+    .map((_, i) => `<span data-rich="${i}"></span>`)
+    .join("");
+  document.body.append(host);
+  let visible = true;
+  let clock = 0;
+  vi.spyOn(performance, "now").mockImplementation(() => (clock += 2));
+  const scroll = setTimeout(() => {
+    visible = false;
+  }, 0);
+  try {
+    await hydrate(
+      host,
+      items,
+      () => true,
+      undefined,
+      () => visible,
+    );
+    const rendered = host.querySelectorAll("svg").length;
+    expect(rendered).toBeLessThan(items.length);
+    expect(host.querySelectorAll('[data-hydrated="true"]')).toHaveLength(
+      rendered,
+    );
+    visible = true;
+    await hydrate(
+      host,
+      items,
+      () => true,
+      undefined,
+      () => visible,
+    );
+    expect(host.querySelectorAll("svg")).toHaveLength(items.length);
+    expect(engine.render).toHaveBeenCalledTimes(1);
+  } finally {
+    clearTimeout(scroll);
+    host.remove();
+  }
+});
+
+it("rechecks code visibility after yielding and highlights deferred blocks later", async () => {
+  await import("../../src/renderers/highlight");
+  const host = document.createElement("div");
+  host.innerHTML =
+    '<pre><code class="language-js">const x = 1;</code></pre>'.repeat(40);
+  document.body.append(host);
+  let visible = true;
+  let clock = 0;
+  vi.spyOn(performance, "now").mockImplementation(() => (clock += 2));
+  const scroll = setTimeout(() => {
+    visible = false;
+  }, 0);
+  try {
+    await hydrate(
+      host,
+      [],
+      () => true,
+      undefined,
+      () => visible,
+    );
+    expect(
+      host.querySelectorAll('[data-highlighted="true"]').length,
+    ).toBeLessThan(40);
+    visible = true;
+    await hydrate(
+      host,
+      [],
+      () => true,
+      undefined,
+      () => visible,
+    );
+    expect(host.querySelectorAll('[data-highlighted="true"]')).toHaveLength(40);
+    expect(host.querySelectorAll(".hljs-keyword")).toHaveLength(40);
+  } finally {
+    clearTimeout(scroll);
     host.remove();
   }
 });
