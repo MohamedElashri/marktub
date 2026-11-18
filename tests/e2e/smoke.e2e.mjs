@@ -5520,6 +5520,72 @@ describe("Math context policy", () => {
   });
 });
 
+describe("Reader search recovery", () => {
+  it("handles dense matches, replaced queries and cleared results without getting stuck", async () => {
+    const call = (command, args = {}) =>
+      browser.tauri.execute(
+        ({ core }, command, args) => core.invoke(command, args),
+        command,
+        args,
+      );
+    const pane = () => browser.$(".document-tab:not([hidden])");
+    const text =
+      "a".repeat(192 * 1024) + "\n\n# Final\n\nunique needle العربية 🦀.\n";
+    await call("e2e_fixture", { action: "seed", text });
+    await pane().$("button.open-button").waitForEnabled({ timeout: 60000 });
+    await pane().$("button.open-button").click();
+    if (await browser.$('dialog[open] [id$="-discard-title"]').isDisplayed())
+      await browser.$("button=Discard edits").click();
+    await pane().$("button=Read").waitForEnabled({ timeout: 60000 });
+    await pane().$("button=Read").click();
+    await pane().$("button=Export HTML").waitForEnabled({ timeout: 60000 });
+    await pane().$("button=Outline & find").click();
+    const field = () => pane().$('input[aria-label="Find in document"]');
+    await field().setValue("a");
+    const start = performance.now();
+    await pane().$("button=Find").click();
+    await pane().$(".find-result").waitForExist();
+    const denseMs = performance.now() - start;
+    await field().setValue("missing");
+    await browser.keys("Enter");
+    await field().setValue("unique needle");
+    await browser.keys("Enter");
+    await browser.waitUntil(async () => {
+      const results = await pane().$$(".find-result");
+      return (
+        results.length === 1 &&
+        (await results[0].getText()).includes("unique needle")
+      );
+    });
+    await pane().$("button=Find").waitForEnabled();
+    await field().setValue("");
+    await browser.waitUntil(
+      async () => (await pane().$$(".find-result")).length === 0,
+    );
+    await expect(pane().$("button=Searching…")).not.toExist();
+    await writeFile(
+      "artifacts/reader-search-recovery.json",
+      JSON.stringify(
+        {
+          scope:
+            "Native reader UI with WebDriver/IPC polling; not isolated worker CPU or paint latency",
+          bytes: Buffer.byteLength(text),
+          denseQueryMs: denseMs,
+          replacementQueryMatched: true,
+          clearedResults: true,
+        },
+        null,
+        2,
+      ),
+    );
+    const fixture = await call("e2e_fixture", { action: "read" });
+    const original = await (
+      await import("node:fs/promises")
+    ).readFile(fixture.path);
+    expect(original.equals(Buffer.from(text))).toBe(true);
+  });
+});
+
 describe("Arabic reading layout", () => {
   it("lays out long Arabic and English paragraphs independently in Read and Split", async () => {
     const { longArabicDocument } = await import("../fixtures/arabic.mjs");

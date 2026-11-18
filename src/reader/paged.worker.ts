@@ -4,6 +4,7 @@ import { headingBoundary } from "./headings";
 import type { Index, Page, Read } from "./model";
 let epoch = 0,
   index: Index | undefined;
+let search = 0;
 const awaiting = new Map<
   number,
   {
@@ -33,6 +34,10 @@ async function textBetween(start: number, end: number) {
   return text;
 }
 self.onmessage = async ({ data }) => {
+  if (data.type === "cancel-find") {
+    search++;
+    return;
+  }
   if (data.type === "range") {
     const pending = awaiting.get(data.id);
     awaiting.delete(data.id);
@@ -42,6 +47,7 @@ self.onmessage = async ({ data }) => {
   }
   if (data.type === "start") {
     const current = ++epoch;
+    search++;
     index = undefined;
     let sent = 0,
       headings = 0;
@@ -110,6 +116,8 @@ self.onmessage = async ({ data }) => {
     return;
   }
   if (data.type === "find" && index) {
+    const request = ++search;
+    const complete = index.complete;
     try {
       const current = epoch;
       const query = String(data.query).slice(0, 200);
@@ -117,16 +125,26 @@ self.onmessage = async ({ data }) => {
         read,
         index,
         query,
-        () => current !== epoch,
+        () => current !== epoch || request !== search,
       );
+      if (current !== epoch || request !== search) return;
       self.postMessage({
         type: "find",
         id: data.id,
         matches,
-        complete: index.complete,
+        complete,
       });
     } catch (error) {
+      if (request !== search) return;
       self.postMessage({ type: "find", id: data.id, error: String(error) });
     }
+    return;
   }
+  if (data.type === "find" || data.type === "page")
+    self.postMessage({
+      type: data.type,
+      id: data.id,
+      error:
+        "Document index is not available yet. Retry after content appears.",
+    });
 };

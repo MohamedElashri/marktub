@@ -407,15 +407,21 @@ export async function findDocument(
   const limit = index.scanned;
   while (cursor < limit && !cancelled()) {
     const page = await read(cursor);
+    if (cancelled()) break;
     if (page.end <= cursor) throw Error("Search did not advance.");
     const text = tail + page.text;
     pattern.lastIndex = 0;
+    let position = 0;
+    let byte = page.start - encoder.encode(tail).length;
     let match: RegExpExecArray | null;
     while ((match = pattern.exec(text))) {
-      const byte =
-        page.start -
-        encoder.encode(tail).length +
-        encoder.encode(text.slice(0, match.index)).length;
+      // Match offsets increase. Count each scalar once instead of repeatedly
+      // encoding the entire prefix for every hit in a dense paragraph.
+      while (position < match.index) {
+        const point = text.codePointAt(position)!;
+        byte += point < 0x80 ? 1 : point < 0x800 ? 2 : point < 0x10000 ? 3 : 4;
+        position += point > 0xffff ? 2 : 1;
+      }
       let lo = 0,
         hi = index.sections.length;
       while (lo < hi) {
