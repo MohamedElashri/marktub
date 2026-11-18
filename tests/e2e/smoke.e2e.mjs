@@ -5976,6 +5976,7 @@ describe("Arabic editing layout", () => {
     await browser.waitUntil(async () =>
       (await readFile(fixture.path)).equals(Buffer.from(text)),
     );
+    await pane().$("button=Read").waitForEnabled({ timeout: 60000 });
     await pane().$("button=Read").click();
     await pane().$("button=Export HTML").waitForEnabled({ timeout: 60000 });
     await browser.waitUntil(() =>
