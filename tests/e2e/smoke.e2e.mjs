@@ -5568,7 +5568,7 @@ describe("Arabic reading layout", () => {
           await invoke("update_settings", {
             id: null,
             scope: "session",
-            text: `$theme=${theme}\n$reader.font_size=${size}\n$reader.line_height=${size === 18 ? 175 : 200}${theme === "light" ? "" : '\n$reader.font="Noto Naskh Arabic"\n$reader.heading_font="Amiri"\n$ui.font="Noto Sans Arabic"\n$editor.font="Cousine"'}`,
+            text: `$theme=${theme}\n$reader.font_size=${size}\n$reader.line_height=${size === 18 ? 175 : 200}${theme === "light" ? '\n$reader.font="Palatino"\n$reader.heading_font="Same as body"\n$ui.font="System UI"\n$editor.font="System Mono"' : '\n$reader.font="Noto Naskh Arabic"\n$reader.heading_font="Amiri"\n$ui.font="Noto Sans Arabic"\n$editor.font="Cousine"'}`,
           });
           await browser.waitUntil(() =>
             browser.tauri.execute(
@@ -5582,6 +5582,7 @@ describe("Arabic reading layout", () => {
             ),
           );
           const layout = await browser.tauri.execute(async () => {
+            await document.fonts.load('18px "Noto Sans Arabic"', "العربية");
             await document.fonts.ready;
             await new Promise((done) =>
               requestAnimationFrame(() => requestAnimationFrame(done)),
@@ -5644,7 +5645,21 @@ describe("Arabic reading layout", () => {
             }
             const direction = (node) => getComputedStyle(node).direction;
             const quote = host.querySelector("blockquote");
+            const canvas = document.createElement("canvas").getContext("2d");
+            const metrics = (family) => {
+              canvas.font = `18px ${family}`;
+              return ["العربية", "في", "من"].map((word) => {
+                const m = canvas.measureText(word);
+                return [
+                  m.width,
+                  m.actualBoundingBoxAscent,
+                  m.actualBoundingBoxDescent,
+                ];
+              });
+            };
             return {
+              fallbackMetrics: metrics(getComputedStyle(host).fontFamily),
+              referenceMetrics: metrics('"Noto Sans Arabic"'),
               headingFont: getComputedStyle(host.querySelector("h1"))
                 .fontFamily,
               loadedFonts: [...document.fonts]
@@ -5712,6 +5727,8 @@ describe("Arabic reading layout", () => {
             ])
               expect(layout.loadedFonts).toContain(font);
           }
+          if (theme === "light")
+            expect(layout.fallbackMetrics).toEqual(layout.referenceMetrics);
           expect(layout.linkedHeading).toBe("rtl");
           expect(layout.linkedParagraph).toBe("rtl");
           expect(layout.linkedEnglish).toBe("ltr");
@@ -5816,6 +5833,174 @@ describe("Arabic reading layout", () => {
       Buffer.from(longArabicDocument, "utf8"),
     );
     await invoke("update_settings", { id: null, scope: "session", text: "" });
+  });
+});
+
+describe("Arabic editing layout", () => {
+  const pane = () => browser.$(".document-tab:not([hidden])");
+  const call = (command, args = {}) =>
+    browser.tauri.execute(
+      ({ core }, command, args) => core.invoke(command, args),
+      command,
+      args,
+    );
+  const editor = (fn, ...args) =>
+    browser.tauri.execute(
+      new Function(
+        "_context",
+        "...args",
+        `const v=document.querySelector('.document-tab:not([hidden]) .cm-content').cmTile.root.view; return (${fn.toString()})(v,...args);`,
+      ),
+      ...args,
+    );
+  it("keeps per-line direction, native caret movement and exact undo across editing views", async () => {
+    const lines = [
+      "هذه فقرة عربية مع English و١٢٣.",
+      "English paragraph with العربية.",
+      "123 — هذه فقرة تبدأ بأرقام.",
+      "# عنوان عربي",
+      "- عنصر عربي",
+      "```sh",
+      "العربية داخل الشيفرة",
+      "```",
+    ];
+    const text =
+      "\uFEFF" +
+      lines.join("\r\n") +
+      "\r\n\r\n" +
+      Array.from(
+        { length: 400 },
+        (_, i) =>
+          `فقرة عربية طويلة ${i} ` +
+          "تستمر القراءة هنا مع كلمات متصلة. ".repeat(8),
+      ).join("\r\n\r\n");
+    const fixture = await call("e2e_fixture", { action: "seed", text });
+    await call("update_settings", {
+      id: null,
+      scope: "session",
+      text: '$theme=light\n$reader.font="Palatino"\n$reader.heading_font="Same as body"\n$editor.font="System Mono"',
+    });
+    await pane().$("button.open-button").waitForEnabled({ timeout: 60000 });
+    await pane().$("button.open-button").click();
+    await pane().$("button=Source").waitForEnabled({ timeout: 60000 });
+    await pane().$("button=Source").click();
+    await pane().$(".cm-content").waitForDisplayed({ timeout: 60000 });
+    await editor((v) => {
+      window.arabicEditor = v;
+      window.arabicOriginal = v.state.doc.toString();
+    });
+    const directions = () =>
+      editor((v) =>
+        [...v.contentDOM.querySelectorAll(".cm-line")]
+          .slice(0, 8)
+          .map((node) => ({
+            direction: getComputedStyle(node).direction,
+            align: getComputedStyle(node).textAlign,
+            cursorDirection: v.textDirectionAt(v.posAtDOM(node)),
+          })),
+      );
+    for (const mode of ["Source", "Visual", "Split"]) {
+      await pane().$(`button=${mode}`).click();
+      await browser.waitUntil(
+        async () => (await directions())[0]?.direction === "rtl",
+      );
+      const layout = await directions();
+      expect(layout.map((line) => line.direction)).toEqual([
+        "rtl",
+        "ltr",
+        "rtl",
+        "rtl",
+        "rtl",
+        "ltr",
+        "ltr",
+        "ltr",
+      ]);
+      expect(layout.map((line) => line.cursorDirection)).toEqual([
+        1, 0, 1, 1, 1, 0, 0, 0,
+      ]);
+      expect(layout.every((line) => line.align === "start")).toBe(true);
+      expect(await editor((v) => v === window.arabicEditor)).toBe(true);
+      await editor((v) => {
+        v.focus();
+        v.dispatch({ selection: { anchor: 1 } });
+      });
+      await browser.keys("ArrowLeft");
+      expect(await editor((v) => v.state.selection.main.head)).toBe(2);
+      await browser.keys("ArrowRight");
+      expect(await editor((v) => v.state.selection.main.head)).toBe(1);
+    }
+    await editor((v) =>
+      v.dispatch({
+        changes: { from: 0, insert: "English " },
+        userEvent: "input.type",
+      }),
+    );
+    await browser.waitUntil(
+      async () => (await directions())[0]?.direction === "ltr",
+    );
+    await pane().$('button[aria-label="Undo"]').click();
+    await browser.waitUntil(() =>
+      editor((v) => v.state.doc.toString() === window.arabicOriginal),
+    );
+    await browser.waitUntil(
+      async () => (await directions())[0]?.direction === "rtl",
+    );
+    await pane().$("button=Source").click();
+    await editor((v) => {
+      v.focus();
+      v.dispatch({
+        selection: { anchor: v.state.doc.length },
+        scrollIntoView: true,
+      });
+    });
+    await browser.waitUntil(() =>
+      editor((v) =>
+        [...v.contentDOM.querySelectorAll(".cm-line")].some((n) =>
+          n.textContent.includes("399"),
+        ),
+      ),
+    );
+    expect(
+      await editor((v) =>
+        [...v.contentDOM.querySelectorAll(".cm-line")]
+          .filter((n) => n.textContent.trim())
+          .every((n) => getComputedStyle(n).direction === "rtl"),
+      ),
+    ).toBe(true);
+    expect(
+      await editor((v) => v.contentDOM.querySelectorAll(".cm-line").length),
+    ).toBeLessThan(200);
+    await pane().$("header").$("button=Save").waitForEnabled();
+    await pane().$("header").$("button=Save").click();
+    const { readFile } = await import("node:fs/promises");
+    await browser.waitUntil(async () =>
+      (await readFile(fixture.path)).equals(Buffer.from(text)),
+    );
+    await pane().$("button=Read").waitForEnabled({ timeout: 60000 });
+    await pane().$("button=Read").click();
+    await pane().$("button=Export HTML").waitForEnabled({ timeout: 60000 });
+    await browser.waitUntil(() =>
+      browser.tauri.execute(() =>
+        document
+          .querySelector(".document-tab:not([hidden]) article")
+          ?.textContent.includes("فقرة عربية طويلة 399"),
+      ),
+    );
+    const reading = await browser.tauri.execute(() => {
+      const host = document.querySelector(
+        ".document-tab:not([hidden]) article",
+      );
+      const paragraphs = [...host.querySelectorAll("p")].filter((p) =>
+        p.textContent.startsWith("فقرة عربية طويلة"),
+      );
+      return {
+        paragraphs: paragraphs.length,
+        rtl: paragraphs.every((p) => getComputedStyle(p).direction === "rtl"),
+        overflow: host.scrollWidth > host.clientWidth + 1,
+      };
+    });
+    expect(reading).toEqual({ paragraphs: 400, rtl: true, overflow: false });
+    await call("update_settings", { id: null, scope: "session", text: "" });
   });
 });
 

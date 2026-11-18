@@ -40,6 +40,7 @@
   } from "@codemirror/language";
   import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
   import { liveFormatting } from "./visual";
+  import { writingDirections } from "./direction";
   import { applyEdits, flushEdits, errorMessage } from "../bridge";
   import { EditQueue, MAX_QUEUE } from "../document/queue";
   import type { Change, EditDescriptor } from "../document/protocol";
@@ -368,6 +369,7 @@
         selection: { anchor: Math.min(session.caret, text.length) },
         extensions: [
           markdown({ base: markdownLanguage, completeHTMLTags: false }),
+          writingDirections,
           EditorState.allowMultipleSelections.of(true),
           rectangularSelection(),
           crosshairCursor(),

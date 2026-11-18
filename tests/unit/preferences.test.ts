@@ -66,10 +66,16 @@ describe("presentation and command contracts", () => {
     expect(appearance(values)).toContain("--ui-factor:1.5");
     expect(fontStack('x";background:blue')).toContain('x\\";background:blue');
     expect(fontStack("System Mono", true)).toContain("Noto Color Emoji");
-    expect(fontStack("System UI", true)).toMatch(/^-apple-system/);
+    expect(fontStack("System UI", true)).toContain("-apple-system");
     expect(fontStack("Serif")).toContain("Noto Sans Hebrew");
     expect(fontStack("serif")).toBe(fontStack("Serif"));
     expect(fontStack("system ui")).toBe(fontStack("System UI"));
+  });
+  it("uses the bundled Arabic fallback before system/generic families and honors explicit fonts", () => {
+    for (const family of ["System UI", "System Mono", "Serif", "Sans Serif"])
+      expect(fontStack(family)).toMatch(/^"Marktub Arabic",/);
+    for (const family of ["Amiri", "Noto Naskh Arabic", "Noto Sans Arabic"])
+      expect(fontStack(family)).toMatch(new RegExp(`^"${family}",`));
   });
   it("edits one literal override without hiding duplicate/invalid diagnostics", () => {
     const text = '# original\n$reader.width=760\n$unknown="keep"';
