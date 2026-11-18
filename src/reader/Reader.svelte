@@ -898,14 +898,15 @@
       notice = "Wait for the reading view to finalize before exporting.";
       return;
     }
+    const current = client;
     exporting = true;
     try {
-      await exportStandalone(client, title, revision, presentation, dark);
-      notice = "HTML export completed.";
+      await exportStandalone(current, title, revision, presentation, dark);
+      if (current === client) notice = "HTML export completed.";
     } catch (e) {
-      onerror(String(e));
+      if (current === client) onerror(String(e));
     } finally {
-      exporting = false;
+      if (current === client) exporting = false;
     }
   }
   export function action(command: string) {
