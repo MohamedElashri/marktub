@@ -438,12 +438,12 @@ dialog p {
 }
 :root[data-theme="dark"],
 .window-shell[data-theme="dark"] {
-  --paper: #17211d;
-  --ink: #e2eae5;
-  --quiet: #a1afa6;
-  --accent: #8dc6ad;
-  --line: #34483d;
-  --surface: #23342b;
+  --paper: #202127;
+  --ink: #ebeaf0;
+  --quiet: #b3b3bf;
+  --accent: #bcc7ff;
+  --line: #494b59;
+  --surface: #2b2d35;
   color-scheme: dark;
 }
 .prose {
