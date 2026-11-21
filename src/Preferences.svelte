@@ -17,17 +17,19 @@
   } from "./preferences";
   import { arabicFamilies, readyFontChoices } from "./fonts/catalogue";
   import { chord } from "./commands";
+  import Updates from "./Updates.svelte";
   let {
     onpreview,
     oncommit,
-    onupdates,
+    onrestart,
   }: {
     onpreview: (v: Values | null) => void;
     oncommit: () => Promise<void>;
-    onupdates: () => Promise<void>;
+    onrestart: () => Promise<boolean>;
   } = $props();
   let dialog: HTMLDialogElement;
   let body: HTMLDivElement;
+  let open = $state(false);
   let specs = $state<Spec[]>([]),
     families = $state<string[]>([]),
     documentId = $state<string | null>(null),
@@ -55,7 +57,9 @@
     "Custom colors",
     "Shortcuts",
     "Advanced",
+    "About",
   ];
+  const about = $derived(category === "About" && !query);
   const assigned = $derived(literals(text));
   const dirty = $derived(text !== loadedText);
   const contentFamilies = $derived([
@@ -173,7 +177,11 @@
     }
     return request;
   }
-  export async function show(id: string | null) {
+  export async function show(id: string | null, section = "Appearance") {
+    if (dialog.open) {
+      browse(section);
+      return;
+    }
     // Reserve before the first await: cold catalogue/font discovery must not
     // leave an editable draft that a later scope load can overwrite.
     busy = true;
@@ -181,13 +189,14 @@
     clearTimeout(timer);
     documentId = id;
     scope = "global";
-    category = "Appearance";
+    category = section;
     query = "";
     resetAll = false;
     previewDocument = true;
     error = "";
     capturedFocus = document.activeElement as HTMLElement | null;
     dialog.showModal();
+    open = true;
     try {
       if (!specs.length)
         [specs, families] = await Promise.all([catalogue(), fonts()]);
@@ -197,7 +206,11 @@
       if (loaded === version && dialog.open) {
         body.scrollTop = 0;
         dialog
-          .querySelector<HTMLInputElement>('[aria-label="Search preferences"]')
+          .querySelector<HTMLElement>(
+            about
+              ? 'nav [aria-current="page"]'
+              : '[aria-label="Search preferences"]',
+          )
           ?.focus();
       }
     } catch (e) {
@@ -213,8 +226,24 @@
     busy = false;
     clearTimeout(timer);
     onpreview(null);
+    open = false;
     dialog.close();
     capturedFocus?.focus();
+  }
+  async function restartUpdate() {
+    const action = document.activeElement;
+    dialog.close();
+    try {
+      if (await onrestart()) {
+        open = false;
+        return;
+      }
+    } finally {
+      if (open) {
+        dialog.showModal();
+        if (action instanceof HTMLElement) action.focus();
+      }
+    }
   }
   function changed() {
     const request = ++version;
@@ -303,6 +332,7 @@
         loadedText = text;
         onpreview(null);
         await oncommit();
+        open = false;
         dialog.close();
         capturedFocus?.focus();
       }
@@ -397,64 +427,59 @@
     >
   </header>
   <div class="preferences-top">
-    <button
-      disabled={busy || committing || dirty}
-      title={dirty
-        ? "Apply or cancel preference changes first"
-        : "Manage manual application updates"}
-      onclick={() => {
-        cancel();
-        void onupdates();
-      }}>Application updates…</button
-    >
     <input
       aria-label="Search preferences"
       placeholder="Search preferences…"
       bind:value={query}
-    /><label
-      >Save settings for<select
-        aria-label="Settings scope"
-        value={scope}
-        onchange={(event) => {
-          scope = event.currentTarget.value;
-          void loadScope();
-        }}
-        disabled={busy || dirty}
-        ><option value="global">This app</option><option
-          value="workspace"
-          disabled={!documentId}>This workspace</option
-        ><option value="file" disabled={!documentId}>This file</option><option
-          value="session">Only this session</option
-        ></select
-      ></label
-    >
+    />
+    {#if !about}<label
+        >Save settings for<select
+          aria-label="Settings scope"
+          value={scope}
+          onchange={(event) => {
+            scope = event.currentTarget.value;
+            void loadScope();
+          }}
+          disabled={busy || dirty}
+          ><option value="global">This app</option><option
+            value="workspace"
+            disabled={!documentId}>This workspace</option
+          ><option value="file" disabled={!documentId}>This file</option><option
+            value="session">Only this session</option
+          ></select
+        ></label
+      >{/if}
   </div>
-  <p class="preference-hint">
-    {scopeHints[scope]}
-  </p>
-  {#if dirty}<p class="preference-hint" role="status">
-      Apply or revert your changes before switching where settings are saved.
-    </p>{/if}
-  <div class="settings-preview-controls">
-    <label
-      ><input
-        type="checkbox"
-        bind:checked={previewDocument}
-        disabled={busy}
-        onchange={() =>
-          onpreview(previewDocument && !diagnostics.length ? effective : null)}
-      />Preview changes in document</label
-    >
-    <span role="status"
-      >{validating
-        ? "Checking changes…"
-        : diagnostics.length || error
-          ? "Fix errors before applying"
-          : dirty
-            ? "Preview only · not saved yet"
-            : "No unapplied changes"}</span
-    >
-  </div>
+  {#if !about}
+    <p class="preference-hint">
+      {scopeHints[scope]}
+    </p>
+    {#if dirty}<p class="preference-hint" role="status">
+        Apply or revert your changes before switching where settings are saved.
+      </p>{/if}
+    <div class="settings-preview-controls">
+      <label
+        ><input
+          type="checkbox"
+          bind:checked={previewDocument}
+          disabled={busy}
+          onchange={() =>
+            onpreview(
+              previewDocument && !diagnostics.length ? effective : null,
+            )}
+        />Preview changes in document</label
+      >
+      <span role="status"
+        >{validating
+          ? "Checking changes…"
+          : diagnostics.length || error
+            ? "Fix errors before applying"
+            : dirty
+              ? "Preview only · not saved yet"
+              : "No unapplied changes"}</span
+      >
+    </div>
+  {/if}
   <div class="preferences-body" bind:this={body}>
     <nav aria-label="Preference categories">
       {#each categories as name (name)}<button
@@ -462,9 +487,15 @@
           onclick={() => browse(name)}>{name}</button
         >{/each}
     </nav>
+    <Updates
+      active={open && about}
+      restartDisabled={dirty || busy || committing}
+      onrestart={restartUpdate}
+    />
     <fieldset
       class="preference-fields"
       aria-label="Preference controls"
+      hidden={about}
       disabled={busy}
     >
       {#if busy}<p role="status">Loading preferences…</p>{/if}
@@ -676,30 +707,30 @@
     ></option>{#each contentFamilies as family (family)}<option value={family}
       ></option>{/each}</datalist
   >
-  <aside
-    class="preferences-specimen"
-    style={appearance(effective, $osDark)}
-    aria-label="Live theme specimen"
-  >
-    <span class="specimen-title" dir="auto"
-      >كلمات تستحق البقاء · A sentence worth keeping.</span
-    ><span dir="auto" class="specimen-body"
-      >العربية · <strong>نص عريض</strong> · עברית · 漢字 · 🦀
-      <a href="#specimen" onclick={(e) => e.preventDefault()}>A local link</a
-      ></span
-    ><code
-      ><span style="color:var(--keyword)">const</span> note =
-      <span style="color:var(--string)">"words"</span>
-      + <span style="color:var(--number)">42</span>;</code
-    ><span
-      ><mark style="color:var(--added);background:var(--added-bg)"
-        >Added text specimen</mark
-      >
-      <mark style="color:var(--removed);background:var(--removed-bg)"
-        >Removed text specimen</mark
-      ></span
+  {#if !about}<aside
+      class="preferences-specimen"
+      style={appearance(effective, $osDark)}
+      aria-label="Live theme specimen"
     >
-  </aside>
+      <span class="specimen-title" dir="auto"
+        >كلمات تستحق البقاء · A sentence worth keeping.</span
+      ><span dir="auto" class="specimen-body"
+        >العربية · <strong>نص عريض</strong> · עברית · 漢字 · 🦀
+        <a href="#specimen" onclick={(e) => e.preventDefault()}>A local link</a
+        ></span
+      ><code
+        ><span style="color:var(--keyword)">const</span> note =
+        <span style="color:var(--string)">"words"</span>
+        + <span style="color:var(--number)">42</span>;</code
+      ><span
+        ><mark style="color:var(--added);background:var(--added-bg)"
+          >Added text specimen</mark
+        >
+        <mark style="color:var(--removed);background:var(--removed-bg)"
+          >Removed text specimen</mark
+        ></span
+      >
+    </aside>{/if}
   {#if error}<p role="alert">{error}</p>{/if}{#if diagnostics.length}<ul
       role="alert"
     >
@@ -708,13 +739,17 @@
         </li>{/each}
     </ul>{/if}
   <footer class="dialog-actions">
-    <button onclick={revert} disabled={busy || !dirty}>Revert changes</button>
-    <span class="settings-save-hint">{scopeLabels[scope]}</span>
-    <button onclick={cancel} disabled={committing}>Cancel</button><button
-      class="primary"
-      onclick={apply}
-      disabled={busy || validating || !!diagnostics.length || !dirty}
-      >Apply settings</button
-    >
+    {#if about && !dirty}
+      <button onclick={cancel} disabled={committing}>Close</button>
+    {:else}
+      <button onclick={revert} disabled={busy || !dirty}>Revert changes</button>
+      <span class="settings-save-hint">{scopeLabels[scope]}</span>
+      <button onclick={cancel} disabled={committing}>Cancel</button><button
+        class="primary"
+        onclick={apply}
+        disabled={busy || validating || !!diagnostics.length || !dirty}
+        >Apply settings</button
+      >
+    {/if}
   </footer>
 </dialog>

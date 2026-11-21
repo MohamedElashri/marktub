@@ -1,7 +1,17 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
   import { errorMessage } from "./bridge";
-  let { onrestart }: { onrestart: () => Promise<boolean> } = $props();
+
+  let {
+    active,
+    restartDisabled,
+    onrestart,
+  }: {
+    active: boolean;
+    restartDisabled: boolean;
+    onrestart: () => Promise<void>;
+  } = $props();
+
   type Status = {
     phase: string;
     currentVersion: string;
@@ -13,205 +23,185 @@
     total: number | null;
     error: string | null;
   };
-  let dialog: HTMLDialogElement;
+  type Action =
+    | "check_application_update"
+    | "download_application_update"
+    | "cancel_application_update"
+    | "open_application_installer";
+
   let status = $state<Status | null>(null);
   let error = $state("");
-  let installing = $state(false);
-  let handedOff = $state(false);
-  let focus: HTMLElement | null = null;
+  let actionInFlight = $state<Action | null>(null);
+  let restarting = $state(false);
+  let installerVersion = $state<string | null>(null);
   let generation = 0;
+  let actionId = 0;
   let timer: ReturnType<typeof setTimeout> | undefined;
+
   const busy = $derived(
-    status?.phase === "checking" || status?.phase === "downloading",
+    status?.phase === "checking" ||
+      status?.phase === "downloading" ||
+      actionInFlight === "check_application_update" ||
+      actionInFlight === "download_application_update",
   );
   const linux = $derived(status?.platform === "linux-x86_64-deb");
-  async function refresh(request = generation) {
-    const next = await invoke<Status>("application_update_status");
-    if (request !== generation || !dialog.open) return;
-    status = next;
+
+  function poll(request: number, delay: number) {
     clearTimeout(timer);
-    if (["checking", "downloading"].includes(next.phase))
-      timer = setTimeout(() => {
-        void refresh(request).catch((e) => {
-          error = errorMessage(e);
-        });
-      }, 250);
+    timer = setTimeout(() => void refresh(request), delay);
   }
-  export async function show() {
-    focus = document.activeElement as HTMLElement | null;
-    generation++;
-    error = "";
-    dialog.showModal();
+
+  async function refresh(request = generation) {
     try {
-      await refresh();
+      const next = await invoke<Status>("application_update_status");
+      if (request !== generation || !active) return;
+      status = next;
+      if (busy) poll(request, 250);
+      else clearTimeout(timer);
     } catch (e) {
-      error = errorMessage(e);
+      if (request === generation && active) error = errorMessage(e);
     }
   }
-  async function close() {
-    if (installing) return;
-    try {
-      await invoke("cancel_application_update");
-      generation++;
+
+  $effect(() => {
+    if (!active) return;
+    const request = ++generation;
+    void refresh(request);
+    return () => {
+      ++generation;
       clearTimeout(timer);
-      dialog.close();
-      focus?.focus();
-    } catch (e) {
-      error = errorMessage(e);
-    }
-  }
-  async function action(command: string) {
-    const request = generation;
+    };
+  });
+
+  async function action(command: Action) {
+    const request = ++actionId;
+    const version = status?.version ?? null;
     error = "";
-    if (command === "check_application_update") handedOff = false;
-    if (
-      status &&
-      ["check_application_update", "download_application_update"].includes(
-        command,
-      )
-    ) {
-      status = {
-        ...status,
-        phase:
-          command === "check_application_update" ? "checking" : "downloading",
-        error: null,
-      };
-      clearTimeout(timer);
-      timer = setTimeout(() => {
-        void refresh(request).catch((e) => {
-          error = errorMessage(e);
-        });
-      }, 100);
-    }
+    actionInFlight = command;
+    if (command === "check_application_update") installerVersion = null;
+    if (busy) poll(generation, 100);
     try {
       await invoke(command);
-      if (request !== generation) return;
-      if (command === "open_application_installer") handedOff = true;
-      await refresh(request);
+      if (request === actionId && command === "open_application_installer")
+        installerVersion = version;
     } catch (e) {
-      if (request === generation) {
-        error = errorMessage(e);
-        await refresh(request);
+      if (request === actionId) error = errorMessage(e);
+    } finally {
+      if (request === actionId) {
+        actionInFlight = null;
+        if (active) await refresh();
       }
     }
   }
+
   async function restart() {
-    installing = true;
+    restarting = true;
     error = "";
-    dialog.close();
     try {
-      if (!(await onrestart())) dialog.showModal();
+      await onrestart();
     } catch (e) {
       error = errorMessage(e);
-      dialog.showModal();
     } finally {
-      installing = false;
+      restarting = false;
     }
   }
 </script>
 
-<dialog
-  bind:this={dialog}
-  class="updates-dialog"
-  aria-label="Application updates"
-  oncancel={(event) => {
-    event.preventDefault();
-    void close();
-  }}
->
-  <header>
-    <h2>Application updates</h2>
-    <button
-      aria-label="Close updates"
-      disabled={installing}
-      onclick={() => void close()}>×</button
-    >
-  </header>
-  <p>
-    Updates are checked, downloaded and installed only when you ask. Nothing
-    runs automatically.
-  </p>
-  {#if status}
-    <p>Installed version: {status.currentVersion}</p>
-    {#if status.phase === "current"}<p role="status">
-        No newer stable version is available.
-      </p>{/if}
-    {#if status.version && status.phase !== "current"}
-      <h3>Marktub {status.version}</h3>
-      {#if status.notes}<pre class="update-notes">{status.notes}</pre>{/if}
+{#if active}
+  <section class="app-updates" aria-label="Application updates">
+    <h3>Marktub</h3>
+    {#if status}
+      <p>Version {status.currentVersion}</p>
     {/if}
-    {#if !status.canInstall}<p>
-        This build supports checking only. Install a released macOS app or
-        Ubuntu DEB package to enable downloads and installation.
-      </p>{/if}
-    {#if status.phase === "checking"}<p role="status">
-        Checking for updates…
-      </p>{/if}
-    {#if status.phase === "downloading"}
-      <label
-        >Downloading: {(status.received / 1024 / 1024).toFixed(1)} MB
-        <progress
-          value={status.total ? status.received : undefined}
-          max={status.total ?? 1}
-        ></progress>
-      </label>
-    {/if}
-    {#if status.phase === "ready"}
-      <p role="status">
-        Download verified. Nothing has been installed by Marktub.
-      </p>
-      {#if linux}<p>
-          The system installer will ask for approval. After it finishes, restart
-          here to use the update. The package is kept in Downloads.
+    <h4>Application updates</h4>
+    {#if status}
+      {#if status.phase === "current"}<p role="status">
+          You're on the latest stable version.
         </p>{/if}
+      {#if status.version && status.phase !== "current"}
+        <p><strong>Marktub {status.version}</strong></p>
+        {#if status.notes}<pre class="update-notes">{status.notes}</pre>{/if}
+      {/if}
+      {#if !status.canInstall}<p>
+          Downloads and installation are available in released macOS apps and
+          Ubuntu DEB packages.
+        </p>{/if}
+      {#if status.phase === "checking"}<p role="status">
+          Checking for updates…
+        </p>{/if}
+      {#if status.phase === "downloading"}
+        <label
+          >Downloading: {(status.received / 1024 / 1024).toFixed(1)} MB
+          <progress
+            value={status.total ? status.received : undefined}
+            max={status.total ?? 1}
+          ></progress>
+        </label>
+      {/if}
+      {#if status.phase === "ready"}
+        <p role="status">Update downloaded and ready to install.</p>
+        {#if linux}<p>
+            Approve the update in the system installer. Restart here after it
+            finishes.
+          </p>{/if}
+      {/if}
     {/if}
-    {#if error || status.error}<p class="error" role="alert">
-        {error || status.error}
+    {#if error || status?.error}<p class="error" role="alert">
+        {error || status?.error}
       </p>{/if}
-    <footer class="dialog-actions">
-      {#if busy}<button onclick={() => action("cancel_application_update")}
+    <div class="update-actions">
+      {#if busy}
+        <button
+          disabled={actionInFlight === "cancel_application_update"}
+          onclick={() => action("cancel_application_update")}
           >Cancel request</button
         >
       {:else}
-        <button onclick={() => action("check_application_update")}
+        <button
+          disabled={!!actionInFlight || restarting}
+          onclick={() => action("check_application_update")}
           >Check for updates</button
         >
-        {#if status.phase === "available" && status.canInstall}<button
+        {#if status?.phase === "available" && status.canInstall}<button
+            disabled={!!actionInFlight}
             onclick={() => action("download_application_update")}
             >Download update</button
           >{/if}
-        {#if status.phase === "ready"}
+        {#if status?.phase === "ready"}
           {#if linux}<button
+              disabled={!!actionInFlight || restarting}
               onclick={() => action("open_application_installer")}
               >Open system installer</button
             >{/if}
-          <button disabled={linux && !handedOff} onclick={restart}
+          <button
+            class="primary"
+            disabled={!!actionInFlight ||
+              restarting ||
+              restartDisabled ||
+              (linux && installerVersion !== status.version)}
+            onclick={restart}
             >{linux
               ? "Restart after installation"
               : "Install and restart"}</button
           >
         {/if}
       {/if}
-      <button onclick={() => void close()}>Close</button>
-    </footer>
-  {:else if error}<p role="alert">{error}</p>{/if}
-</dialog>
+    </div>
+  </section>
+{/if}
 
 <style>
-  .updates-dialog {
-    width: min(36rem, calc(100vw - 3rem));
+  .app-updates {
+    min-width: 0;
   }
-  header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-  }
-  h2 {
+  h3 {
     margin: 0;
   }
   p {
     line-height: 1.5;
+  }
+  h4 {
+    margin-block: 1.5rem 0.75rem;
   }
   .update-notes {
     white-space: pre-wrap;
@@ -224,9 +214,12 @@
     width: 100%;
     margin-block: 0.75rem;
   }
-  footer {
+  .update-actions {
     display: flex;
     flex-wrap: wrap;
     gap: 0.5rem;
+  }
+  .update-actions button {
+    border-color: var(--line);
   }
 </style>
