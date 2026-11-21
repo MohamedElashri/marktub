@@ -2786,10 +2786,6 @@ textarea {
   flex-shrink: 0;
   font-size: 12px;
 }
-.empty-state .recent-help {
-  font-size: 12px;
-  margin-top: 12px;
-}
 .tab button[role="tab"] {
   min-width: 0;
 }

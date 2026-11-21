@@ -51,6 +51,7 @@
     "allow-library-commit",
     "allow-library-configure",
     "allow-library-pin",
+    "allow-library-clear-recent",
     "allow-library-remove-root",
     "allow-library-accept-drop",
     "allow-library-remember-document",

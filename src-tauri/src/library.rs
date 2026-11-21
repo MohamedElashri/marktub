@@ -264,6 +264,7 @@ pub struct State {
     pub roots: Vec<Folder>,
     pub root_hints: Vec<Hint>,
     pub recent: Vec<Hint>,
+    pub can_clear_recent: bool,
     pub sidebar: bool,
     pub view: String,
     pub warning: Option<String>,
@@ -883,6 +884,7 @@ impl Library {
                     && (filter == "all"
                         || e.kind == "folder"
                         || match filter {
+                            "markdown" => e.kind == "file" && is_markdown(&e.name),
                             "text" => is_text(&e.name),
                             "images" => is_image(&e.name),
                             _ => false,
@@ -951,7 +953,14 @@ impl Library {
                 .filter_map(|id| self.folder(id).ok())
                 .collect(),
             root_hints: self.data.roots.iter().map(|r| self.hint(r)).collect(),
-            recent: self.data.recent.iter().map(|r| self.hint(r)).collect(),
+            recent: self
+                .data
+                .recent
+                .iter()
+                .filter(|r| self.recent_available(r))
+                .map(|r| self.hint(r))
+                .collect(),
+            can_clear_recent: self.data.recent.iter().any(|r| !r.pinned),
             sidebar: self.data.sidebar,
             view: self.data.view.clone(),
             warning: self.warning.clone(),
@@ -985,6 +994,17 @@ impl Library {
                     .map(|p| p.id.clone())
             }),
         }
+    }
+    fn recent_available(&self, record: &Record) -> bool {
+        let Some(path) = decode_path(&record.path) else {
+            return false;
+        };
+        self.root_for(&path).is_some_and(|(id, _)| {
+            self.allowed(&path)
+                && self.dir(id).is_ok()
+                && fs::canonicalize(&path).is_ok_and(|resolved| resolved == path)
+                && fs::symlink_metadata(&path).is_ok_and(|metadata| metadata.is_file())
+        })
     }
     fn hint(&self, r: &Record) -> Hint {
         let path = decode_path(&r.path);
@@ -1020,6 +1040,15 @@ impl Library {
         self.data.sidebar = sidebar;
         self.data.view = view.into();
         self.persist()
+    }
+    pub fn clear_recent(&mut self) -> Result<(), FileError> {
+        let previous = std::mem::take(&mut self.data.recent);
+        self.data.recent = previous.iter().filter(|r| r.pinned).cloned().collect();
+        if let Err(error) = self.persist() {
+            self.data.recent = previous;
+            return Err(error);
+        }
+        Ok(())
     }
     fn trim_recent(&mut self) {
         let mut unpinned = 0;
@@ -1216,19 +1245,20 @@ impl Library {
             Err(e) => Err(e),
         }
     }
-    pub(crate) fn resolve_path(&mut self, path: &Path) -> Result<String, FileError> {
-        let (root_id, root_path) = self
-            .roots
+    fn root_for(&self, path: &Path) -> Option<(&str, &Path)> {
+        self.roots
             .iter()
-            .filter(|(_, r)| path.starts_with(&r.path))
-            .max_by_key(|(_, r)| r.path.components().count())
-            .map(|(id, r)| (id.clone(), r.path.clone()))
-            .ok_or_else(|| {
-                err(
-                    "unauthorized",
-                    "Reselect a containing folder before reopening this location.",
-                )
-            })?;
+            .filter(|(_, root)| path.starts_with(&root.path))
+            .max_by_key(|(_, root)| root.path.components().count())
+            .map(|(id, root)| (id.as_str(), root.path.as_path()))
+    }
+    pub(crate) fn resolve_path(&mut self, path: &Path) -> Result<String, FileError> {
+        let (root_id, root_path) = self.root_for(path).ok_or_else(|| {
+            err(
+                "unauthorized",
+                "Reselect a containing folder before reopening this location.",
+            )
+        })?;
         let parts = path
             .strip_prefix(root_path)
             .map_err(|_| stale())?
@@ -1238,7 +1268,7 @@ impl Library {
         if parts.is_empty() {
             return Err(stale());
         }
-        let mut dir = root_id;
+        let mut dir = root_id.to_owned();
         for (index, part) in parts.iter().enumerate() {
             let (parent, path) = self.dir(&dir)?;
             if !self.allowed(&path.join(part)) {
@@ -1675,14 +1705,15 @@ impl Library {
         self.persist_hint();
         pairs
     }
-    pub fn remember_path(&mut self, path: &Path) {
+    pub fn remember_path(&mut self, path: &Path) -> String {
         let encoded = STANDARD.encode(path.as_os_str().as_bytes());
         let previous = self.data.recent.iter().find(|r| r.path == encoded).cloned();
         self.data.recent.retain(|r| r.path != encoded);
+        let id = previous.as_ref().map_or_else(uid, |r| r.id.clone());
         self.data.recent.insert(
             0,
             Record {
-                id: previous.as_ref().map_or_else(uid, |r| r.id.clone()),
+                id: id.clone(),
                 path: encoded,
                 name: path
                     .file_name()
@@ -1694,6 +1725,7 @@ impl Library {
         );
         self.trim_recent();
         self.persist_hint();
+        id
     }
     pub fn warn(&mut self, text: String) {
         self.warning = Some(text.clone());
@@ -1786,6 +1818,11 @@ fn percent_decode(s: &str) -> Result<Vec<u8>, FileError> {
         }
     }
     Ok(out)
+}
+fn is_markdown(name: &std::ffi::OsStr) -> bool {
+    Path::new(name).extension().is_some_and(|extension| {
+        extension.eq_ignore_ascii_case("md") || extension.eq_ignore_ascii_case("markdown")
+    })
 }
 fn is_text(n: &std::ffi::OsStr) -> bool {
     matches!(
@@ -2748,10 +2785,13 @@ mod tests {
         let hint = l.state().recent[0].id.clone();
         let mut restored = Library::new(t.path().join("private"), vec![]);
         assert!(restored.state().roots.is_empty());
-        assert!(!restored.state().recent[0].authorized);
+        assert!(restored.state().recent.is_empty());
         assert!(restored.resolve_hint(&hint).is_err());
         restored.select(&t.path().join("root")).unwrap();
         assert!(restored.resolve_hint(&hint).is_ok());
+        assert_eq!(restored.state().recent[0].id, hint);
+        fs::remove_file(t.path().join("root/a.txt")).unwrap();
+        assert!(restored.state().recent.is_empty());
     }
     #[test]
     fn ignore_and_hidden_policy_is_explicit() {
@@ -3000,14 +3040,22 @@ mod tests {
     fn recency_does_not_evict_bookmarks_and_pending_operations_are_durable() {
         let (t, mut l, r) = setup();
         let root = fs::canonicalize(t.path().join("root")).unwrap();
-        l.remember_path(&root.join("star.txt"));
-        let id = l.state().recent[0].id.clone();
+        let star = root.join("star.txt");
+        fs::write(&star, "bookmark").unwrap();
+        let id = l.remember_path(&star);
         l.pin(&id).unwrap();
         for i in 0..130 {
-            l.remember_path(&root.join(format!("recent-{i}.txt")));
+            let path = root.join(format!("recent-{i}.txt"));
+            fs::write(&path, "recent").unwrap();
+            l.remember_path(&path);
         }
         assert!(l.state().recent.iter().any(|r| r.id == id && r.pinned));
         assert_eq!(l.state().recent.len(), 101);
+        assert!(l.state().can_clear_recent);
+        l.clear_recent().unwrap();
+        assert!(!l.state().can_clear_recent);
+        assert_eq!(l.state().recent.len(), 1);
+        assert_eq!(l.state().recent[0].id, id);
         let review = l
             .prepare(request(
                 "createFile",
