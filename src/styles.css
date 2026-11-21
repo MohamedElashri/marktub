@@ -1001,6 +1001,7 @@ select {
   background: var(--accent);
 }
 .workbench-body {
+  position: relative;
   display: flex;
   flex: 1;
   min-height: 0;
@@ -1026,6 +1027,27 @@ select {
   overflow: auto;
   background: var(--paper);
 }
+.library-drawer-open .library-host {
+  position: absolute;
+  z-index: 31;
+  inset-block: 0;
+  inset-inline-start: 0;
+  width: min(max(320px, var(--library-width)), calc(100% - 32px));
+  border-inline-end: 1px solid var(--line);
+  box-shadow: 12px 0 32px #0003;
+  overscroll-behavior: contain;
+}
+button.library-scrim,
+button.library-scrim:hover:not(:disabled) {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: #171b3059;
+}
 .library-panel {
   padding: 18px;
   font-size: 13px;
@@ -1035,6 +1057,22 @@ select {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+}
+.library-title-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.library-close {
+  font-size: 20px;
+  line-height: 1;
+}
+.library-drawer-open .library-title {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 2;
+  padding-block: 4px;
+  background: var(--paper);
 }
 .library-title h2 {
   font-size: 14px;
@@ -1225,15 +1263,6 @@ dialog form label {
     padding: 8px;
   }
   .has-library .wordmark {
-    display: none;
-  }
-}
-@media (max-width: 700px) {
-  .has-library .library-host {
-    width: 100%;
-    max-width: none;
-  }
-  .has-library .document-host {
     display: none;
   }
 }
@@ -2723,6 +2752,21 @@ textarea {
 }
 .document-toolbar .save-button {
   border-color: var(--line);
+  padding: 7px 11px;
+}
+.open-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.open-button .ui-icon {
+  width: 15px;
+  height: 15px;
+}
+.workspace-actions .library-toggle[aria-expanded="true"],
+.document-actions-list button[aria-pressed="true"] {
+  color: var(--accent);
+  background: var(--surface);
 }
 .document-actions {
   position: relative;
@@ -2861,9 +2905,6 @@ textarea {
   flex-shrink: 0;
 }
 @container (max-width: 760px) {
-  .document-toolbar .document-title {
-    display: none;
-  }
   .workbench .toolbar {
     padding-inline: 12px;
   }
@@ -2872,6 +2913,11 @@ textarea {
   }
   .mode-switch button {
     padding-inline: 8px;
+  }
+}
+@container (max-width: 520px) {
+  .document-toolbar .document-title {
+    display: none;
   }
 }
 

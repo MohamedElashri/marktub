@@ -191,10 +191,7 @@
           return showLibrary(true, true);
         case "browser":
           if (readingFocus) return showLibrary();
-          if (sidebar) {
-            sidebar = false;
-            return library.configure(false, panel?.viewName() ?? "list");
-          }
+          if (sidebar) return hideLibrary(libraryDrawer);
           return showLibrary();
         case "example":
           return openTab(await bridge.openExample());
@@ -213,11 +210,9 @@
         case "close_tab":
           return closeTabs([tabs[active].key]);
         case "next_tab":
-          active = (active + 1) % tabs.length;
-          return;
+          return selectTab((active + 1) % tabs.length);
         case "previous_tab":
-          active = (active + tabs.length - 1) % tabs.length;
-          return;
+          return selectTab((active + tabs.length - 1) % tabs.length);
         case "back":
           return navigate(-1);
         case "forward":
@@ -232,7 +227,7 @@
   function newTab() {
     if (closingTabs.length || tabs.length >= TAB_LIMIT) return;
     tabs.push({ key: ++serial, name: "New tab", dirty: false, document: null });
-    active = tabs.length - 1;
+    selectTab(tabs.length - 1);
   }
   let templatePanel: NewNote;
   async function createNote(title: string, template: string) {
@@ -317,6 +312,23 @@
       });
   }
   let sidebar = $state(false);
+  const libraryDrawer = $derived(
+    sidebar && !readingFocus && viewportWidth <= 700,
+  );
+  let libraryToggle = $state<HTMLButtonElement>();
+  let libraryHost = $state<HTMLElement>();
+  $effect(() => {
+    if (!libraryDrawer || !libraryHost) return;
+    const host = libraryHost;
+    void tick().then(() => {
+      if (
+        libraryDrawer &&
+        !host.contains(document.activeElement) &&
+        !document.querySelector("dialog[open]")
+      )
+        host.querySelector<HTMLButtonElement>(".library-close")?.focus();
+    });
+  });
   let LibraryComponent = $state<typeof Library | null>(null);
   let panel = $state<Library>();
   let message = $state("");
@@ -360,9 +372,10 @@
     if (quick) await panel?.quickOpen(content);
     const state = await library.state();
     showRecents(state);
-    await library
-      .configure(true, state.view)
-      .catch((e) => (message = bridge.errorMessage(e)));
+    if (sidebar)
+      await library
+        .configure(true, state.view)
+        .catch((e) => (message = bridge.errorMessage(e)));
   }
   async function chooseFolder() {
     if (folderBusy) return;
@@ -377,12 +390,23 @@
       folderBusy = false;
     }
   }
-  async function revealDocumentOnNarrowScreens() {
-    if (viewportWidth > 700 || !sidebar) return;
+  async function hideLibrary(restoreFocus = false) {
     sidebar = false;
-    await library
+    const persist = library
       .configure(false, panel?.viewName() ?? "list")
       .catch((error) => (message = bridge.errorMessage(error)));
+    if (restoreFocus) {
+      await tick();
+      if (!sidebar) libraryToggle?.focus({ preventScroll: true });
+    }
+    await persist;
+  }
+  function selectTab(index: number) {
+    if (libraryDrawer) void hideLibrary();
+    active = index;
+  }
+  async function revealDocumentOnNarrowScreens() {
+    if (libraryDrawer) await hideLibrary();
   }
   const openingTabs = new SvelteSet<number>();
   async function openTab(descriptor: bridge.Descriptor, link?: string) {
@@ -665,6 +689,12 @@
         }
         return;
       }
+      if (event.key === "Escape" && libraryDrawer) {
+        event.preventDefault();
+        event.stopPropagation();
+        void hideLibrary(true);
+        return;
+      }
       const command = commands.find((command) =>
         matches(event, binding(command, currentValues)),
       );
@@ -702,13 +732,17 @@
 <div
   class="workbench"
   class:has-library={sidebar && !readingFocus}
+  class:library-drawer-open={libraryDrawer}
   class:reading-focus={readingFocus}
   style={`--library-width:${sidebarWidth}px`}
 >
   <header class="workbench-header">
     <nav class="workspace-actions" aria-label="Workspace">
       <button
+        class="library-toggle"
+        bind:this={libraryToggle}
         aria-expanded={sidebar}
+        aria-controls="library-sidebar"
         title="Show or hide library"
         onclick={() => {
           void runCommand("browser");
@@ -719,7 +753,8 @@
         title={canCreateNote
           ? `New note${newNoteShortcut.visual ? ` · ${newNoteShortcut.visual}` : ""}`
           : "Close a tab before creating another note."}
-        onclick={() => runCommand("new_note")}>New note</button
+        onclick={() => runCommand("new_note")}
+        ><Icon name="new-note" />New note</button
       >
       <div class="history-actions">
         <button
@@ -772,7 +807,7 @@
       }))}
       {active}
       locked={closingTabs.length > 0}
-      onselect={(index) => (active = index)}
+      onselect={selectTab}
       onclose={closeTabs}
       onmove={reorderTab}
       onnew={newTab}
@@ -790,9 +825,19 @@
       >
     </div>{/if}
   <div class="workbench-body">
+    {#if libraryDrawer}
+      <button
+        class="library-scrim"
+        aria-label="Dismiss library"
+        tabindex="-1"
+        onclick={() => hideLibrary(true)}
+      ></button>
+    {/if}
     {#if LibraryComponent}<aside
         id="library-sidebar"
         class="library-host"
+        aria-label="Library"
+        bind:this={libraryHost}
         hidden={!sidebar || readingFocus}
       >
         <LibraryComponent
@@ -804,9 +849,10 @@
           canClearRecent={recentInfo.canClearRecent}
           onrecentchange={showRecents}
           onclearrecent={clearRecent}
+          onclose={libraryDrawer ? () => hideLibrary(true) : undefined}
         />
       </aside>{/if}
-    {#if sidebar && !readingFocus}<ResizeHandle
+    {#if sidebar && !readingFocus && !libraryDrawer}<ResizeHandle
         value={sidebarWidth}
         min={librarySize.min}
         max={libraryWidth(librarySize.max, viewportWidth)}
@@ -814,7 +860,7 @@
         onpreview={(width) => (draftWidth = width)}
         oncommit={resizeLibrary}
       />{/if}
-    <div class="document-host">
+    <div class="document-host" inert={libraryDrawer}>
       {#each tabs as tab, index (tab.key)}<div
           class="document-tab"
           id={`document-panel-${tab.key}`}
