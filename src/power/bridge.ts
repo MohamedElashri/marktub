@@ -26,13 +26,17 @@ export interface Tool {
   name: string;
   version: string;
 }
+export interface Database {
+  id: string;
+  name: string;
+}
 export interface State {
   shell: boolean;
   sqlite: boolean;
   tex: boolean;
   tools: Tool[];
   roots: { id: string; kind: Kind; name: string }[];
-  databases: { id: string; name: string }[];
+  databases: Database[];
 }
 export interface Result {
   status: string;
@@ -73,7 +77,8 @@ export const enable = (kind: Kind, on: boolean) =>
 export const chooseTool = (role: Role) =>
   invoke<Tool | null>("power_choose_tool", { role });
 export const trust = (kind: Kind) => invoke("power_trust", { kind });
-export const database = () => invoke("power_choose_database");
+export const database = (document: string | null = null, temporary = false) =>
+  invoke<Database | null>("power_choose_database", { document, temporary });
 export const image = (capture: string, reference: string) =>
   invoke<boolean>("power_image", { capture, reference });
 export const diagram = (capture: string, source: string, png: string) =>
@@ -86,6 +91,16 @@ export const math = (
 ) => invoke("power_math", { capture, source, display, png });
 export const prepare = (request: Request) =>
   invoke<{ token: string; summary: string }>("power_prepare", { request });
+export const prepareInline = (
+  capture: string,
+  block: string,
+  database: string | null,
+) =>
+  invoke<{ token: string }>("power_prepare_inline", {
+    capture,
+    block,
+    database,
+  });
 export const run = (token: string) =>
   invoke<string | null>("power_run", { token });
 export const poll = (job: string) => invoke<Result>("power_poll", { job });

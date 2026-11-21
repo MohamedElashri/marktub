@@ -668,6 +668,7 @@ mod tests {
             pdf_fonts: PdfFonts::System,
         };
         let mut p = Prepared {
+            inline: false,
             request,
             capture: c,
             block: None,
@@ -790,6 +791,7 @@ mod local_tools {
             pdf_fonts: PdfFonts::System,
         };
         let mut prepared = Prepared {
+            inline: false,
             request,
             capture: Arc::new(capture),
             block: None,
