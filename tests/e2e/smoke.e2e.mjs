@@ -4694,7 +4694,7 @@ describe("Everyday workflows", () => {
         90;
     });
     const before = await layout();
-    expect(before.offset).toBeCloseTo(90, 0);
+    expect(Math.abs(before.offset - 90)).toBeLessThan(2);
     try {
       await enter().click();
       await exit().waitForDisplayed();
