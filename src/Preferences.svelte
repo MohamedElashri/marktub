@@ -15,7 +15,7 @@
     type Spec,
     type Values,
   } from "./preferences";
-  import { readyFontChoices } from "./fonts/catalogue";
+  import { arabicFamilies, readyFontChoices } from "./fonts/catalogue";
   import { chord } from "./commands";
   let {
     onpreview,
@@ -58,6 +58,10 @@
   ];
   const assigned = $derived(literals(text));
   const dirty = $derived(text !== loadedText);
+  const contentFamilies = $derived([
+    ...arabicFamilies,
+    ...families.filter((family) => !arabicFamilies.includes(family)),
+  ]);
   const scopeLabels: Record<string, string> = {
     global: "This app",
     workspace: "This workspace",
@@ -74,19 +78,19 @@
       "Temporary overrides until you quit Marktub. Your saved defaults stay unchanged.",
   };
   const help: Record<string, string> = {
-    "ui.font": "Used for tabs, menus and controls.",
+    "ui.font": "Used for tabs, menus and controls throughout the app.",
     "ui.scale": "Make the interface more compact or easier to read.",
     "library.width":
       "Drag the library divider to resize it, or enter a width here. Global or session-only.",
-    "reader.font": "Choose a bundled or installed font for document text.",
+    "reader.font": "Noto Naskh Arabic, Noto Sans Arabic and Amiri are bundled.",
     "reader.heading_font":
       "Choose a heading font, or Same as body to follow the reading font.",
     "reader.font_size": "Text size in Read and the Split preview.",
     "reader.width":
       "Maximum text width; narrower columns keep long lines comfortable.",
     "reader.line_height": "Space between lines of document text.",
-    "editor.font": "Choose a bundled or installed font for Markdown source.",
-    "editor.font_size": "Text size in Source, Split and Visual.",
+    "editor.font": "System Mono uses bundled Noto Sans Arabic for Arabic text.",
+    "editor.font_size": "Text size in Source and the Split editor.",
     "editor.line_height": "Space between lines in the editor.",
     "editor.tab_width":
       "The visual width of a tab character. Existing file bytes are preserved.",
@@ -135,6 +139,7 @@
     specs.filter(
       (s) =>
         s.key !== "schema.version" &&
+        (s.key !== "ui.font" || scope === "global" || scope === "session") &&
         (query ||
           category !== "Appearance" ||
           (s.key !== "theme" &&
@@ -506,9 +511,8 @@
         <div class="riwaq-typography">
           <button onclick={chooseTypography}>Use Riwaq typography</button>
           <p class="preference-hint">
-            Set reading, heading, interface and code fonts, plus reading line
-            spacing. Uses installed Thmanyah when available; otherwise bundled
-            Noto and Amiri. Colors and text size stay as chosen.
+            Set document fonts and reading line spacing. Uses installed Thmanyah
+            or the bundled Noto and Amiri fonts.
           </p>
         </div>
       {/if}
@@ -622,7 +626,9 @@
                   id={`pref-${spec.key}`}
                   list={spec.key === "reader.heading_font"
                     ? "heading-fonts"
-                    : "installed-fonts"}
+                    : spec.key === "ui.font"
+                      ? "installed-fonts"
+                      : "content-fonts"}
                   maxlength="128"
                   value={String(controlValue(spec))}
                   oninput={(event) => set(spec, event.currentTarget.value)}
@@ -661,9 +667,13 @@
     >{#each families as family (family)}<option value={family}
       ></option>{/each}</datalist
   >
+  <datalist id="content-fonts"
+    >{#each contentFamilies as family (family)}<option value={family}
+      ></option>{/each}</datalist
+  >
   <datalist id="heading-fonts"
     ><option value="Same as body"
-    ></option>{#each families as family (family)}<option value={family}
+    ></option>{#each contentFamilies as family (family)}<option value={family}
       ></option>{/each}</datalist
   >
   <aside
@@ -674,9 +684,8 @@
     <span class="specimen-title" dir="auto"
       >كلمات تستحق البقاء · A sentence worth keeping.</span
     ><span dir="auto" class="specimen-body"
-      >العربية · עברית · 漢字 · 🦀 <a
-        href="#specimen"
-        onclick={(e) => e.preventDefault()}>A local link</a
+      >العربية · <strong>نص عريض</strong> · עברית · 漢字 · 🦀
+      <a href="#specimen" onclick={(e) => e.preventDefault()}>A local link</a
       ></span
     ><code
       ><span style="color:var(--keyword)">const</span> note =

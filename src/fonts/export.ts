@@ -1,4 +1,4 @@
-import { value, type Values } from "../preferences";
+import { DEFAULT_READING_FONT, value, type Values } from "../preferences";
 import { fontFaces, portableFamily } from "./catalogue";
 
 const assets = import.meta.glob<string>("./assets/*.ttf", {
@@ -9,7 +9,11 @@ const assets = import.meta.glob<string>("./assets/*.ttf", {
 export async function exportFontCSS(values: Values) {
   const families = new Set(
     ["reader.font", "reader.heading_font", "editor.font"].map((key) =>
-      portableFamily(String(value(values, key, ""))),
+      portableFamily(
+        String(
+          value(values, key, key === "reader.font" ? DEFAULT_READING_FONT : ""),
+        ),
+      ),
     ),
   );
   const faces = [

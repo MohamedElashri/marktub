@@ -107,7 +107,10 @@ describe("presentation and command contracts", () => {
     );
     expect(installed["reader.font"]).toBe('"Thmanyah Serif Text"');
     expect(installed["reader.heading_font"]).toBe('"Thmanyah Serif Display"');
-    expect(installed["ui.font"]).toBe('"Thmanyah Sans"');
+    expect(installed["ui.font"]).toBeUndefined();
+    expect(
+      literals(riwaqTypography('$ui.font="System UI"', []))["ui.font"],
+    ).toBe('"System UI"');
     const values: Values = {
       theme: { type: "enum", value: "riwaq_day" },
       "reader.font": { type: "text", value: "My font" },
@@ -115,6 +118,10 @@ describe("presentation and command contracts", () => {
     const css = appearance(values);
     expect(css).toContain('--reader-font:"My font"');
     expect(css).toContain('--reader-heading-font:"My font"');
+    expect(appearance({})).toContain('--reader-font:"Noto Naskh Arabic"');
+    expect(css.split("--ui-font:")[1]?.split(";")[0]).toBe(
+      appearance({}).split("--ui-font:")[1]?.split(";")[0],
+    );
     expect(fontStack("Thmanyah Serif Display")).toContain(
       '"Thmanyah Serif Display", "Amiri"',
     );

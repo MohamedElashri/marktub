@@ -175,7 +175,7 @@ pub fn catalogue() -> Vec<Spec> {
             "Reading font",
             "Reading",
             "font",
-            "\"Palatino\"",
+            "\"Noto Naskh Arabic\"",
             None,
             None,
             &[],

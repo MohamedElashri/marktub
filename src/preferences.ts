@@ -232,9 +232,11 @@ export function fontStack(name: string, mono = false) {
     : `${face}, "Marktub Arabic"`;
   return `${primary}, "Geeza Pro", "Noto Sans Hebrew", "Arial Hebrew", "Noto Sans CJK SC", "Hiragino Sans", "PingFang SC", "Apple Color Emoji", "Noto Color Emoji", ${mono ? "monospace" : fallback}`;
 }
+export const DEFAULT_READING_FONT = "Noto Naskh Arabic";
+
 export function appearance(values: Values, dark = false) {
   const p = currentPalette(values, dark);
-  const body = String(value(values, "reader.font", "Palatino"));
+  const body = String(value(values, "reader.font", DEFAULT_READING_FONT));
   const heading = String(value(values, "reader.heading_font", "Same as body"));
   const color = (k: string) =>
     /^#[0-9a-f]{6}$/i.test(p.colors[k]) ? p.colors[k] : themes.light.colors[k];
@@ -271,7 +273,6 @@ export function riwaqTypography(text: string, installed: readonly string[]) {
   for (const [key, preferred] of [
     ["reader.font", "Thmanyah Serif Text"],
     ["reader.heading_font", "Thmanyah Serif Display"],
-    ["ui.font", "Thmanyah Sans"],
     ["editor.font", "Cousine"],
   ]) {
     const family = installed.some(
