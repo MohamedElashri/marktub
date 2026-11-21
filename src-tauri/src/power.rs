@@ -64,6 +64,40 @@ pub struct Tool {
     _pin: File,
 }
 impl Tool {
+    fn system_shell(language: &str) -> Result<Self, FileError> {
+        let name = match language {
+            "sh" | "shell" => "sh",
+            "bash" => "bash",
+            "zsh" => "zsh",
+            _ => return Err(err("Unsupported shell fence.")),
+        };
+        let requested = Path::new("/bin").join(name);
+        let path = fs::canonicalize(&requested).map_err(|_| {
+            err(format!(
+                "The system shell {} is unavailable.",
+                requested.display()
+            ))
+        })?;
+        let scoped = ScopedFile::selected(&path)?.authorize_selection(&requested);
+        let file = scoped.open()?;
+        let metadata = file.metadata()?;
+        let mode = metadata.permissions().mode();
+        if metadata.uid() != 0 || mode & 0o022 != 0 || mode & 0o111 == 0 {
+            return Err(err("The system shell must be a root-owned executable."));
+        }
+        Ok(Self {
+            view: ToolView {
+                id: uid(),
+                role: Role::Shell,
+                name: name.into(),
+                version: "System shell".into(),
+            },
+            path,
+            scoped,
+            identity: crate::atomic_save::Identity::of(&metadata),
+            _pin: file,
+        })
+    }
     pub fn select(path: &Path, role: Role, scratch: &Path) -> Result<Self, FileError> {
         let canonical = fs::canonicalize(path)?;
         let scoped = ScopedFile::selected(&canonical)?.authorize_selection(path);
@@ -229,6 +263,7 @@ impl Database {
 pub struct Block {
     pub id: String,
     pub kind: Kind,
+    pub language: String,
     pub start: usize,
     pub end: usize,
     pub line: usize,
@@ -263,6 +298,7 @@ pub enum Proof {
 pub struct Capture {
     pub view: CaptureView,
     pub path: Option<PathBuf>,
+    pub document: Option<String>,
     pub proof: Option<Proof>,
     pub assets: HashMap<String, Vec<u8>>,
     pub created: Instant,
@@ -294,7 +330,8 @@ impl Capture {
                 executable: path.is_some(),
             },
             path,
-            proof: document.map(Proof::Saved),
+            proof: document.clone().map(Proof::Saved),
+            document,
             assets: HashMap::new(),
             created: Instant::now(),
         })
@@ -319,7 +356,7 @@ fn fence(line: &str) -> Option<(u8, usize, &str)> {
 }
 pub fn blocks(text: &str) -> Result<Vec<Block>, FileError> {
     let mut result = vec![];
-    let mut open: Option<(u8, usize, Option<Kind>, usize, usize)> = None;
+    let mut open: Option<(u8, usize, &str, Option<Kind>, usize, usize)> = None;
     let mut at = 0;
     // split_inclusive also recognizes raw CR, CRLF and LF without normalizing
     // byte coordinates. Nested/indented/blockquote fences remain source only.
@@ -352,7 +389,7 @@ pub fn blocks(text: &str) -> Result<Vec<Block>, FileError> {
         } else {
             line
         };
-        if let Some((ch, n, kind, from, line_number)) = open {
+        if let Some((ch, n, language, kind, from, line_number)) = open {
             if fence(check).is_some_and(|(c, len, tail)| c == ch && len >= n && tail.is_empty()) {
                 if let Some(kind) = kind {
                     let code = &text[from..at];
@@ -365,6 +402,7 @@ pub fn blocks(text: &str) -> Result<Vec<Block>, FileError> {
                     result.push(Block {
                         id: uid(),
                         kind,
+                        language: language.into(),
                         start: from,
                         end: at,
                         line: line_number,
@@ -380,7 +418,7 @@ pub fn blocks(text: &str) -> Result<Vec<Block>, FileError> {
                 "tex" | "latex" => Some(Kind::Tex),
                 _ => None,
             };
-            open = Some((ch, n, kind, at + line.len(), number + 2));
+            open = Some((ch, n, info, kind, at + line.len(), number + 2));
         }
         at += line.len();
     }
@@ -421,14 +459,16 @@ pub struct ResultView {
 }
 pub struct Job {
     pub kind: Option<Kind>,
+    pub inline: bool,
     pub cancel: Arc<AtomicBool>,
     pub result: Mutex<ResultView>,
     pub pdf: Mutex<Option<Vec<u8>>>,
 }
 impl Job {
-    pub fn new(kind: Option<Kind>) -> Self {
+    pub fn new(kind: Option<Kind>, inline: bool) -> Self {
         Self {
             kind,
+            inline,
             cancel: Arc::new(AtomicBool::new(false)),
             result: Mutex::new(ResultView {
                 status: "running".into(),
@@ -504,6 +544,7 @@ impl Mode {
 }
 pub struct Prepared {
     pub request: Request,
+    pub inline: bool,
     pub capture: Arc<Capture>,
     pub block: Option<Block>,
     pub root: Option<Arc<Root>>,
@@ -536,6 +577,7 @@ pub struct Powers {
     pub tools: HashMap<String, Arc<Tool>>,
     pub roots: HashMap<String, Arc<Root>>,
     pub databases: HashMap<String, Arc<Database>>,
+    pub document_databases: HashMap<String, Arc<Database>>,
     pub captures: HashMap<String, Arc<Capture>>,
     pub prepared: HashMap<String, Prepared>,
     pub jobs: HashMap<String, Arc<Job>>,
@@ -550,6 +592,7 @@ impl Powers {
             tools: HashMap::new(),
             roots: HashMap::new(),
             databases: HashMap::new(),
+            document_databases: HashMap::new(),
             captures: HashMap::new(),
             prepared: HashMap::new(),
             jobs: HashMap::new(),
@@ -597,7 +640,11 @@ impl Powers {
         self.prepared.clear();
         if !on {
             self.roots.retain(|_, r| r.kind != k);
-            for j in self.jobs.values().filter(|j| j.kind == Some(k)) {
+            for j in self
+                .jobs
+                .values()
+                .filter(|j| !j.inline && j.kind == Some(k))
+            {
                 j.cancel.store(true, Ordering::SeqCst);
             }
         }
@@ -631,6 +678,40 @@ impl Powers {
         self.prepared.retain(|_, p| p.request.capture != id);
     }
     pub fn prepare(&mut self, r: Request) -> Result<(String, String), FileError> {
+        self.prepare_request(r, false)
+    }
+    pub fn prepare_inline(
+        &mut self,
+        capture: String,
+        block: String,
+        database: Option<String>,
+    ) -> Result<(String, String), FileError> {
+        let mode = match self
+            .captures
+            .get(&capture)
+            .and_then(|c| c.view.blocks.iter().find(|b| b.id == block))
+            .map(|b| b.kind)
+        {
+            Some(Kind::Shell) if database.is_none() => Mode::Shell,
+            Some(Kind::Sqlite) => Mode::SqliteRead,
+            _ => return Err(err("Select a captured Shell or SQL block.")),
+        };
+        self.prepare_request(
+            Request {
+                capture,
+                block: Some(block),
+                root: None,
+                database,
+                tool: None,
+                pandoc: None,
+                mode,
+                toc: false,
+                pdf_fonts: PdfFonts::System,
+            },
+            true,
+        )
+    }
+    fn prepare_request(&mut self, r: Request, inline: bool) -> Result<(String, String), FileError> {
         if r.pdf_fonts == PdfFonts::Bundled && r.mode != Mode::Pdf {
             return Err(err(
                 "Bundled fonts are available for Typst PDF export only.",
@@ -655,7 +736,7 @@ impl Powers {
         let mut root = None;
         let mut block = None;
         if let Some(kind) = kind {
-            if !self.enabled(kind) {
+            if !inline && !self.enabled(kind) {
                 return Err(err(
                     "This runner is disabled. Enable it explicitly in Export & run.",
                 ));
@@ -665,19 +746,32 @@ impl Powers {
                     "Save As before executing recovered text or app-owned resources.",
                 ));
             }
-            let rt = self
-                .roots
-                .get(r.root.as_deref().unwrap_or(""))
-                .cloned()
-                .filter(|rt| rt.kind == kind)
-                .ok_or_else(|| err("Select and trust a folder for this runner first."))?;
-            rt.validate()?;
-            if !c.path.as_ref().is_some_and(|p| p.starts_with(&rt.path)) {
-                return Err(err(
-                    "The captured document is outside this runner's trusted folder.",
-                ));
+            if inline {
+                let path = c.path.as_ref().unwrap();
+                self.protect(path)?;
+                if kind == Kind::Shell {
+                    let parent = path
+                        .parent()
+                        .ok_or_else(|| err("The document has no folder."))?;
+                    let rt = Root::select(parent, kind)?;
+                    self.protect(&rt.path)?;
+                    root = Some(Arc::new(rt));
+                }
+            } else {
+                let rt = self
+                    .roots
+                    .get(r.root.as_deref().unwrap_or(""))
+                    .cloned()
+                    .filter(|rt| rt.kind == kind)
+                    .ok_or_else(|| err("Select and trust a folder for this runner first."))?;
+                rt.validate()?;
+                if !c.path.as_ref().is_some_and(|p| p.starts_with(&rt.path)) {
+                    return Err(err(
+                        "The captured document is outside this runner's trusted folder.",
+                    ));
+                }
+                root = Some(rt);
             }
-            root = Some(rt);
             if r.mode != Mode::PdfTex {
                 block = Some(
                     c.view
@@ -702,6 +796,9 @@ impl Powers {
         };
         let tool = expected
             .map(|role| {
+                if inline {
+                    return Tool::system_shell(&block.as_ref().unwrap().language).map(Arc::new);
+                }
                 self.tools
                     .get(r.tool.as_deref().unwrap_or(""))
                     .cloned()
@@ -725,17 +822,50 @@ impl Powers {
         } else {
             None
         };
-        let database = if matches!(r.mode, Mode::SqliteRead | Mode::SqliteWrite) {
+        let database = if matches!(r.mode, Mode::SqliteRead | Mode::SqliteWrite)
+            && (!inline || r.database.is_some())
+        {
+            let id = r.database.as_deref().unwrap_or("");
+            let db = if inline {
+                c.document
+                    .as_ref()
+                    .and_then(|doc| self.document_databases.get(doc))
+            } else {
+                self.databases.get(id)
+            };
             Some(
-                self.databases
-                    .get(r.database.as_deref().unwrap_or(""))
+                db.filter(|db| db.id == id)
                     .cloned()
-                    .ok_or_else(|| err("Select a local SQLite database first."))?,
+                    .ok_or_else(|| err("Choose the SQLite database again to reconnect it."))?,
             )
         } else {
             None
         };
-        let summary=format!("{:?}\nDocument: {}\n{}\nSHA-256: {}\nFolder: {}\nTool: {}\nDatabase: {}\n\n{}\n\n{}",r.mode,c.view.name,c.view.origin,c.view.revision,root.as_ref().map(|r|r.path.display().to_string()).unwrap_or_else(||"Private export staging".into()),tool.as_ref().map(|t|format!("{} ({})",t.path.display(),t.view.version)).unwrap_or_else(||"Built-in SQLite".into()),database.as_ref().map(|d|d.path.display().to_string()).unwrap_or_else(||"None".into()),block.as_ref().map(|b|b.execution_code()).unwrap_or_else(||"Convert this captured revision to PDF. Raw document commands, remote links and unapproved images are excluded.".into()),if kind.is_some(){"Shell/TeX retain normal user privileges. Folder trust is not an OS sandbox. Executable fence copies normalize line endings to LF; Markdown bytes are unchanged. SQLite write mode commits only a successful, uncanceled DML transaction."}else{"PDF tools are trusted local executables. PDF conversion does not enable block execution."});
+        let summary = if inline {
+            let block = block.as_ref().unwrap();
+            let context = if let (Some(root), Some(tool)) = (&root, &tool) {
+                format!(
+                    "Folder: {}\nShell: /bin/{}\n\nThese commands run with your normal OS privileges and can change files.",
+                    root.path.display(),
+                    tool.view.name
+                )
+            } else {
+                let name = database
+                    .as_ref()
+                    .map(|d| d.path.display().to_string())
+                    .unwrap_or_else(|| "Temporary empty database".into());
+                format!("Database: {name}\nAccess: read only")
+            };
+            format!(
+                "{} · line {}\n{}\n\n{context}\n\n{}",
+                c.view.name,
+                block.line,
+                c.view.origin,
+                block.execution_code()
+            )
+        } else {
+            format!("{:?}\nDocument: {}\n{}\nSHA-256: {}\nFolder: {}\nTool: {}\nDatabase: {}\n\n{}\n\n{}",r.mode,c.view.name,c.view.origin,c.view.revision,root.as_ref().map(|r|r.path.display().to_string()).unwrap_or_else(||"Private export staging".into()),tool.as_ref().map(|t|format!("{} ({})",t.path.display(),t.view.version)).unwrap_or_else(||"Built-in SQLite".into()),database.as_ref().map(|d|d.path.display().to_string()).unwrap_or_else(||"None".into()),block.as_ref().map(|b|b.execution_code()).unwrap_or_else(||"Convert this captured revision to PDF. Raw document commands, remote links and unapproved images are excluded.".into()),if kind.is_some(){"Shell/TeX retain normal user privileges. Folder trust is not an OS sandbox. Executable fence copies normalize line endings to LF; Markdown bytes are unchanged. SQLite write mode commits only a successful, uncanceled DML transaction."}else{"PDF tools are trusted local executables. PDF conversion does not enable block execution."})
+        };
         let summary = if r.mode == Mode::Pdf {
             format!(
                 "{summary}\n\nPDF fonts: {}",
@@ -753,6 +883,7 @@ impl Powers {
             token.clone(),
             Prepared {
                 request: r,
+                inline,
                 capture: c,
                 block,
                 root,
@@ -770,23 +901,60 @@ impl Powers {
             .prepared
             .remove(token)
             .ok_or_else(|| err("Confirmation expired or was already used."))?;
-        if p.created.elapsed().as_secs() > 300
-            || p.request.mode.kind().is_some_and(|k| !self.enabled(k))
-            || !self.captures.contains_key(&p.request.capture)
-        {
+        if p.created.elapsed().as_secs() > 300 || !self.authorized(&p) {
             return Err(err("Job approval expired/revoked; prepare again."));
         }
-        if self.jobs.len() >= 8 {
+        if self
+            .jobs
+            .values()
+            .filter(|job| job.inline == p.inline)
+            .count()
+            >= 8
+        {
+            if p.inline {
+                // The reader normally consumes results. Also bound results
+                // left behind if the reader disappears before its next poll.
+                self.jobs
+                    .retain(|_, job| !job.inline || job.result.lock().unwrap().status == "running");
+                return Ok(p);
+            }
             return Err(err(
                 "Clear completed jobs before starting another (eight maximum).",
             ));
         }
         Ok(p)
     }
+    pub fn authorized(&self, p: &Prepared) -> bool {
+        if !self.captures.contains_key(&p.request.capture) {
+            return false;
+        }
+        if p.inline {
+            return p.database.as_ref().is_none_or(|db| {
+                p.capture
+                    .document
+                    .as_ref()
+                    .and_then(|doc| self.document_databases.get(doc))
+                    .is_some_and(|attached| attached.id == db.id)
+            });
+        }
+        p.request.mode.kind().is_none_or(|kind| self.enabled(kind))
+            && p.root
+                .as_ref()
+                .is_none_or(|r| self.roots.contains_key(&r.id))
+            && p.tool
+                .as_ref()
+                .is_none_or(|t| self.tools.contains_key(&t.view.id))
+            && p.pandoc
+                .as_ref()
+                .is_none_or(|t| self.tools.contains_key(&t.view.id))
+            && p.database
+                .as_ref()
+                .is_none_or(|db| self.databases.contains_key(&db.id))
+    }
     pub fn clear(&mut self) {
         self.prepared.clear();
         self.jobs
-            .retain(|_, j| j.result.lock().unwrap().status == "running");
+            .retain(|_, j| j.inline || j.result.lock().unwrap().status == "running");
         self.exports.clear();
     }
 }
@@ -823,15 +991,26 @@ pub fn execute(p: Prepared, scratch: Scratch, job: &Job) -> Result<ResultView, F
             view.message = "PDF ready. Export chooses a new native destination.".into();
         }
         Mode::SqliteRead | Mode::SqliteWrite => {
-            let db = p.database.as_ref().unwrap();
+            let path = if let Some(db) = &p.database {
+                db.path.clone()
+            } else {
+                let path = scratch.path.join("empty.sqlite");
+                private_store::atomic(&path, b"")?;
+                path
+            };
             view.table = Some(sql::query(
-                &db.path,
+                &path,
                 &p.block.as_ref().unwrap().execution_code(),
                 p.request.mode == Mode::SqliteWrite,
                 job.cancel.clone(),
                 || {
-                    db.validate()?;
-                    p.root.as_ref().unwrap().validate()
+                    if let Some(db) = &p.database {
+                        db.validate()?;
+                    }
+                    if let Some(root) = &p.root {
+                        root.validate()?;
+                    }
+                    Ok(())
                 },
             )?);
         }
@@ -942,6 +1121,60 @@ mod tests {
         assert_eq!(b[0].code, "printf exact\n");
         assert_eq!(b[1].code, "SELECT 1;\r");
         assert_eq!(b[1].execution_code(), "SELECT 1;\n");
+    }
+    #[test]
+    fn inline_sql_uses_only_its_documents_grant_or_a_temporary_database() {
+        let t = tempfile::tempdir().unwrap();
+        let path = t.path().join("example.sqlite");
+        fs::write(&path, "").unwrap();
+        let mut service = Powers::new(t.path().into(), vec![]);
+        let db = Arc::new(Database::select(&path).unwrap());
+        service
+            .document_databases
+            .insert("first".into(), db.clone());
+        let capture = |doc: &str, path: Option<PathBuf>| {
+            Capture::new(
+                format!("{doc}.md"),
+                b"```sql\nSELECT 42;\n```".to_vec(),
+                "Saved".into(),
+                path,
+                Some(doc.into()),
+            )
+            .unwrap()
+        };
+        let first = service
+            .capture(capture("first", Some(t.path().join("first.md"))))
+            .unwrap();
+        let second = service
+            .capture(capture("second", Some(t.path().join("second.md"))))
+            .unwrap();
+        let draft = service.capture(capture("draft", None)).unwrap();
+        assert!(
+            service
+                .prepare_inline(draft.id, draft.blocks[0].id.clone(), None)
+                .is_err()
+        );
+        assert!(
+            service
+                .prepare_inline(
+                    second.id.clone(),
+                    second.blocks[0].id.clone(),
+                    Some(db.id.clone())
+                )
+                .is_err()
+        );
+        let (token, summary) = service
+            .prepare_inline(second.id, second.blocks[0].id.clone(), None)
+            .unwrap();
+        assert!(summary.contains("Temporary empty database"));
+        assert!(service.take(&token).unwrap().database.is_none());
+        assert!(service.take(&token).is_err());
+        let (token, _) = service
+            .prepare_inline(first.id, first.blocks[0].id.clone(), Some(db.id.clone()))
+            .unwrap();
+        service.document_databases.remove("first");
+        assert!(service.take(&token).is_err());
+        assert!(!service.enabled(Kind::Sqlite));
     }
     #[test]
     fn disabled_forged_recovered_and_expired_authority_refuses() {

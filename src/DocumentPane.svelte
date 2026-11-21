@@ -13,7 +13,7 @@
     Comparison,
   } from "./document/protocol";
   import type { EditQueue } from "./document/queue";
-  import type { Kind } from "./power/bridge";
+  import type { Database } from "./power/bridge";
   import { SvelteMap } from "svelte/reactivity";
   import type { Fence, InlineRun, InlineTarget } from "./power/fence";
   import type Reader from "./reader/Reader.svelte";
@@ -131,27 +131,55 @@
       operationBusy = false;
     }
   }
-  async function saveRunnerCopy() {
+  async function saveRunnerDocument() {
     const previous = realDocument();
     if (!session) await switchMode("source");
     if (!session || !editor || busy)
       throw Error("The editor is not ready to save a copy.");
     await save(true);
-    if (!realDocument() || realDocument() === previous || session.needsSaveAs)
-      return null;
-    return capturePower(false);
+    return (
+      !!realDocument() && realDocument() !== previous && !session.needsSaveAs
+    );
   }
-  async function openPower(example?: Kind) {
-    if (busy || !document) return;
+  async function saveRunnerCopy() {
+    return (await saveRunnerDocument()) ? capturePower(false) : null;
+  }
+  async function openPower() {
+    if (busy || inlinePending || powerPanel?.inlineRunning() || !document)
+      return;
     PowerComponent ??= (await import("./power/Panel.svelte")).default;
     await tick();
-    await powerPanel?.show(example);
+    await powerPanel?.show();
   }
   const inlineResults = new SvelteMap<
     string,
     { target: InlineTarget; run: InlineRun }
   >();
   let inlinePending = $state(false);
+  let choosingInlineDatabase = $state(false);
+  let inlineDatabase = $state<{ document: string; value: Database } | null>(
+    null,
+  );
+  const getInlineDatabase = () =>
+    inlineDatabase?.document === realDocument()
+      ? inlineDatabase?.value
+      : undefined;
+  async function chooseInlineDatabase(temporary = false) {
+    const id = realDocument();
+    if (!id || choosingInlineDatabase) return;
+    choosingInlineDatabase = true;
+    try {
+      const { database } = await import("./power/bridge");
+      const value = await database(id, temporary);
+      if (value && realDocument() === id)
+        inlineDatabase = { document: id, value };
+      else if (temporary && realDocument() === id) inlineDatabase = null;
+    } catch (error) {
+      message = bridge.errorMessage(error);
+    } finally {
+      choosingInlineDatabase = false;
+    }
+  }
   const inlineKey = (target: InlineTarget) =>
     `${target.document}:${target.line}:${target.kind}`;
   function storeInline(target: InlineTarget, run: InlineRun) {
@@ -169,23 +197,60 @@
     return entry?.target.code === fence.code ? entry.run : undefined;
   }
   async function runFence(fence: Fence) {
-    const id = realDocument();
-    if (!id || busy || inlinePending || powerPanel?.inlineRunning()) return;
-    const target = { ...fence, document: id };
+    if (
+      busy ||
+      inlinePending ||
+      choosingInlineDatabase ||
+      powerPanel?.inlineRunning()
+    )
+      return;
+    const origin = window.document.activeElement;
     inlinePending = true;
-    storeInline(target, { pending: true });
+    let target: InlineTarget | undefined;
     try {
+      if (document?.bundledGuide || !realDocument()) {
+        if (!(await saveRunnerDocument())) return;
+        await switchMode("read");
+        await reader?.revealSource(fence.line - 1);
+      }
+      const id = realDocument();
+      if (!id) throw Error("Save the document to run its blocks.");
+      target = { ...fence, document: id };
+      storeInline(target, { pending: true });
       PowerComponent ??= (await import("./power/Panel.svelte")).default;
       await tick();
       if (id !== realDocument() || !powerPanel)
         throw Error("The document changed.");
-      await powerPanel.showFence(target, !session);
+      await powerPanel.showFence(
+        target,
+        !session,
+        fence.kind === "sqlite" ? (getInlineDatabase()?.id ?? null) : null,
+      );
       if (getInline(fence)?.pending) inlineResults.delete(inlineKey(target));
     } catch (error) {
-      storeInline(target, { error: bridge.errorMessage(error) });
+      if (target) storeInline(target, { error: bridge.errorMessage(error) });
+      else message = bridge.errorMessage(error);
     } finally {
       inlinePending = false;
+      await tick();
+      if (active && origin instanceof HTMLElement && origin.isConnected)
+        origin.focus({ preventScroll: true });
     }
+  }
+  async function revealGuideExample(heading: string) {
+    if (mode !== "read") await switchMode("read");
+    await reader?.followAnchor(heading);
+  }
+  async function runFenceAtCaret() {
+    if (busy || inlinePending || powerPanel?.inlineRunning()) return;
+    const fence = editor?.fenceAtCaret();
+    if (!fence) {
+      message = "Place the caret inside a closed top-level Shell or SQL block.";
+      return;
+    }
+    await switchMode("split");
+    await reader?.revealSource(fence.line - 1);
+    await runFence(fence);
   }
   function clearInline(fence: Fence) {
     inlineResults.delete(
@@ -1210,6 +1275,13 @@
         onclick={() => save()}
         disabled={busy}>Save</button
       ><button onclick={() => save(true)} disabled={busy}>Save As</button>{/if}
+    {#if session && !session.range && (mode === "source" || mode === "visual")}
+      <button
+        onclick={runFenceAtCaret}
+        disabled={busy || inlinePending || !!powerPanel?.inlineRunning()}
+        >Run block</button
+      >
+    {/if}
     <button class="open-button" onclick={() => open()} disabled={busy}
       >Open file <kbd aria-label={openShortcut.spoken}
         >{openShortcut.visual}</kbd
@@ -1250,10 +1322,10 @@
   </header>
   {#if document?.bundledGuide}
     <nav class="guide-examples" aria-label="Guide examples">
-      <button disabled={busy} onclick={() => openPower("shell")}
+      <button disabled={busy} onclick={() => revealGuideExample("shell")}
         >Shell example</button
       >
-      <button disabled={busy} onclick={() => openPower("sqlite")}
+      <button disabled={busy} onclick={() => revealGuideExample("sqlite")}
         >SQLite example</button
       >
     </nav>
@@ -1601,13 +1673,19 @@
                   return bridge.chooseImage(id, link);
                 }}
                 onerror={(error) => (message = error)}
-                onrun={realDocument() && !document.bundledGuide
-                  ? runFence
-                  : undefined}
+                onrun={runFence}
                 oncancelrun={cancelInline}
                 onclearrun={clearInline}
                 getRun={getInline}
-                runBusy={() => inlinePending || !!powerPanel?.inlineRunning()}
+                runBusy={() =>
+                  inlinePending ||
+                  choosingInlineDatabase ||
+                  !!powerPanel?.inlineRunning()}
+                saveBeforeRun={() =>
+                  !!document?.bundledGuide || !realDocument()}
+                getDatabase={getInlineDatabase}
+                onselectdatabase={chooseInlineDatabase}
+                onresetdatabase={() => chooseInlineDatabase(true)}
               />{/if}{/key}
         {/if}
       </div>

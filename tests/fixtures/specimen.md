@@ -182,15 +182,14 @@ Keep **System fonts** when other scripts or installed families are needed.
 ## Optional local tools
 
 Choose **Shell example** or **SQLite example** beneath the Guide toolbar to
-open its code in **Export & run → Document fences**. Choose **Save a runnable
-copy…** and save it in the folder you want to use for the examples. Enable the
-runner for this session and trust the folder containing your copy. Review the
-code in the confirmation prompt each time you run a fence.
+jump to its block. **Save copy & run…** asks where to save your copy, then opens
+the run confirmation.
 
-In your own saved Markdown files, use **Run shell** or **Run SQL** beneath a
-closed top-level fence in Read or Split. The result appears beneath that block.
-Inline SQL uses a read-only connection. To request a write transaction, use
-**More → Export & run → Document fences**.
+In a saved Markdown file, use **Run shell** or **Run SQL** below a closed
+top-level block in Read or Split. From Source or Visual, put the caret in the
+block and choose **Run block**. Review the code and destination in the native
+confirmation. The result appears below the block, where you can copy or hide
+the output.
 
 ### Shell
 
@@ -198,11 +197,9 @@ Inline SQL uses a read-only connection. To request a write transaction, use
 printf 'A note can also be a reproducible notebook.\n'
 ```
 
-Use **Choose shell…** to select an installed shell such as `/bin/sh`.
-Choose **Run captured fence…** and confirm. The output reads
-“A note can also be a reproducible notebook.”
-
-Shell commands run with your normal OS privileges in the trusted folder.
+This block uses `/bin/sh` and prints “A note can also be a reproducible
+notebook.” Blocks marked `bash` or `zsh` use the corresponding system shell.
+Shell commands run from the document’s folder with your normal OS privileges.
 
 ### SQLite
 
@@ -210,13 +207,11 @@ Shell commands run with your normal OS privileges in the trusted folder.
 SELECT 'A local query' AS note, 1 + 1 AS result;
 ```
 
-Use **Choose SQLite database…** to select a local database. This example also
-works with an empty file named `guide.sqlite`. Leave the write option off, choose
-**Run captured fence…**, and confirm. The result has one row with
-`A local query` and `2`.
-
-SQLite runs read-only by default. To change rows, request and confirm a DML
-write transaction.
+The temporary database is ready to use. This query returns one row with
+`A local query` and `2`. Use **Choose database…** to query a SQLite file you
+already have. The selection applies to SQL blocks in this document. Inline SQL
+is read only. For a write transaction or a custom executable, open
+**More → Export & run → Document fences**.
 
 ### TeX
 

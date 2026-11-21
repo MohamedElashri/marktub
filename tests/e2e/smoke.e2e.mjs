@@ -3746,239 +3746,181 @@ describe("Export and local jobs", () => {
       await panel().$("button=Close export and jobs").click();
     }
   });
-  it("makes the guide shell runnable through explicit copy, enablement and setup", async () => {
-    const fs = await import("node:fs");
-    const path = await import("node:path");
-    await closeTabs();
-    fixture = await call("e2e_fixture", {
-      action: "seed",
-      text: "# Destination fixture\n",
+  for (const example of [
+    {
+      button: "Shell example",
+      block: "Shell code block",
+      output: '[aria-label="Job stdout"]',
+      text: "A note can also be a reproducible notebook.",
+    },
+    {
+      button: "SQLite example",
+      block: "SQL code block",
+      output: "tbody tr",
+      text: "A local query",
+    },
+  ]) {
+    it(`runs the Guide ${example.button} after saving a copy and one confirmation`, async () => {
+      const fs = await import("node:fs");
+      const path = await import("node:path");
+      await closeTabs();
+      fixture = await call("e2e_fixture", {
+        action: "seed",
+        text: "# Destination fixture\n",
+      });
+      await browser.$('button[aria-label="Open feature guide"]').click();
+      await pane().$("article").waitForDisplayed({ timeout: 60000 });
+      await pane().$(`button=${example.button}`).click();
+      const block = () => pane().$(`[aria-label="${example.block}"]`);
+      await block().$("button=Save copy & run…").waitForEnabled();
+      await call("e2e_fixture", { action: "save-as", text: null });
+      await consent();
+      await block().$("button=Save copy & run…").click();
+      await expect(block().$(example.output)).toHaveText(
+        expect.stringContaining(example.text),
+      );
+      const copy = path.join(path.dirname(fixture.path), "copy.txt");
+      expect(fs.readFileSync(copy, "utf8")).toBe(
+        fs.readFileSync("tests/fixtures/specimen.md", "utf8"),
+      );
+      await expect(panel()).not.toBeDisplayed();
     });
-    for (const kind of ["shell", "sqlite", "tex"])
-      await call("power_enable", { kind, on: false });
-    await call("power_clear");
-    await browser.$('button[aria-label="Open feature guide"]').click();
-    await pane().$("article").waitForDisplayed({ timeout: 60000 });
-    await pane().$("button=Shell example").click();
-    const setup = panel().$('[aria-label="Shell setup required"]');
-    await setup.waitForDisplayed();
-    await expect(panel().$('textarea[aria-label="Captured code"]')).toHaveValue(
-      expect.stringContaining("A note can also be a reproducible notebook."),
-    );
-    await expect(setup).toHaveText(
-      expect.stringContaining("Save your own copy"),
-    );
-    await expect(panel().$("button=Run captured fence…")).toBeDisabled();
-    await call("e2e_fixture", { action: "save-as", text: null });
-    await panel().$("button=Save a runnable copy…").click();
-    await panel()
-      .$("button=Close export and jobs")
-      .waitForEnabled({ timeout: 60000 });
-    const copy = path.join(path.dirname(fixture.path), "copy.txt");
-    expect(fs.readFileSync(copy, "utf8")).toBe(
-      fs.readFileSync("tests/fixtures/specimen.md", "utf8"),
-    );
-    await expect(setup).toHaveText(expect.stringContaining("Enable shell"));
-    await expect(setup).not.toHaveText(
-      expect.stringContaining("Save your own copy"),
-    );
-    await consent();
-    await panel().$("button=Enable shell").click();
-    await panel().$("button=Close export and jobs").waitForEnabled();
-    await expect(panel().$("button=Run captured fence…")).toBeDisabled();
-    await choose("root-shell", path.dirname(copy));
-    await consent();
-    await panel().$("button=Trust folder for shell…").click();
-    await tool("shell", "/bin/sh", "Choose shell…");
-    await panel().$("button=Run captured fence…").waitForEnabled();
-    await consent();
-    await panel().$("button=Run captured fence…").click();
-    expect(await finish()).toContain(
-      "A note can also be a reproducible notebook.",
-    );
-    expect(fs.readFileSync(copy, "utf8")).toBe(
-      fs.readFileSync("tests/fixtures/specimen.md", "utf8"),
-    );
-    await panel().$("button=Close export and jobs").click();
-  });
-  it("makes the guide SQL runnable through explicit copy, enablement and setup", async () => {
-    const fs = await import("node:fs");
-    const path = await import("node:path");
-    await closeTabs();
-    fixture = await call("e2e_fixture", {
-      action: "seed",
-      text: "# Destination fixture\n",
-    });
-    for (const kind of ["shell", "sqlite", "tex"])
-      await call("power_enable", { kind, on: false });
-    await call("power_clear");
-    await browser.$('button[aria-label="Open feature guide"]').click();
-    await pane().$("article").waitForDisplayed({ timeout: 60000 });
-    await pane().$("button=SQLite example").click();
-    const setup = panel().$('[aria-label="SQLite setup required"]');
-    await setup.waitForDisplayed();
-    await expect(panel().$('textarea[aria-label="Captured code"]')).toHaveValue(
-      expect.stringContaining("SELECT 'A local query'"),
-    );
-    await expect(setup).toHaveText(
-      expect.stringContaining("Save your own copy"),
-    );
-    await expect(panel().$("button=Run captured fence…")).toBeDisabled();
-    await call("e2e_fixture", { action: "save-as", text: null });
-    await panel().$("button=Save a runnable copy…").click();
-    await panel()
-      .$("button=Close export and jobs")
-      .waitForEnabled({ timeout: 60000 });
-    const copy = path.join(path.dirname(fixture.path), "copy.txt");
-    expect(fs.readFileSync(copy, "utf8")).toBe(
-      fs.readFileSync("tests/fixtures/specimen.md", "utf8"),
-    );
-    await expect(setup).toHaveText(expect.stringContaining("Enable SQLite"));
-    await expect(setup).not.toHaveText(
-      expect.stringContaining("Save your own copy"),
-    );
-    await consent();
-    await panel().$("button=Enable sqlite").click();
-    await panel().$("button=Close export and jobs").waitForEnabled();
-    await expect(panel().$("button=Run captured fence…")).toBeDisabled();
-    await choose("root-sqlite", path.dirname(copy));
-    await consent();
-    await panel().$("button=Trust folder for sqlite…").click();
-    const db = path.join(path.dirname(copy), "guide.sqlite");
-    fs.writeFileSync(db, "", { flag: "wx" });
-    await choose("database", db);
-    await panel().$("button=Choose SQLite database…").click();
-    await panel().$("button=Run captured fence…").waitForEnabled();
-    await consent();
-    await panel().$("button=Run captured fence…").click();
-    expect(await finish()).toContain("A local query");
-    expect(fs.readFileSync(copy, "utf8")).toBe(
-      fs.readFileSync("tests/fixtures/specimen.md", "utf8"),
-    );
-    await panel().$("button=Close export and jobs").click();
-  });
-  it("runs the selected Shell and SQL fences inline and keeps their results with the block", async () => {
-    const { mkdirSync, writeFileSync } = await import("node:fs");
-    const path = await import("node:path");
+  }
+  it("runs the selected Shell and SQL blocks inline without setup", async () => {
+    const { dirname, join } = await import("node:path");
+    const { execFileSync } = await import("node:child_process");
     await seed(
       "# Inline jobs\n\n```sh\nprintf 'first block'\n```\n\n" +
         "```sh\nprintf 'selected block'\nprintf 'selected stderr' >&2\n```\n\n" +
         "> ```sh\n> printf nested\n> ```\n\n" +
-        "```sql\nSELECT 'العربية' AS label, 42 AS answer;\n```\n",
+        "```sql\nSELECT 'العربية' AS label, 42 AS answer;\n```\n\n" +
+        "```sql\nSELECT name FROM items;\n```\n",
     );
     const shells = () => pane().$$('[aria-label="Shell code block"]');
-    const sql = () => pane().$('[aria-label="SQL code block"]');
-    await browser.waitUntil(async () => (await shells()).length === 2);
-    const selected = (await shells())[1];
-    await selected.$("button=Run shell").click();
-    await panel().$("h3=Set up Shell").waitForDisplayed();
-    await expect(panel().$('textarea[aria-label="Captured code"]')).toHaveValue(
-      expect.stringContaining("selected block"),
+    const sqls = () => pane().$$('[aria-label="SQL code block"]');
+    await browser.waitUntil(
+      async () => (await shells()).length === 2 && (await sqls()).length === 2,
     );
+    const [first, selected] = await shells();
     await consent();
-    await panel().$("button=Enable shell").click();
-    await panel().$("button=Trust folder for shell…").waitForEnabled();
-    await choose("root-shell", path.dirname(fixture.path));
-    await consent();
-    await panel().$("button=Trust folder for shell…").click();
-    await tool("shell", "/bin/sh", "Choose shell…");
-    await panel().$("button=Run captured fence…").waitForEnabled();
-    await consent();
-    await panel().$("button=Run captured fence…").click();
-    await panel().waitForDisplayed({ reverse: true });
+    await selected.$("button=Run shell").click();
     await expect(selected.$('[aria-label="Job stdout"]')).toHaveText(
       "selected block",
     );
     await expect(selected.$('[aria-label="Job stderr"]')).toHaveText(
       "selected stderr",
     );
-    const first = (await shells())[0];
+    const approval = await call("e2e_fixture", {
+      action: "power-read-confirmation",
+    });
+    expect(approval.text).toContain(`Folder: ${dirname(fixture.path)}`);
+    expect(approval.text).toContain("printf 'selected block'");
+    expect(approval.text).not.toContain("printf 'first block'");
     await expect(first.$('[aria-label="Job stdout"]')).not.toExist();
     await consent(false);
     await first.$("button=Run shell").click();
     await expect(first.$(".inline-result")).toHaveText(
       expect.stringContaining("Run canceled."),
     );
-    await expect(panel()).not.toBeDisplayed();
-    await consent();
-    await first.$("button=Run shell").click();
-    await expect(first.$('[aria-label="Job stdout"]')).toHaveText(
-      "first block",
+    await expect(first.$('[aria-label="Job stdout"]')).not.toExist();
+
+    const [query, attached] = await sqls();
+    await expect(query).toHaveText(
+      expect.stringContaining("Temporary database"),
     );
-    await expect(panel()).not.toBeDisplayed();
-    const otherFolder = path.join(path.dirname(fixture.path), "other-folder");
-    mkdirSync(otherFolder);
-    await choose("root-shell", otherFolder);
     await consent();
-    await call("power_trust", { kind: "shell" });
-    await first.$("button=Run shell").click();
-    await panel().$("h3=Set up Shell").waitForDisplayed();
-    await expect(panel().$('[role="alert"]')).toHaveText(
-      expect.stringContaining("outside this runner's trusted folder"),
-    );
-    await panel().$("button=Close export and jobs").click();
-    await sql().$("button=Run SQL").click();
-    await panel().$("h3=Set up SQLite").waitForDisplayed();
-    await consent();
-    await panel().$("button=Enable sqlite").click();
-    await panel().$("button=Trust folder for sqlite…").waitForEnabled();
-    await choose("root-sqlite", path.dirname(fixture.path));
-    await consent();
-    await panel().$("button=Trust folder for sqlite…").click();
-    const db = path.join(path.dirname(fixture.path), "inline.sqlite");
-    writeFileSync(db, "", { flag: "wx" });
-    await panel().$("button=Choose SQLite database…").waitForEnabled();
-    await choose("database", db);
-    await panel().$("button=Choose SQLite database…").click();
-    await panel().$("button=Run captured fence…").waitForEnabled();
-    await consent();
-    await panel().$("button=Run captured fence…").click();
-    await panel().waitForDisplayed({ reverse: true });
-    await expect(sql().$("table")).toHaveText(
+    await query.$("button=Run SQL").click();
+    await expect(query.$("tbody")).toHaveText(expect.stringContaining("42"));
+    await query.$("button=Hide output").click();
+    await expect(query.$("table")).not.toExist();
+    await query.$("button=Show output").click();
+    await expect(query.$("table")).toHaveText(
       expect.stringContaining("العربية"),
     );
-    await expect(sql().$("tbody")).toHaveText(expect.stringContaining("42"));
-    await sql().$(".inline-result").scrollIntoView({ block: "end" });
-    await browser.saveScreenshot("artifacts/native-inline-local-results.png");
-    await sql().$("button=Clear output").click();
-    await expect(sql().$("table")).not.toExist();
-    await pane().$(".mode-switch").$("button=Split").click();
-    await pane().$(".cm-content").waitForDisplayed();
-    await sql().$("button=Run SQL").waitForEnabled();
-    await consent();
-    await sql().$("button=Run SQL").click();
-    await expect(sql().$("tbody")).toHaveText(expect.stringContaining("42"));
-    await expect(panel()).not.toBeDisplayed();
-  });
-  async function enableRunner(kind) {
-    const { dirname } = await import("node:path");
-    await consent();
-    await call("power_enable", { kind, on: true });
-    await choose(`root-${kind}`, dirname(fixture.path));
-    await consent();
-    await call("power_trust", { kind });
-  }
-  async function configureShell() {
-    await enableRunner("shell");
-    await choose("tool-shell", "/bin/sh");
-    await consent();
-    await call("power_choose_tool", { role: "shell" });
-  }
-  async function configureSqlite() {
-    const { writeFileSync } = await import("node:fs");
-    const { dirname, join } = await import("node:path");
-    await enableRunner("sqlite");
-    const db = join(dirname(fixture.path), "mixed-text.sqlite");
-    writeFileSync(db, "", { flag: "wx" });
+    await query.$("button=Copy rows as CSV").click();
+    await expect(query.$(".inline-feedback")).toHaveText("Rows copied");
+
+    const db = join(dirname(fixture.path), "inline.sqlite");
+    execFileSync("sqlite3", [
+      db,
+      "CREATE TABLE items(name); INSERT INTO items VALUES('Connected database');",
+    ]);
     await choose("database", db);
-    await call("power_choose_database");
-  }
+    await attached.$("button=Choose database…").click();
+    await expect(attached).toHaveText(expect.stringContaining("inline.sqlite"));
+    await consent();
+    await attached.$("button=Run SQL").click();
+    await expect(attached.$("tbody")).toHaveText(
+      expect.stringContaining("Connected database"),
+    );
+    await attached.$(".inline-result").scrollIntoView({ block: "end" });
+    await browser.saveScreenshot("artifacts/native-inline-run-ux.png");
+    await attached.$("button=Use temporary database").click();
+    await expect(attached).toHaveText(
+      expect.stringContaining("Temporary database"),
+    );
+
+    const state = await call("power_state");
+    expect(state.shell).toBe(false);
+    expect(state.sqlite).toBe(false);
+    expect(state.roots).toEqual([]);
+    await expect(panel()).not.toBeDisplayed();
+    await query.$("button=Clear output").click();
+    await expect(query.$("table")).not.toExist();
+  });
+  it("runs the block at the Source caret and brings its output into Split", async () => {
+    await seed("# Source run\n\n```sh\nprintf 'selected from Source'\n```\n");
+    await pane().$(".mode-switch").$("button=Source").click();
+    await pane().$(".cm-content").waitForDisplayed();
+    await browser.tauri.execute(() => {
+      const view = document.querySelector(
+        ".document-tab:not([hidden]) .cm-content",
+      ).cmTile.root.view;
+      view.dispatch({
+        selection: { anchor: view.state.doc.toString().indexOf("printf") + 2 },
+      });
+    });
+    await consent();
+    await pane().$("button=Run block").click();
+    const shell = pane().$('[aria-label="Shell code block"]');
+    await expect(shell.$('[aria-label="Job stdout"]')).toHaveText(
+      "selected from Source",
+    );
+    await expect(pane().$("button=Split")).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+  it("cancels an inline Shell job and keeps repeated SQL runs ready", async () => {
+    await seed(
+      "# Repeated local runs\n\n```sh\nsleep 20\nprintf 'finished'\n```\n\n" +
+        "```sql\nSELECT 42 AS answer;\n```\n",
+    );
+    const shell = pane().$('[aria-label="Shell code block"]');
+    const sql = pane().$('[aria-label="SQL code block"]');
+    await shell.$("button=Run shell").waitForEnabled();
+    await consent();
+    await shell.$("button=Run shell").click();
+    await shell.$("button=Cancel job").waitForEnabled();
+    await shell.$("button=Cancel job").click();
+    await expect(shell.$(".inline-state")).toHaveText("Canceled", {
+      ignoreCase: true,
+    });
+    await expect(shell.$('[aria-label="Job stdout"]')).not.toExist();
+    for (let i = 0; i < 9; i++) {
+      await sql.$("button=Run SQL").waitForEnabled();
+      await consent();
+      await sql.$("button=Run SQL").click();
+      await expect(sql.$("tbody td")).toHaveText("42");
+      await sql.$("button=Clear output").click();
+      await expect(sql.$("table")).not.toExist();
+    }
+  });
   it("runs an indented, tab-prefixed Shell fence from a mixed Arabic document", async () => {
     await seed(
       "# العربية (Shell)\r\n\r\n" +
         "  ~~~sh\r\n\tprintf '%s' 'العربية 123'\r\n  ~~~\r\n",
     );
-    await configureShell();
     const shell = () => pane().$('[aria-label="Shell code block"]');
     await shell().$("button=Run shell").waitForEnabled();
     await consent();
@@ -4019,8 +3961,6 @@ describe("Export and local jobs", () => {
         "SELECT n + 1 FROM numbers WHERE n < 27)\n" +
         `SELECT n, '${rtl}\n${ltr}' AS 'النص (Text)' FROM numbers;\n\`\`\`\n`,
     );
-    await configureShell();
-    await configureSqlite();
     const shell = () => pane().$('[aria-label="Shell code block"]');
     const sql = () => pane().$('[aria-label="SQL code block"]');
     await shell().$("button=Run shell").waitForEnabled();
@@ -4090,7 +4030,6 @@ describe("Export and local jobs", () => {
       "# العربية (SQLite)\n\n```sql\nSELECT 1; SELECT 2;\n```\n\n" +
         "```sql\nSELECT 'العربية; English' AS label; -- one statement\n```\n",
     );
-    await configureSqlite();
     const queries = () => pane().$$('[aria-label="SQL code block"]');
     await browser.waitUntil(async () => (await queries()).length === 2);
     const [multiple, single] = await queries();

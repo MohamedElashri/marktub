@@ -1,6 +1,7 @@
 <script lang="ts">
   import { mount, onMount, tick, unmount } from "svelte";
   import InlineFence from "../power/InlineFence.svelte";
+  import type { Database } from "../power/bridge";
   import type { Fence, InlineRun } from "../power/fence";
   import { ReaderClient } from "./client";
   import { headingBoundary, matchingHeadings } from "./headings";
@@ -34,6 +35,10 @@
     onclearrun = () => {},
     getRun = () => undefined,
     runBusy = () => false,
+    saveBeforeRun = () => false,
+    getDatabase = () => undefined,
+    onselectdatabase = () => {},
+    onresetdatabase = () => {},
     title = "Document",
     revision = "Saved snapshot",
     operationBusy = false,
@@ -61,6 +66,10 @@
     onclearrun?: (fence: Fence) => void;
     getRun?: (fence: Fence) => InlineRun | undefined;
     runBusy?: () => boolean;
+    saveBeforeRun?: () => boolean;
+    getDatabase?: () => Database | undefined;
+    onselectdatabase?: () => void;
+    onresetdatabase?: () => void;
     title?: string;
     revision?: string;
     operationBusy?: boolean;
@@ -412,6 +421,10 @@
           oncancel: (value: Fence) => oncancelrun(value),
           onclear: (value: Fence) => onclearrun(value),
           isBusy: () => operationBusy || runBusy(),
+          needsSave: () => saveBeforeRun(),
+          getDatabase: () => getDatabase(),
+          onselectdatabase: () => onselectdatabase(),
+          onresetdatabase: () => onresetdatabase(),
         },
       });
       fences.set(anchor, component);
