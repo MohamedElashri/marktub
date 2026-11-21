@@ -71,7 +71,7 @@
   function emptyTabAvailable(tab: Tab) {
     return (
       !tab.document &&
-      closingTab !== tab.key &&
+      !closingTabs.includes(tab.key) &&
       !openingTabs.has(tab.key) &&
       !tab.pane?.commandState().busy
     );
@@ -130,7 +130,7 @@
       }
       if (
         ["move_tab_left", "move_tab_right"].includes(id) &&
-        (closingTab !== null ||
+        (closingTabs.length > 0 ||
           (id === "move_tab_left" ? active === 0 : active === tabs.length - 1))
       ) {
         enabled = false;
@@ -214,7 +214,7 @@
             active + (id === "move_tab_left" ? -1 : 1),
           );
         case "close_tab":
-          return closeTab(active);
+          return closeTabs([tabs[active].key]);
         case "next_tab":
           active = (active + 1) % tabs.length;
           return;
@@ -233,7 +233,7 @@
     }
   }
   function newTab() {
-    if (tabs.length >= TAB_LIMIT) return;
+    if (closingTabs.length || tabs.length >= TAB_LIMIT) return;
     tabs.push({ key: ++serial, name: "New tab", dirty: false, document: null });
     active = tabs.length - 1;
   }
@@ -260,7 +260,7 @@
   }
   let tabAnnouncement = $state("");
   function reorderTab(key: number, destination: number) {
-    if (closingTab !== null) return;
+    if (closingTabs.length > 0) return;
     const moved = moveTab(tabs, active, key, destination);
     if (moved.tabs === tabs) return;
     tabs = moved.tabs;
@@ -347,7 +347,7 @@
       active,
     );
     clearTimeout(sessionTimer);
-    if (selection.ids.length && !closing)
+    if (selection.ids.length && !closing && !closingTabs.length)
       sessionTimer = setTimeout(() => {
         void library
           .session(selection.ids, selection.active)
@@ -481,49 +481,61 @@
       message = bridge.errorMessage(error);
     }
   }
-  let closingTab = $state<number | null>(null);
-  async function closeTab(index: number) {
-    const tab = tabs[index];
-    if (!tab || closingTab !== null) return;
-    if (openingTabs.has(tab.key)) {
-      message =
-        "Wait for this document to finish opening before closing its tab.";
+  let closingTabs = $state<number[]>([]);
+  async function closeTabs(keys: number[]) {
+    if (!keys.length || closingTabs.length || closing) return;
+    if (
+      tabs.some(
+        (tab) =>
+          keys.includes(tab.key) &&
+          (openingTabs.has(tab.key) || tab.pane?.commandState().busy),
+      )
+    ) {
+      message = "Wait for the current file operation before closing tabs.";
       return;
     }
-    closingTab = tab.key;
-    const previous = tabs[active]?.key;
+    closingTabs = keys;
     let removed = false;
     try {
-      active = index;
-      if (!(await tab.pane?.requestClose())) return;
-      const preserve =
-        tabs[active]?.key === tab.key ? previous : tabs[active]?.key;
-      const at = tabs.findIndex((t) => t.key === tab.key);
-      if (at < 0) return;
-      tabs.splice(at, 1);
-      removed = true;
-      if (!tabs.length)
-        tabs.push({
-          key: ++serial,
-          name: "New tab",
-          dirty: false,
-          document: null,
-        });
-      const preserved = tabs.findIndex((tab) => tab.key === preserve);
-      active = preserved >= 0 ? preserved : Math.min(at, tabs.length - 1);
-      await saveSession().catch(
-        (error) => (message = bridge.errorMessage(error)),
-      );
-    } finally {
-      if (!removed && tabs[active]?.key === tab.key && previous !== tab.key) {
-        const prior = tabs.findIndex((tab) => tab.key === previous);
-        if (prior >= 0) active = prior;
+      for (const key of keys) {
+        const index = tabs.findIndex((tab) => tab.key === key);
+        const tab = tabs[index];
+        if (!tab) continue;
+        const previous = tabs[active]?.key;
+        active = index;
+        await tick();
+        if (!(await tab.pane?.requestClose())) {
+          const prior = tabs.findIndex((entry) => entry.key === previous);
+          if (tabs[active]?.key === key && prior >= 0) active = prior;
+          break;
+        }
+        const preserve =
+          tabs[active]?.key === key ? previous : tabs[active]?.key;
+        const at = tabs.findIndex((entry) => entry.key === key);
+        if (at < 0) continue;
+        tabs.splice(at, 1);
+        removed = true;
+        if (!tabs.length)
+          tabs.push({
+            key: ++serial,
+            name: "New tab",
+            dirty: false,
+            document: null,
+          });
+        const preserved = tabs.findIndex((entry) => entry.key === preserve);
+        active = preserved >= 0 ? preserved : Math.min(at, tabs.length - 1);
       }
-      closingTab = null;
+    } finally {
+      if (removed)
+        await saveSession().catch(
+          (error) => (message = bridge.errorMessage(error)),
+        );
+      closingTabs = [];
     }
   }
   async function closeAll(update = false): Promise<boolean> {
-    if (closing || nativeOpening || openingTabs.size) return false;
+    if (closing || closingTabs.length || nativeOpening || openingTabs.size)
+      return false;
     closing = true;
     try {
       if (update) await bridge.prepareApplicationUpdate();
@@ -761,11 +773,9 @@
         busy: openingTabs.has(tab.key) || !!tab.pane?.commandState().busy,
       }))}
       {active}
-      locked={closingTab !== null}
+      locked={closingTabs.length > 0}
       onselect={(index) => (active = index)}
-      onclose={(index) => {
-        void closeTab(index);
-      }}
+      onclose={closeTabs}
       onmove={reorderTab}
       onnew={newTab}
     />

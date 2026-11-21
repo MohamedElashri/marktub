@@ -881,9 +881,15 @@ select {
 }
 .tab-menu > div {
   position: absolute;
-  z-index: 60;
   inset-block-start: calc(100% + 6px);
   inset-inline-end: 0;
+}
+.tab-context-menu {
+  position: fixed;
+}
+.tab-menu > div,
+.tab-context-menu {
+  z-index: 60;
   width: min(290px, 85vw);
   max-height: min(480px, 70dvh);
   overflow: auto;
@@ -893,7 +899,8 @@ select {
   padding: 7px;
   box-shadow: 0 8px 30px #0002;
 }
-.tab-menu button {
+.tab-menu button,
+.tab-context-menu button {
   display: block;
   width: 100%;
   text-align: start;
@@ -910,7 +917,8 @@ select {
   color: var(--quiet);
   font-size: 11px;
 }
-.tab-menu hr {
+.tab-menu hr,
+.tab-context-menu hr {
   border: 0;
   border-top: 1px solid var(--line);
 }

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { tick } from "svelte";
-  import { TAB_LIMIT } from "./tabs";
+  import { closeTargets, TAB_LIMIT, type CloseAction } from "./tabs";
   import Icon from "./ui/Icon.svelte";
   type Tab = { key: number; name: string; dirty: boolean; busy: boolean };
   let {
@@ -16,13 +16,25 @@
     active: number;
     locked: boolean;
     onselect: (index: number) => void;
-    onclose: (index: number) => void;
+    onclose: (keys: number[]) => Promise<void>;
     onmove: (key: number, to: number) => void;
     onnew: () => void;
   } = $props();
   let strip: HTMLDivElement;
   let menuElement: HTMLDetailsElement;
   let menu = $state(false);
+  let contextElement = $state<HTMLDivElement>();
+  let context = $state<{ key: number; x: number; y: number } | null>(null);
+  const contextIndex = $derived(
+    tabs.findIndex((tab) => tab.key === context?.key),
+  );
+  const closeActions: [CloseAction, string][] = [
+    ["current", "Close tab"],
+    ["others", "Close other tabs"],
+    ["left", "Close tabs to the left"],
+    ["right", "Close tabs to the right"],
+    ["all", "Close all tabs"],
+  ];
   let drag = $state<{
     key: number;
     pointer: number;
@@ -81,14 +93,35 @@
         ?.focus({ preventScroll: true });
     }
   }
-  async function move(to: number) {
-    const key = tabs[active].key;
-    onmove(key, to);
-    menu = false;
-    await tick();
+  function focusTab(key: number) {
     document
       .getElementById(`document-tab-${key}`)
       ?.focus({ preventScroll: true });
+  }
+  async function move(index: number, to: number) {
+    const key = tabs[index].key;
+    onmove(key, to);
+    menu = false;
+    context = null;
+    await tick();
+    focusTab(key);
+  }
+  async function close(tabsToClose: Tab[]) {
+    menu = false;
+    context = null;
+    await onclose(tabsToClose.map((tab) => tab.key));
+    await tick();
+    if (!document.querySelector("dialog[open]")) focusTab(tabs[active].key);
+  }
+  async function openContext(key: number, x: number, y: number) {
+    menu = false;
+    context = { key, x, y };
+    await tick();
+    if (context?.key !== key || !contextElement) return;
+    const { width, height } = contextElement.getBoundingClientRect();
+    context.x = Math.max(4, Math.min(x, innerWidth - width - 4));
+    context.y = Math.max(4, Math.min(y, innerHeight - height - 4));
+    contextElement.querySelector<HTMLButtonElement>("button:enabled")?.focus();
   }
   function finish(event: PointerEvent, cancel = false) {
     if (!drag || drag.pointer !== event.pointerId) return;
@@ -132,6 +165,12 @@
       drag = null;
       suppressClick = true;
     }
+    if (context) {
+      const { key } = context;
+      context = null;
+      event.preventDefault();
+      focusTab(tabs[active]?.key ?? key);
+    }
     if (menu) {
       event.preventDefault();
       menu = false;
@@ -139,13 +178,11 @@
     }
   }}
   onpointerdown={(event) => {
-    if (
-      menu &&
-      event.target instanceof Node &&
-      !menuElement?.contains(event.target)
-    )
-      menu = false;
+    if (!(event.target instanceof Node)) return;
+    if (menu && !menuElement?.contains(event.target)) menu = false;
+    if (context && !contextElement?.contains(event.target)) context = null;
   }}
+  onresize={() => (context = null)}
 />
 
 <nav class="tabbar" aria-label="Open documents">
@@ -185,16 +222,29 @@
             };
           }}
           onlostpointercapture={(event) => finish(event, true)}
-          oncontextmenu={async (event) => {
+          oncontextmenu={(event) => {
             event.preventDefault();
-            onselect(index);
-            menu = true;
-            await tick();
-            menuElement
-              .querySelector<HTMLButtonElement>('[aria-pressed="true"]')
-              ?.focus({ preventScroll: true });
+            if (!locked)
+              void openContext(tab.key, event.clientX, event.clientY);
+          }}
+          onauxclick={(event) => {
+            if (event.button !== 1) return;
+            event.preventDefault();
+            if (!locked && !tab.busy) void close([tab]);
           }}
           onkeydown={(event) => {
+            if (
+              event.key === "ContextMenu" ||
+              (event.shiftKey && event.key === "F10")
+            ) {
+              event.preventDefault();
+              if (!locked) {
+                const { left, bottom } =
+                  event.currentTarget.getBoundingClientRect();
+                void openContext(tab.key, left, bottom);
+              }
+              return;
+            }
             if (event.altKey || event.ctrlKey || event.metaKey) return;
             if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key))
               return;
@@ -225,7 +275,7 @@
           class="tab-close"
           aria-label={`Close ${tab.name}`}
           disabled={locked || tab.busy}
-          onclick={() => onclose(index)}>×</button
+          onclick={() => close([tab])}>×</button
         >
       </div>
     {/each}
@@ -236,7 +286,7 @@
     title={tabs.length >= TAB_LIMIT
       ? `${TAB_LIMIT} tabs are open. Close one to open another.`
       : "New tab"}
-    disabled={tabs.length >= TAB_LIMIT}
+    disabled={locked || tabs.length >= TAB_LIMIT}
     onclick={onnew}>+</button
   >
   <details class="tab-menu" bind:this={menuElement} bind:open={menu}>
@@ -251,20 +301,39 @@
           >{tab.name}{tab.dirty ? " *" : ""}</button
         >{/each}
       <hr />
-      <button disabled={locked || active === 0} onclick={() => move(active - 1)}
-        >Move tab left</button
-      >
-      <button
-        disabled={locked || active === tabs.length - 1}
-        onclick={() => move(active + 1)}>Move tab right</button
-      >
-      <button
-        disabled={locked || tabs[active]?.busy}
-        onclick={() => {
-          onclose(active);
-          menu = false;
-        }}>Close current tab</button
-      >
+      {@render tabActions(active)}
     </div>
   </details>
 </nav>
+
+{#snippet tabActions(index: number)}
+  {#each closeActions as [action, label] (action)}
+    {@const targets = closeTargets(tabs, index, action)}
+    <button
+      disabled={locked || !targets.length || targets.some((tab) => tab.busy)}
+      onclick={() => close(targets)}>{label}</button
+    >
+  {/each}
+  <hr />
+  <button
+    disabled={locked || index === 0}
+    onclick={() => move(index, index - 1)}>Move tab left</button
+  >
+  <button
+    disabled={locked || index === tabs.length - 1}
+    onclick={() => move(index, index + 1)}>Move tab right</button
+  >
+{/snippet}
+
+{#if context && contextIndex >= 0}
+  <div
+    class="tab-context-menu"
+    role="group"
+    aria-label={`Tab actions for ${tabs[contextIndex].name}`}
+    style:left={`${context.x}px`}
+    style:top={`${context.y}px`}
+    bind:this={contextElement}
+  >
+    {@render tabActions(contextIndex)}
+  </div>
+{/if}
