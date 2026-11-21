@@ -4415,10 +4415,16 @@ describe("Everyday workflows", () => {
       .$('.tabs .tab:has([aria-selected="true"]) button[aria-label^="Close "]')
       .click();
     await ready();
+    const hint = (await invoke("library_state")).recent.find(
+      ({ name }) => name === "source.txt",
+    );
     await browser.$(`button[aria-label="Remove root ${rootName}"]`).click();
-    await expect(recent()).toHaveText(expect.stringContaining("Select folder"));
-    const hint = (await invoke("library_state")).recent[0];
-    expect(hint.authorized).toBe(false);
+    await pane()
+      .$('.recent-files button[title*="source.txt"]')
+      .waitForExist({ reverse: true });
+    expect(
+      (await invoke("library_state")).recent.some(({ id }) => id === hint.id),
+    ).toBe(false);
     const denied = await browser.tauri.execute(async ({ core }, id) => {
       try {
         await core.invoke("library_open", { id, recent: true });
@@ -4428,8 +4434,7 @@ describe("Everyday workflows", () => {
       }
     }, hint.id);
     expect(denied).toBe(true);
-    await recent().waitForEnabled({ timeout: 30000 });
-    await recent().click();
+    await pane().$("button=Open folder").click();
     await browser
       .$(`button[aria-label="Remove root ${rootName}"]`)
       .waitForExist();
@@ -4452,6 +4457,10 @@ describe("Everyday workflows", () => {
       text: "# Context root\n",
     });
     const base = dirname(fixture.path);
+    await pane().$("button=Open folder").click();
+    await browser
+      .$(`button[aria-label="Remove root ${base.split("/").at(-1)}"]`)
+      .waitForExist();
     const files = [
       join(base, "alpha", "same.txt"),
       join(base, "beta", "same.txt"),
@@ -4654,6 +4663,9 @@ describe("Everyday workflows", () => {
     await browser.keys("ArrowRight");
     const file = browser.$('.root-list button[aria-label="Open Scratch.md"]');
     await file.waitForEnabled({ timeout: 60000 });
+    await expect(
+      browser.$('.root-list button[aria-label="Open source.txt"]'),
+    ).not.toExist();
     await file.click();
     await readDocument("Scratch");
     const details = browser.$(".library-views").$("button=File details");

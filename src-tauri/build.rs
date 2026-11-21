@@ -80,6 +80,7 @@ fn main() {
         "library_commit",
         "library_configure",
         "library_pin",
+        "library_clear_recent",
         "library_remove_root",
         "preference_catalogue",
         "list_fonts",

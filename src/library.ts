@@ -33,6 +33,7 @@ export interface LibraryState {
   roots: Folder[];
   rootHints: Hint[];
   recent: Hint[];
+  canClearRecent: boolean;
   sidebar: boolean;
   view: string;
   warning: string | null;
@@ -105,6 +106,7 @@ export const prepare = (request: Operation) =>
 export const commit = (id: string) => invoke<string>("library_commit", { id });
 export const configure = (sidebar: boolean, view: string) =>
   invoke<void>("library_configure", { sidebar, view });
+export const clearRecent = () => invoke<void>("library_clear_recent");
 export const pin = (id: string) => invoke<void>("library_pin", { id });
 export const removeRoot = (id: string) =>
   invoke<void>("library_remove_root", { id });

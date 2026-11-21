@@ -146,7 +146,7 @@ export const chooseImage = (id: string, link: string) =>
     { id, link },
   );
 export const rememberDocument = (id: string) =>
-  invoke<void>("library_remember_document", { id });
+  invoke<string>("library_remember_document", { id });
 
 export const changeEditWindow = (
   id: string,

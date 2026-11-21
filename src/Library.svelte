@@ -11,12 +11,18 @@
     onopen,
     onrecent,
     onrestore,
+    recentFiles,
+    canClearRecent,
     onrecentchange,
+    onclearrecent,
   }: {
     onopen: (d: Descriptor) => Promise<void>;
     onrecent: (h: api.Hint) => Promise<void>;
     onrestore: (hints: api.Hint[], active: number) => Promise<void>;
-    onrecentchange: (hints: api.Hint[]) => void;
+    recentFiles: api.Hint[];
+    canClearRecent: boolean;
+    onrecentchange: (state: api.LibraryState) => void;
+    onclearrecent: () => Promise<void>;
   } = $props();
   let libraryState = $state<api.LibraryState | null>(null);
   let current = $state<api.Folder | null>(null),
@@ -113,7 +119,7 @@
       expandedFolders.set(libraryState.roots[0].id, libraryState.roots[0].root);
       treeInitialized = true;
     }
-    onrecentchange(libraryState.recent);
+    onrecentchange(libraryState);
     if (libraryState.job && progress?.id !== libraryState.job)
       void poll(libraryState.job);
     if (selectMissing && !current && libraryState.roots[0])
@@ -657,19 +663,19 @@
           >{hint.name}{hint.authorized ? "" : " (reselect folder)"}</button
         >{/each}
     </section>{/if}
-  {#if libraryState?.recent.length}<section class="recents">
-      <h3>Recent &amp; bookmarked</h3>
-      {#each libraryState.recent as hint (hint.id)}<div>
-          <button
-            title={hint.authorized
-              ? "Open in a new tab"
-              : "Reselect the containing folder first"}
-            onclick={() => onrecent(hint)}
+  {#if recentFiles.length || canClearRecent}<section class="recents">
+      <div class="library-title">
+        <h3>Recent &amp; bookmarked</h3>
+        {#if canClearRecent}<button
+            title="Clear recent history and keep bookmarks"
+            onclick={() => run(onclearrecent)}>Clear recent files</button
+          >{/if}
+      </div>
+      {#each recentFiles as hint (hint.id)}<div>
+          <button title="Open in a new tab" onclick={() => onrecent(hint)}
             ><span class="recent-file-info"
-              ><span
-                >{hint.name}{hint.authorized ? "" : " (reselect folder)"}</span
-              >{#if hint.context}<span class="recent-context"
-                  >{hint.context}</span
+              ><span>{hint.name}</span>{#if hint.context}<span
+                  class="recent-context">{hint.context}</span
                 >{/if}</span
             ></button
           ><button
