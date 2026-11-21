@@ -166,10 +166,7 @@
     const entry = inlineResults.get(
       inlineKey({ ...fence, document: realDocument() ?? "" }),
     );
-    return entry?.target.code === fence.code &&
-      entry.target.indent === fence.indent
-      ? entry.run
-      : undefined;
+    return entry?.target.code === fence.code ? entry.run : undefined;
   }
   async function runFence(fence: Fence) {
     const id = realDocument();

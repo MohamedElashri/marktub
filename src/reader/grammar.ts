@@ -207,7 +207,7 @@ export function grammar() {
     const end = token.attrGet("data-source-end-line");
     const kind = token.attrGet("data-run-kind");
     const run = kind
-      ? ` data-run-kind="${escape(String(kind))}" data-run-indent="${escape(String(token.attrGet("data-run-indent")))}"`
+      ? ` data-run-kind="${escape(String(kind))}" data-run-source="${escape(String(token.attrGet("data-run-source")))}"`
       : "";
     return `<div data-source-line="${escape(String(line))}" data-source-end-line="${escape(String(end))}"${run}>${html}</div>`;
   };

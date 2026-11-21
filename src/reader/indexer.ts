@@ -391,10 +391,13 @@ export function renderText(
     const kind = fenceKind(token.info.trim());
     if (!kind || !token.content.trim()) continue;
     sourceLines ??= normalized.split("\n");
-    const indent = closedFence(sourceLines[first], sourceLines[end - 1]);
-    if (indent === undefined) continue;
+    if (!closedFence(sourceLines[first], sourceLines[end - 1])) continue;
+    // Markdown-it can expand tabs while rendering an indented fence. Keep the
+    // source unchanged for comparison with the native capture.
+    const code = sourceLines.slice(first + 1, end - 1).join("\n") + "\n";
+    if (encoder.encode(code).length > 8192) continue;
     token.attrSet("data-run-kind", kind);
-    token.attrSet("data-run-indent", String(indent));
+    token.attrSet("data-run-source", JSON.stringify(code));
   }
   const html = md.renderer.render(tokens, md.options, env);
   return { html, rich: env.rich ?? [] };
