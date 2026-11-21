@@ -4,7 +4,6 @@
   import { listen } from "@tauri-apps/api/event";
   import type GitWorkbench from "./git/Workbench.svelte";
   import type Preferences from "./Preferences.svelte";
-  import type Updates from "./Updates.svelte";
   import type CommandPalette from "./CommandPalette.svelte";
   import {
     definitions,
@@ -40,13 +39,6 @@
   ]);
   let active = $state(0),
     serial = 0;
-  let UpdatesComponent = $state<typeof Updates | null>(null);
-  let updatesPanel = $state<Updates>();
-  async function showUpdates() {
-    UpdatesComponent ??= (await import("./Updates.svelte")).default;
-    await tick();
-    await updatesPanel?.show();
-  }
   let PreferencesComponent = $state<typeof Preferences | null>(null),
     PaletteComponent = $state<typeof CommandPalette | null>(null);
   let GitComponent = $state<typeof GitWorkbench | null>(null),
@@ -161,7 +153,7 @@
   async function refreshPreferences() {
     await Promise.all(tabs.map((t) => t.pane?.refreshPreferences()));
   }
-  async function showPreferences() {
+  async function showPreferences(category = "Appearance") {
     await layoutWrite;
     PreferencesComponent ??= (await import("./Preferences.svelte")).default;
     await tick();
@@ -169,6 +161,7 @@
       tabs[active]?.document === "recovery"
         ? null
         : (tabs[active]?.document ?? null),
+      category,
     );
   }
   async function showPalette() {
@@ -184,7 +177,7 @@
         case "git":
           return showGit();
         case "updates":
-          return showUpdates();
+          return showPreferences("About");
         case "preferences":
           return showPreferences();
         case "palette":
@@ -760,7 +753,7 @@
           class="settings-button"
           aria-label="Settings"
           title={`Settings · ${shortcutLabel(String(currentValues["shortcut.preferences"]?.value ?? "Mod+Comma")).visual}`}
-          onclick={showPreferences}
+          onclick={() => showPreferences()}
           ><Icon name="settings" /><span>Settings</span></button
         >
       </div>
@@ -858,7 +851,7 @@
 
 {#if PreferencesComponent}<PreferencesComponent
     bind:this={preferencesPanel}
-    onupdates={showUpdates}
+    onrestart={() => closeAll(true)}
     onpreview={(values) => (previewValues = values)}
     oncommit={async () => {
       await refreshPreferences();
@@ -896,8 +889,3 @@
     });
   }}
 />
-
-{#if UpdatesComponent}<UpdatesComponent
-    bind:this={updatesPanel}
-    onrestart={() => closeAll(true)}
-  />{/if}

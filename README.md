@@ -122,7 +122,7 @@ preserve the reading appearance. The built-in
 
 ### Updates
 
-Open **Settings → Application updates** to check for a newer stable release.
+Open **Settings → About** to check for a newer stable release.
 Checking, downloading and installing are separate actions; nothing runs
 automatically. Reading and editing stay offline; only an explicit update action
 contacts GitHub. Downloads are verified with Marktub’s pinned signing key.
