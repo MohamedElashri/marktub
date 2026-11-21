@@ -14,6 +14,8 @@
   } from "./document/protocol";
   import type { EditQueue } from "./document/queue";
   import type { Kind } from "./power/bridge";
+  import { SvelteMap } from "svelte/reactivity";
+  import type { Fence, InlineRun, InlineTarget } from "./power/fence";
   import type Reader from "./reader/Reader.svelte";
   import type { Read } from "./reader/model";
 
@@ -145,6 +147,61 @@
     await tick();
     await powerPanel?.show(example);
   }
+  const inlineResults = new SvelteMap<
+    string,
+    { target: InlineTarget; run: InlineRun }
+  >();
+  let inlinePending = $state(false);
+  const inlineKey = (target: InlineTarget) =>
+    `${target.document}:${target.line}:${target.kind}`;
+  function storeInline(target: InlineTarget, run: InlineRun) {
+    if (target.document !== realDocument()) return;
+    const key = inlineKey(target);
+    inlineResults.delete(key);
+    inlineResults.set(key, { target, run });
+    if (inlineResults.size > 8)
+      inlineResults.delete(inlineResults.keys().next().value!);
+  }
+  function getInline(fence: Fence) {
+    const entry = inlineResults.get(
+      inlineKey({ ...fence, document: realDocument() ?? "" }),
+    );
+    return entry?.target.code === fence.code &&
+      entry.target.indent === fence.indent
+      ? entry.run
+      : undefined;
+  }
+  async function runFence(fence: Fence) {
+    const id = realDocument();
+    if (!id || busy || inlinePending || powerPanel?.inlineRunning()) return;
+    const target = { ...fence, document: id };
+    inlinePending = true;
+    storeInline(target, { pending: true });
+    try {
+      PowerComponent ??= (await import("./power/Panel.svelte")).default;
+      await tick();
+      if (id !== realDocument() || !powerPanel)
+        throw Error("The document changed.");
+      await powerPanel.showFence(target, !session);
+      if (getInline(fence)?.pending) inlineResults.delete(inlineKey(target));
+    } catch (error) {
+      storeInline(target, { error: bridge.errorMessage(error) });
+    } finally {
+      inlinePending = false;
+    }
+  }
+  function clearInline(fence: Fence) {
+    inlineResults.delete(
+      inlineKey({ ...fence, document: realDocument() ?? "" }),
+    );
+  }
+  async function cancelInline() {
+    try {
+      await powerPanel?.cancelInline();
+    } catch (error) {
+      message = bridge.errorMessage(error);
+    }
+  }
   let LinksComponent = $state<
     typeof import("./NoteLinks.svelte").default | null
   >(null);
@@ -251,7 +308,7 @@
     reader?.navigation();
   }
   export async function requestClose() {
-    if (busy) return false;
+    if (busy || inlinePending || powerPanel?.inlineRunning()) return false;
     // Reserve before the first await: watcher reloads and mode changes must not
     // enter while a leave decision or durable Review end is pending.
     operationBusy = true;
@@ -376,7 +433,7 @@
     return {
       document: !!document,
       editing: !!session,
-      busy,
+      busy: busy || inlinePending || !!powerPanel?.inlineRunning(),
       mode,
       authorBudget:
         !session?.range &&
@@ -708,7 +765,7 @@
       .catch((error) => (message = bridge.errorMessage(error)));
   }
   async function open(example = false, link?: string) {
-    if (busy) return;
+    if (busy || inlinePending || powerPanel?.inlineRunning()) return;
     operationBusy = true;
     operation = "Opening file…";
     const request = ++openGeneration;
@@ -1218,6 +1275,7 @@
       oncapture={capturePower}
       onsettle={settlePower}
       oncopy={saveRunnerCopy}
+      oninline={storeInline}
       hasSaved={!!realDocument()}
       hasWorking={!!session}
     />{/if}
@@ -1546,6 +1604,13 @@
                   return bridge.chooseImage(id, link);
                 }}
                 onerror={(error) => (message = error)}
+                onrun={realDocument() && !document.bundledGuide
+                  ? runFence
+                  : undefined}
+                oncancelrun={cancelInline}
+                onclearrun={clearInline}
+                getRun={getInline}
+                runBusy={() => inlinePending || !!powerPanel?.inlineRunning()}
               />{/if}{/key}
         {/if}
       </div>

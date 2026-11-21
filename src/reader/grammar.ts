@@ -201,10 +201,16 @@ export function grammar() {
   const mapped = (
     token: { attrGet: (name: string) => string | number | null },
     html: string,
-  ) =>
-    token.attrGet("data-source-line") !== null
-      ? `<div data-source-line="${escape(String(token.attrGet("data-source-line")))}" data-source-end-line="${escape(String(token.attrGet("data-source-end-line")))}">${html}</div>`
-      : html;
+  ) => {
+    const line = token.attrGet("data-source-line");
+    if (line === null) return html;
+    const end = token.attrGet("data-source-end-line");
+    const kind = token.attrGet("data-run-kind");
+    const run = kind
+      ? ` data-run-kind="${escape(String(kind))}" data-run-indent="${escape(String(token.attrGet("data-run-indent")))}"`
+      : "";
+    return `<div data-source-line="${escape(String(line))}" data-source-end-line="${escape(String(end))}"${run}>${html}</div>`;
+  };
   md.renderer.rules.math = (t, i, _o, e) =>
     mapped(t[i], placeholder("math", t[i].content, !!t[i].meta?.display, e));
   md.renderer.rules.math_block = (t, i, _o, e) =>

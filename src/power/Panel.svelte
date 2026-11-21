@@ -2,17 +2,21 @@
   import { onDestroy } from "svelte";
   import * as api from "./bridge";
   import { resources, diagramPng, documentMathPngs } from "./assets";
+  import JobOutput from "./JobOutput.svelte";
+  import { matchesFence, type InlineTarget, type InlineRun } from "./fence";
   import { errorMessage } from "../bridge";
   let {
     oncapture,
     onsettle,
     oncopy,
+    oninline,
     hasSaved = true,
     hasWorking = false,
   }: {
     oncapture: (saved: boolean) => Promise<api.Capture>;
     onsettle: (capture: api.Capture) => Promise<void>;
     oncopy: () => Promise<api.Capture | null>;
+    oninline: (target: InlineTarget, run: InlineRun) => void;
     hasSaved?: boolean;
     hasWorking?: boolean;
   } = $props();
@@ -34,7 +38,9 @@
     exportId = $state<string | null>(null),
     warning = $state("");
   let timer: ReturnType<typeof setTimeout> | undefined;
-  let rowAt = $state(0);
+  let inline = $state<InlineTarget | null>(null);
+  let returnFocus: HTMLElement | null = null;
+  let destroyed = false;
   const asset = $derived.by(() => {
     try {
       return capture
@@ -60,6 +66,11 @@
   async function refresh() {
     data = await api.state();
   }
+  async function releaseCapture() {
+    const previous = capture;
+    capture = null;
+    if (previous) await api.release(previous.id);
+  }
   async function recapture(example?: api.Kind) {
     if (running)
       throw Error("Wait for the current job before replacing its capture.");
@@ -68,18 +79,22 @@
     result = null;
     exportId = null;
     warning = "";
-    if (capture) await api.release(capture.id);
-    capture = null;
+    await releaseCapture();
     capture = await oncapture(saved);
     selected =
       (example
         ? capture.blocks.find((block) => block.kind === example)
         : capture.blocks[0]
       )?.id ?? "";
-    notice = "Captured this revision. Later edits do not alter its PDF input.";
+    notice = "Captured the selected revision.";
   }
   export async function show(example?: api.Kind) {
-    if (dialog.open) return;
+    if (dialog.open || busy) return;
+    if (running) {
+      dialog.showModal();
+      return;
+    }
+    inline = null;
     if (example) tab = "run";
     dialog.showModal();
     saved = hasSaved;
@@ -88,17 +103,58 @@
       await recapture(example);
     });
   }
+  export function inlineRunning() {
+    return inline !== null && running;
+  }
+  function restoreInlineFocus() {
+    if (returnFocus?.isConnected) returnFocus.focus({ preventScroll: true });
+    returnFocus = null;
+  }
+  export async function showFence(target: InlineTarget, fromSaved: boolean) {
+    if (dialog.open || busy || running)
+      throw Error("Finish or cancel the current local job first.");
+    returnFocus = document.activeElement as HTMLElement | null;
+    inline = target;
+    saved = fromSaved;
+    tab = "run";
+    write = false;
+    await action(async () => {
+      await refresh();
+      await recapture(target.kind);
+      const match = capture?.blocks.find((candidate) =>
+        matchesFence(candidate, target),
+      );
+      if (!match)
+        throw Error(
+          "The displayed block and captured revision differ. Refresh the preview before running.",
+        );
+      selected = match.id;
+    });
+    if (failure) {
+      inline = null;
+      await releaseCapture();
+      restoreInlineFocus();
+      throw Error(failure);
+    }
+    if (shellSteps.length || sqlSteps.length) {
+      dialog.showModal();
+      return;
+    }
+    await start(target.kind === "shell" ? "shell" : "sqlite_read");
+  }
   async function close() {
+    if (busy) return;
     if (running) {
       failure =
         "Cancel the running job or wait before closing. A shell may already have changed files.";
       return;
     }
-    if (capture) {
-      await api.release(capture.id);
-      capture = null;
-    }
+    await releaseCapture();
     dialog.close();
+    if (inline) {
+      inline = null;
+      restoreInlineFocus();
+    }
   }
   async function tool(role: api.Role) {
     await action(async () => {
@@ -178,12 +234,13 @@
   }
   async function start(mode: api.Mode) {
     if (!capture || busy || running) return;
+    const target = inline;
+    let declined = false;
     await action(async () => {
       clearTimeout(timer);
       job = null;
       result = null;
       warning = "";
-      rowAt = 0;
       exportId = null;
       if (mode === "pdf" || mode === "pdf_tex") {
         try {
@@ -235,7 +292,12 @@
         "Review the native confirmation for the exact captured revision and code.";
       const next = await api.run(approval.token);
       if (!next) {
+        declined = true;
         notice = "Run canceled. No job started.";
+        return;
+      }
+      if (destroyed) {
+        await api.cancel(next);
         return;
       }
       job = next;
@@ -247,20 +309,66 @@
         pdf: false,
         warnings: [],
       };
-      schedule();
+      if (!target) schedule();
     });
+    if (!target || destroyed) return;
+    if (failure) {
+      oninline(target, { error: failure });
+      if (!dialog.open) dialog.showModal();
+      return;
+    }
+    if (declined) {
+      oninline(target, {
+        result: {
+          status: "canceled",
+          message: "Run canceled.",
+          output: null,
+          table: null,
+          pdf: false,
+          warnings: [],
+        },
+      });
+      if (!dialog.open) {
+        await releaseCapture();
+        inline = null;
+        restoreInlineFocus();
+      }
+      return;
+    }
+    if (result) {
+      if (dialog.open) dialog.close();
+      oninline(target, { result });
+      restoreInlineFocus();
+      schedule();
+    }
   }
   function schedule() {
     clearTimeout(timer);
     timer = setTimeout(() => void update(), 250);
   }
   async function update() {
-    if (!job) return;
+    const active = job;
+    if (!active) return;
     try {
-      result = await api.poll(job);
-      if (result.status === "running") schedule();
+      const next = await api.poll(active);
+      if (job !== active || destroyed) return;
+      result = next;
+      if (inline) oninline(inline, { result: next });
+      if (next.status === "running") schedule();
+      else if (inline) {
+        inline = null;
+        await releaseCapture();
+      }
     } catch (e) {
+      if (job !== active || destroyed) return;
       failure = errorMessage(e);
+      if (inline) {
+        oninline(inline, { error: failure });
+        inline = null;
+        result = null;
+        await api.cancel(active).catch(() => {});
+        await releaseCapture().catch(() => {});
+      }
     }
   }
   async function cancel() {
@@ -268,6 +376,9 @@
       await api.cancel(job);
       await update();
     }
+  }
+  export async function cancelInline() {
+    if (inline) await cancel();
   }
   async function save() {
     if (job)
@@ -279,6 +390,7 @@
       });
   }
   onDestroy(() => {
+    destroyed = true;
     clearTimeout(timer);
     if (job && running) void api.cancel(job).catch(() => {});
     if (capture) void api.release(capture.id).catch(() => {});
@@ -306,28 +418,28 @@
   {#if failure}<p role="alert">{failure}</p>{/if}
   {#if notice}<p role="status">{notice}</p>{/if}
   <section class="power-capture">
-    <label
-      >Capture revision <select
-        aria-label="Capture revision"
-        bind:value={saved}
-        disabled={busy || running}
-        ><option value={true} disabled={!hasSaved}>Saved open snapshot</option
-        ><option value={false} disabled={!hasWorking}>Working editor</option
-        ></select
-      ></label
-    ><button onclick={() => void action(recapture)} disabled={busy || running}
-      >Capture selected revision</button
-    >
+    {#if !inline}<label
+        >Capture revision <select
+          aria-label="Capture revision"
+          bind:value={saved}
+          disabled={busy || running}
+          ><option value={true} disabled={!hasSaved}>Saved open snapshot</option
+          ><option value={false} disabled={!hasWorking}>Working editor</option
+          ></select
+        ></label
+      ><button onclick={() => void action(recapture)} disabled={busy || running}
+        >Capture selected revision</button
+      >{/if}
     {#if capture}<p><strong>{capture.name}</strong> · {capture.origin}</p>
       <p class="power-hash">SHA-256 {capture.revision}</p>{/if}
   </section>
-  <nav>
-    <button aria-pressed={tab === "pdf"} onclick={() => (tab = "pdf")}
-      >PDF export</button
-    ><button aria-pressed={tab === "run"} onclick={() => (tab = "run")}
-      >Document fences {capture?.blocks.length ?? 0}</button
-    >
-  </nav>
+  {#if !inline}<nav>
+      <button aria-pressed={tab === "pdf"} onclick={() => (tab = "pdf")}
+        >PDF export</button
+      ><button aria-pressed={tab === "run"} onclick={() => (tab = "run")}
+        >Document fences {capture?.blocks.length ?? 0}</button
+      >
+    </nav>{/if}
   {#if tab === "pdf"}<section>
       <h3>A portable copy</h3>
       <p>
@@ -408,14 +520,20 @@
         onclick={() => start(texPdf ? "pdf_tex" : "pdf")}>Prepare PDF…</button
       >
     </section>{:else}<section>
-      <h3>Explicit local actions</h3>
-      <p>
-        Only closed top-level sh/bash/shell/zsh, sql/sqlite and tex/latex fences
-        are offered. Select a native folder for each runner. Enabling and trust
-        expire when the app exits. Nothing runs during open, Read, watch or HTML
-        export.
-      </p>
-      {#each ["shell", "sqlite", "tex"] as kind (kind)}<div
+      <h3>
+        {inline?.kind === "shell"
+          ? "Set up Shell"
+          : inline
+            ? "Set up SQLite"
+            : "Explicit local actions"}
+      </h3>
+      {#if !inline}<p>
+          Only closed top-level sh/bash/shell/zsh, sql/sqlite and tex/latex
+          fences are offered. Select a native folder for each runner. Enabling
+          and trust expire when the app exits. Nothing runs during open, Read,
+          watch or HTML export.
+        </p>{/if}
+      {#each inline ? [inline.kind] : ["shell", "sqlite", "tex"] as kind (kind)}<div
           class="power-runner"
         >
           <strong
@@ -438,41 +556,46 @@
               "No trusted folder"}</span
           >
         </div>{/each}
-      <p class="power-warning">
-        Shell and TeX run with your normal OS privileges. Folder trust is not a
-        sandbox. Cancellation stops the attached process group; detached
-        processes and completed file changes may remain.
-      </p>
+      {#if inline?.kind !== "sqlite"}<p class="power-warning">
+          Shell and TeX run with your normal OS privileges. Folder trust is not
+          a sandbox. Cancellation stops the attached process group; detached
+          processes and completed file changes may remain.
+        </p>{/if}
       <div class="power-tools">
-        <button disabled={busy || running} onclick={() => tool("shell")}
-          >Choose shell…</button
-        ><span
-          >{data?.tools.filter((t) => t.role === "shell").at(-1)?.version ??
-            "No shell selected"}</span
-        ><button disabled={busy || running} onclick={() => tool("tex")}
-          >Choose TeX engine…</button
-        ><span
-          >{data?.tools.filter((t) => t.role === "tex").at(-1)?.version ??
-            "No TeX engine selected"}</span
-        ><button
-          disabled={busy || running}
-          onclick={() =>
-            action(async () => {
-              await api.database();
-              await refresh();
-            })}>Choose SQLite database…</button
-        ><span>{data?.databases.at(-1)?.name ?? "No database selected"}</span>
+        {#if inline?.kind !== "sqlite"}<button
+            disabled={busy || running}
+            onclick={() => tool("shell")}>Choose shell…</button
+          ><span
+            >{data?.tools.filter((t) => t.role === "shell").at(-1)?.version ??
+              "No shell selected"}</span
+          >{/if}
+        {#if !inline}<button
+            disabled={busy || running}
+            onclick={() => tool("tex")}>Choose TeX engine…</button
+          ><span
+            >{data?.tools.filter((t) => t.role === "tex").at(-1)?.version ??
+              "No TeX engine selected"}</span
+          >{/if}
+        {#if inline?.kind !== "shell"}<button
+            disabled={busy || running}
+            onclick={() =>
+              action(async () => {
+                await api.database();
+                await refresh();
+              })}>Choose SQLite database…</button
+          ><span>{data?.databases.at(-1)?.name ?? "No database selected"}</span
+          >{/if}
       </div>
-      <label
-        >Captured fence <select
-          aria-label="Captured fence"
-          bind:value={selected}
-          disabled={busy || running}
-          >{#each capture?.blocks ?? [] as b (b.id)}<option value={b.id}
-              >{b.kind} · line {b.line}</option
-            >{/each}</select
-        ></label
-      >
+      {#if !inline}<label
+          >Captured fence <select
+            aria-label="Captured fence"
+            bind:value={selected}
+            disabled={busy || running}
+            >{#each capture?.blocks ?? [] as b (b.id)}<option value={b.id}
+                >{b.kind} · line {b.line}</option
+              >{/each}</select
+          ></label
+        >{/if}
       {#if block?.kind === "shell" && shellSteps.length}
         <div aria-label="Shell setup required" role="status">
           <p>Before running this shell block:</p>
@@ -503,7 +626,7 @@
           value={block.code}
           rows={8}
         ></textarea>
-        {#if block.kind === "sqlite"}<label
+        {#if block.kind === "sqlite" && !inline}<label
             ><input
               type="checkbox"
               bind:checked={write}
@@ -545,52 +668,9 @@
       <h3>{result.status}</h3>
       <p>{result.message}</p>
       {#if running}<button onclick={() => void cancel()}>Cancel job</button
-        >{/if}{#if result.output}<p>
-          Exit code {result.output.code ?? "signal"}
-        </p>
-        <pre aria-label="Job stdout">{result.output.stdout}</pre>
-        <pre aria-label="Job stderr">{result.output
-            .stderr}</pre>{/if}{#if result.table}<p>
-          {result.table.rows.length} rows · {result.table.changes} changes{result
-            .table.truncated
-            ? " · results truncated"
-            : ""}
-        </p>
-        <div>
-          <button
-            disabled={rowAt === 0}
-            onclick={() => (rowAt = Math.max(0, rowAt - 25))}
-            >Previous rows</button
-          ><span
-            >{rowAt + 1}–{Math.min(rowAt + 25, result.table.rows.length)} / {result
-              .table.rows.length}</span
-          ><button
-            disabled={rowAt + 25 >= result.table.rows.length}
-            onclick={() => (rowAt += 25)}>Next rows</button
-          >
-        </div>
-        <p>25 rows per page; long cells show 1,024-character excerpts.</p>
-        <div class="power-table">
-          <table>
-            <thead
-              ><tr
-                >{#each result.table.columns as column, index (index)}<th
-                    >{column}</th
-                  >{/each}</tr
-              ></thead
-            ><tbody
-              >{#each result.table.rows.slice(rowAt, rowAt + 25) as row, rowIndex (rowIndex)}<tr
-                  >{#each row as cell, cellIndex (cellIndex)}<td>{cell}</td
-                    >{/each}</tr
-                >{/each}</tbody
-            >
-          </table>
-        </div>{/if}{#each result.warnings as text, warningIndex (warningIndex)}<p
-          class="power-warning"
-        >
-          {text}
-        </p>{/each}{#if result.pdf}<button disabled={busy} onclick={save}
-          >Export PDF…</button
+        >{/if}
+      {#key job}<JobOutput {result} />{/key}
+      {#if result.pdf}<button disabled={busy} onclick={save}>Export PDF…</button
         >{#if exportId}<button
             disabled={busy}
             onclick={() => action(() => api.open(exportId!))}

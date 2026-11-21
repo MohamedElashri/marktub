@@ -187,7 +187,10 @@ copy…** and save it in the folder you want to use for the examples. Enable the
 runner for this session and trust the folder containing your copy. Review the
 code in the confirmation prompt each time you run a fence.
 
-For your own documents, open **More → Export & run → Document fences**.
+In your own saved Markdown files, use **Run shell** or **Run SQL** beneath a
+closed top-level fence in Read or Split. The result appears beneath that block.
+Inline SQL uses a read-only connection. To request a write transaction, use
+**More → Export & run → Document fences**.
 
 ### Shell
 

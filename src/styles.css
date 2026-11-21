@@ -2605,31 +2605,6 @@ textarea {
   justify-content: space-between;
   margin: 10px 0;
 }
-.power-result pre {
-  max-height: 260px;
-  overflow: auto;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  font:
-    13px/1.5 ui-monospace,
-    monospace;
-}
-.power-table {
-  max-height: 320px;
-  overflow: auto;
-}
-.power-table table {
-  border-collapse: collapse;
-  min-width: 100%;
-}
-.power-table th,
-.power-table td {
-  border: 1px solid var(--line);
-  padding: 7px;
-  text-align: left;
-  max-width: 350px;
-  overflow-wrap: anywhere;
-}
 .power-panel footer {
   color: var(--quiet);
   font-size: 12px;
