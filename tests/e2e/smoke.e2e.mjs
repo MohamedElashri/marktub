@@ -3759,10 +3759,12 @@ describe("Export and local jobs", () => {
     await call("power_clear");
     await browser.$('button[aria-label="Open feature guide"]').click();
     await pane().$("article").waitForDisplayed({ timeout: 60000 });
-    await open();
-    await panel().$("button*=Document fences").click();
-    await select('select[aria-label="Captured fence"]', "shell");
+    await pane().$("button=Shell example").click();
     const setup = panel().$('[aria-label="Shell setup required"]');
+    await setup.waitForDisplayed();
+    await expect(panel().$('textarea[aria-label="Captured code"]')).toHaveValue(
+      expect.stringContaining("A note can also be a reproducible notebook."),
+    );
     await expect(setup).toHaveText(
       expect.stringContaining("Save your own copy"),
     );
@@ -3812,10 +3814,12 @@ describe("Export and local jobs", () => {
     await call("power_clear");
     await browser.$('button[aria-label="Open feature guide"]').click();
     await pane().$("article").waitForDisplayed({ timeout: 60000 });
-    await open();
-    await panel().$("button*=Document fences").click();
-    await select('select[aria-label="Captured fence"]', "sqlite");
+    await pane().$("button=SQLite example").click();
     const setup = panel().$('[aria-label="SQLite setup required"]');
+    await setup.waitForDisplayed();
+    await expect(panel().$('textarea[aria-label="Captured code"]')).toHaveValue(
+      expect.stringContaining("SELECT 'A local query'"),
+    );
     await expect(setup).toHaveText(
       expect.stringContaining("Save your own copy"),
     );
@@ -3841,8 +3845,7 @@ describe("Export and local jobs", () => {
     await consent();
     await panel().$("button=Trust folder for sqlite…").click();
     const db = path.join(path.dirname(copy), "guide.sqlite");
-    const { execFileSync } = await import("node:child_process");
-    execFileSync("sqlite3", [db, "CREATE TABLE fixture (value TEXT);"]);
+    fs.writeFileSync(db, "", { flag: "wx" });
     await choose("database", db);
     await panel().$("button=Choose SQLite database…").click();
     await panel().$("button=Run captured fence…").waitForEnabled();

@@ -49,6 +49,7 @@ pub struct Descriptor {
     pub revision: String,
     pub watching: bool,
     pub location: String,
+    pub bundled_guide: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -144,6 +145,7 @@ impl Documents {
             revision: revision.clone(),
             watching: watcher.is_some(),
             location: crate::scoped_file::path_key(&path),
+            bundled_guide: false,
         };
         let mut documents = self
             .0

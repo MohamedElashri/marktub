@@ -60,7 +60,7 @@
   async function refresh() {
     data = await api.state();
   }
-  async function recapture() {
+  async function recapture(example?: api.Kind) {
     if (running)
       throw Error("Wait for the current job before replacing its capture.");
     clearTimeout(timer);
@@ -71,16 +71,21 @@
     if (capture) await api.release(capture.id);
     capture = null;
     capture = await oncapture(saved);
-    selected = capture.blocks[0]?.id ?? "";
+    selected =
+      (example
+        ? capture.blocks.find((block) => block.kind === example)
+        : capture.blocks[0]
+      )?.id ?? "";
     notice = "Captured this revision. Later edits do not alter its PDF input.";
   }
-  export async function show() {
+  export async function show(example?: api.Kind) {
     if (dialog.open) return;
+    if (example) tab = "run";
     dialog.showModal();
     saved = hasSaved;
     await action(async () => {
       await refresh();
-      await recapture();
+      await recapture(example);
     });
   }
   async function close() {

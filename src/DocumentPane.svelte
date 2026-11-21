@@ -13,6 +13,7 @@
     Comparison,
   } from "./document/protocol";
   import type { EditQueue } from "./document/queue";
+  import type { Kind } from "./power/bridge";
   import type Reader from "./reader/Reader.svelte";
   import type { Read } from "./reader/model";
 
@@ -138,11 +139,11 @@
       return null;
     return capturePower(false);
   }
-  async function openPower() {
+  async function openPower(example?: Kind) {
     if (busy || !document) return;
     PowerComponent ??= (await import("./power/Panel.svelte")).default;
     await tick();
-    await powerPanel?.show();
+    await powerPanel?.show(example);
   }
   let LinksComponent = $state<
     typeof import("./NoteLinks.svelte").default | null
@@ -1193,6 +1194,16 @@
       </div>
     </details>
   </header>
+  {#if document?.bundledGuide}
+    <nav class="guide-examples" aria-label="Guide examples">
+      <button disabled={busy} onclick={() => openPower("shell")}
+        >Shell example</button
+      >
+      <button disabled={busy} onclick={() => openPower("sqlite")}
+        >SQLite example</button
+      >
+    </nav>
+  {/if}
   <BusyStatus
     active={busy}
     label={editorUndoing ? "Applying undo / redo…" : operation}
