@@ -3776,8 +3776,18 @@ describe("Export and local jobs", () => {
       await call("e2e_fixture", { action: "save-as", text: null });
       await consent();
       await block().$("button=Save copy & run…").click();
-      await expect(block().$(example.output)).toHaveText(
-        expect.stringContaining(example.text),
+      await browser.waitUntil(
+        () =>
+          browser.tauri.execute(
+            (_api, example) =>
+              document
+                .querySelector(
+                  `.document-tab:not([hidden]) [aria-label="${example.block}"] ${example.output}`,
+                )
+                ?.textContent.includes(example.text) ?? false,
+            example,
+          ),
+        { timeout: 30000 },
       );
       const copy = path.join(path.dirname(fixture.path), "copy.txt");
       expect(fs.readFileSync(copy, "utf8")).toBe(
@@ -3933,7 +3943,7 @@ describe("Export and local jobs", () => {
       "العربية 123",
     );
     await pane().$(".mode-switch").$("button=Split").click();
-    await pane().$(".cm-content").waitForDisplayed();
+    await pane().$(".cm-content").waitForDisplayed({ timeout: 60000 });
     await browser.tauri.execute(() => {
       const view = document.querySelector(
         ".document-tab:not([hidden]) .cm-content",

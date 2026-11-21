@@ -2027,6 +2027,10 @@ fn power_confirm_action(app: &tauri::AppHandle, message: &str, run_title: Option
     {
         return answer;
     }
+    // rfd's GTK backend passes the description to a printf-style API.
+    // Keep percentages in source and filenames literal in the native dialog.
+    #[cfg(target_os = "linux")]
+    let message = message.replace('%', "%%");
     app.dialog()
         .message(message)
         .title(run_title.unwrap_or("Confirm this local action"))
