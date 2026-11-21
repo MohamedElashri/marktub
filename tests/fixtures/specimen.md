@@ -181,10 +181,13 @@ Keep **System fonts** when other scripts or installed families are needed.
 
 ## Optional local tools
 
-The following fences demonstrate the supported local-tool syntax. They are
-**inert by default**. Open **Export & run → Document fences** to inspect a
-captured block, enable its tool kind, select a tool and folder or database, and
-confirm the exact captured code before running it.
+Choose **Shell example** or **SQLite example** beneath the Guide toolbar to
+open its code in **Export & run → Document fences**. Choose **Save a runnable
+copy…** and save it in the folder you want to use for the examples. Enable the
+runner for this session and trust the folder containing your copy. Review the
+code in the confirmation prompt each time you run a fence.
+
+For your own documents, open **More → Export & run → Document fences**.
 
 ### Shell
 
@@ -192,8 +195,11 @@ confirm the exact captured code before running it.
 printf 'A note can also be a reproducible notebook.\n'
 ```
 
-Shell commands run with your normal OS privileges in a selected trusted folder.
-You can cancel jobs; output and runtime are bounded.
+Use **Choose shell…** to select an installed shell such as `/bin/sh`.
+Choose **Run captured fence…** and confirm. The output reads
+“A note can also be a reproducible notebook.”
+
+Shell commands run with your normal OS privileges in the trusted folder.
 
 ### SQLite
 
@@ -201,9 +207,13 @@ You can cancel jobs; output and runtime are bounded.
 SELECT 'A local query' AS note, 1 + 1 AS result;
 ```
 
-Select a local database separately. Queries start read-only; writes require an
-explicitly confirmed DML transaction. No extensions or database attachments are
-allowed.
+Use **Choose SQLite database…** to select a local database. This example also
+works with an empty file named `guide.sqlite`. Leave the write option off, choose
+**Run captured fence…**, and confirm. The result has one row with
+`A local query` and `2`.
+
+SQLite runs read-only by default. To change rows, request and confirm a DML
+write transaction.
 
 ### TeX
 

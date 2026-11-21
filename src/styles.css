@@ -1677,6 +1677,17 @@ textarea {
   border-inline: 1px solid var(--line);
   border-radius: 0;
 }
+.guide-examples {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 6px 16px;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+}
+.guide-examples button {
+  border-color: var(--line);
+}
 .author-controls,
 .range-controls {
   padding: 6px 16px;
