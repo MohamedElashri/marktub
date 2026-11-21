@@ -23,6 +23,10 @@ formatting tools. Use **Save As** to keep your own copy.
 | **Split** | Writing beside the live preview. Drag the middle divider to adjust the panes. |
 | **Visual** | Formatting Markdown with local heading, list, table, link and image controls. |
 
+In Read, choose **Focus reading** to hide the library, tabs and editing tools
+while keeping your place. **Exit focus** or **Esc** brings them back. Use
+**Reading options** to change the theme, page width or text size.
+
 Try selecting a word in Source, then choose **Bold** or **Italic**. The tools
 edit the Markdown itself. Find/replace, folding, line numbers, spellcheck and
 writing focus are available in the editor.

@@ -60,6 +60,9 @@
     palettePanel = $state<CommandPalette>();
   let previewValues = $state<Values | null>(null);
   const currentValues = $derived(tabs[active]?.pane?.preferences() ?? {});
+  const readingFocus = $derived(
+    tabs[active]?.pane?.commandState().readingFocus ?? false,
+  );
   function emptyTabAvailable(tab: Tab) {
     return (
       !tab.document &&
@@ -187,6 +190,7 @@
         case "search_workspaces":
           return showLibrary(true, true);
         case "browser":
+          if (readingFocus) return showLibrary();
           if (sidebar) {
             sidebar = false;
             return library.configure(false, panel?.viewName() ?? "list");
@@ -697,7 +701,8 @@
 <svelte:window bind:innerWidth={viewportWidth} />
 <div
   class="workbench"
-  class:has-library={sidebar}
+  class:has-library={sidebar && !readingFocus}
+  class:reading-focus={readingFocus}
   style={`--library-width:${sidebarWidth}px`}
 >
   <header class="workbench-header">
@@ -788,7 +793,7 @@
     {#if LibraryComponent}<aside
         id="library-sidebar"
         class="library-host"
-        hidden={!sidebar}
+        hidden={!sidebar || readingFocus}
       >
         <LibraryComponent
           bind:this={panel}
@@ -801,7 +806,7 @@
           onclearrecent={clearRecent}
         />
       </aside>{/if}
-    {#if sidebar}<ResizeHandle
+    {#if sidebar && !readingFocus}<ResizeHandle
         value={sidebarWidth}
         min={librarySize.min}
         max={libraryWidth(librarySize.max, viewportWidth)}

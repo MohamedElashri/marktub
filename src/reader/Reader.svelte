@@ -1,6 +1,7 @@
 <script lang="ts">
   import { mount, onMount, tick, unmount } from "svelte";
   import InlineFence from "../power/InlineFence.svelte";
+  import Icon from "../ui/Icon.svelte";
   import type { Database } from "../power/bridge";
   import type { Fence, InlineRun } from "../power/fence";
   import { ReaderClient } from "./client";
@@ -20,6 +21,8 @@
   let {
     read,
     embedded = false,
+    focused = false,
+    ontogglefocus = () => {},
     onedit,
     ondisplay = () => {},
     onsource = () => {},
@@ -49,6 +52,8 @@
   }: {
     read: Read;
     embedded?: boolean;
+    focused?: boolean;
+    ontogglefocus?: () => void;
     ondisplay?: () => void;
     onedit?: (byte: number) => void | Promise<void>;
     onsource?: (line: number, clicked: boolean, fraction?: number) => void;
@@ -91,8 +96,7 @@
       (pages.length > 0 || sections.length === 0) &&
       pages.every((item) => !item.page.provisional),
   );
-  let focus = $state(true),
-    outline = $state(false),
+  let outline = $state(false),
     query = $state(""),
     headingQuery = $state(""),
     matches = $state<{ section: number; excerpt: string }[]>([]),
@@ -101,14 +105,16 @@
     exporting = $state(false);
   let request = 0,
     restored = false;
+  let optionsOpen = $state(false);
+  let optionsElement = $state<HTMLDetailsElement>();
+  let focusToggle = $state<HTMLButtonElement>();
   let activeAnchor: string | null = null;
   const filtered = $derived(matchingHeadings(headings, headingQuery));
+  const currentHeading = $derived(
+    headings[headingBoundary(headings, at + 1) - 1]?.id,
+  );
   $effect(() => {
-    if (embedded) return;
-    document.documentElement.dataset.readingFocus = String(focus);
-    return () => {
-      delete document.documentElement.dataset.readingFocus;
-    };
+    if (focused) optionsOpen = false;
   });
   const helpId = `reader-help-${crypto.randomUUID()}`;
   const layout = new FlowLayout();
@@ -994,19 +1000,24 @@
       if (current === client) exporting = false;
     }
   }
-  export function action(command: string) {
-    if (command === "focus") focus = !focus;
-    if (command === "outline") outline = !outline;
+  export function action(command: "outline" | "find") {
+    optionsOpen = false;
+    if (command === "outline") void setOutline(!outline);
     if (command === "find") {
-      outline = true;
-      focus = false;
-      void tick().then(() =>
+      void setOutline(true).then(() =>
         host
           .closest(".reader")
           ?.querySelector<HTMLInputElement>('[aria-label="Find in document"]')
           ?.focus(),
       );
     }
+  }
+  async function setOutline(open: boolean) {
+    if (outline === open) return;
+    const restore = captureLayout();
+    outline = open;
+    await tick();
+    restore();
   }
   export function captureLayout() {
     if (!host) return () => {};
@@ -1033,8 +1044,9 @@
       }
     };
   }
-  export function navigation() {
-    focus = false;
+  export function focusReading(entered: boolean) {
+    if (entered) host?.focus({ preventScroll: true });
+    else focusToggle?.focus({ preventScroll: true });
   }
   export function anchor() {
     return (
@@ -1047,7 +1059,7 @@
     return sections[at]?.start ?? start;
   }
   onMount(() => {
-    if (embedded) focus = false;
+    if (focused) focusReading(true);
     observer = new ResizeObserver(measure);
     richObserver = new IntersectionObserver(
       () => {
@@ -1064,6 +1076,25 @@
       }
     };
     document.addEventListener("selectionchange", selectionChanged);
+    const closeOptions = (event: PointerEvent) => {
+      if (optionsOpen && !optionsElement?.contains(event.target as Node))
+        optionsOpen = false;
+    };
+    const escapeOptions = (event: KeyboardEvent) => {
+      if (
+        !optionsOpen ||
+        event.key !== "Escape" ||
+        event.defaultPrevented ||
+        event.isComposing ||
+        document.querySelector("dialog[open]")
+      )
+        return;
+      event.preventDefault();
+      optionsOpen = false;
+      optionsElement?.querySelector("summary")?.focus();
+    };
+    document.addEventListener("pointerdown", closeOptions);
+    document.addEventListener("keydown", escapeOptions);
     const restoreAnchor = anchorId;
     const current = new ReaderClient(
       read,
@@ -1144,6 +1175,8 @@
       if (frame) cancelAnimationFrame(frame);
       if (refreshTimer) clearTimeout(refreshTimer);
       document.removeEventListener("selectionchange", selectionChanged);
+      document.removeEventListener("pointerdown", closeOptions);
+      document.removeEventListener("keydown", escapeOptions);
       observer?.disconnect();
       richObserver?.disconnect();
       cache.clear();
@@ -1156,74 +1189,131 @@
   });
 </script>
 
-<div class="reader" class:reading-focus={focus} data-revision={revision}>
-  <div class="reader-controls" aria-label="Reading controls">
-    <button aria-pressed={!focus} onclick={() => (focus = !focus)}
-      >{focus ? "Exit focus" : "Focus reading"}</button
+<div class="reader" class:reading-focus={focused} data-revision={revision}>
+  {#if focused}
+    <div
+      class="reader-controls focus-controls"
+      role="group"
+      aria-label="Reading focus"
     >
-    <button aria-expanded={outline} onclick={() => (outline = !outline)}
-      >Outline & find</button
-    >
-    <button
-      onclick={exportHtml}
-      disabled={!complete || !contextReady || exporting || operationBusy}
-      >{exporting ? "Exporting…" : "Export HTML"}</button
-    >
-    {#if !focus}
-      <button onclick={copyDocument} disabled={!complete || copying}
-        >{copying ? "Copying…" : "Copy document Markdown"}</button
+      <span class="focus-title" dir="auto" {title}>{title}</span>
+      <button
+        class="reader-control"
+        onclick={ontogglefocus}
+        aria-label="Exit focus"
+        title="Exit focus (Escape)"
       >
-      <label
-        >Theme <select
-          aria-label="Reading theme"
-          value={preferences.theme}
-          onchange={(e) => onpreference("theme", e.currentTarget.value)}
-          ><option value="system">Follow system</option
-          >{#each Object.entries(themes) as [key, theme] (key)}<option
-              value={key}>{theme.label}</option
-            >{/each}<option value="custom">Custom</option></select
-        ></label
+        <Icon name="focus" />Exit focus <kbd aria-hidden="true">Esc</kbd>
+      </button>
+    </div>
+  {:else}
+    <div class="reader-controls" role="group" aria-label="Reading controls">
+      <button
+        class="reader-control outline-toggle"
+        aria-expanded={outline}
+        onclick={() => setOutline(!outline)}
       >
-      <label
-        >Width <select
-          aria-label="Reading width"
-          value={String(preferences.width)}
-          onchange={(e) => onpreference("reader.width", e.currentTarget.value)}
-          >{#if ![600, 760, 1000].includes(preferences.width)}<option
-              value={String(preferences.width)}>{preferences.width}px</option
-            >{/if}<option value="600">Narrow</option><option value="760"
-            >Comfortable</option
-          ><option value="1000">Wide</option></select
-        ></label
+        <Icon name="list" />Outline &amp; find
+      </button>
+      <details
+        class="reader-options"
+        bind:open={optionsOpen}
+        bind:this={optionsElement}
       >
-      <label
-        >Text <select
-          aria-label="Reading text size"
-          value={String(preferences.size)}
-          onchange={(e) =>
-            onpreference("reader.font_size", e.currentTarget.value)}
-          >{#if ![16, 18, 22, 28].includes(preferences.size)}<option
-              value={String(preferences.size)}>{preferences.size}</option
-            >{/if}<option value="16">16</option><option value="18">18</option
-          ><option value="22">22</option><option value="28">28</option></select
-        ></label
+        <summary class="reader-control"
+          ><Icon name="type" />Reading options</summary
+        >
+        <div class="reading-options-menu">
+          <label
+            >Theme <select
+              aria-label="Reading theme"
+              value={preferences.theme}
+              onchange={(e) => onpreference("theme", e.currentTarget.value)}
+              ><option value="system">Follow system</option
+              >{#each Object.entries(themes) as [key, theme] (key)}<option
+                  value={key}>{theme.label}</option
+                >{/each}<option value="custom">Custom</option></select
+            ></label
+          >
+          <label
+            >Width <select
+              aria-label="Reading width"
+              value={String(preferences.width)}
+              onchange={(e) =>
+                onpreference("reader.width", e.currentTarget.value)}
+              >{#if ![600, 760, 1000].includes(preferences.width)}<option
+                  value={String(preferences.width)}
+                  >{preferences.width}px</option
+                >{/if}<option value="600">Narrow</option><option value="760"
+                >Comfortable</option
+              ><option value="1000">Wide</option></select
+            ></label
+          >
+          <label
+            >Text size <select
+              aria-label="Reading text size"
+              value={String(preferences.size)}
+              onchange={(e) =>
+                onpreference("reader.font_size", e.currentTarget.value)}
+              >{#if ![16, 18, 22, 28].includes(preferences.size)}<option
+                  value={String(preferences.size)}>{preferences.size}</option
+                >{/if}<option value="16">16</option><option value="18"
+                >18</option
+              ><option value="22">22</option><option value="28">28</option
+              ></select
+            ></label
+          >
+          <button
+            class="reader-copy"
+            onclick={copyDocument}
+            disabled={!complete || copying}
+          >
+            {copying ? "Copying…" : "Copy document Markdown"}
+          </button>
+        </div>
+      </details>
+      <button
+        class="reader-control"
+        onclick={exportHtml}
+        disabled={!complete || !contextReady || exporting || operationBusy}
       >
-    {/if}
-    {#if onedit}<button
-        onclick={() => onedit?.(sections[at]?.start ?? 0)}
-        disabled={operationBusy}>Edit here</button
-      >{/if}
-    <span role="status" data-context-ready={contextReady}
-      >{complete
-        ? contextReady
-          ? "Document ready"
-          : "Finalizing reading view…"
-        : `Resolving document context · ${total ? Math.round((scanned / total) * 100) : 0}%`}</span
-    >
-  </div>
-  {#if notice}<p class="reader-notice" role="status">{notice}</p>{/if}
+        {exporting ? "Exporting…" : "Export HTML"}
+      </button>
+      {#if !embedded}
+        <button
+          class="reader-control"
+          bind:this={focusToggle}
+          onclick={ontogglefocus}
+        >
+          <Icon name="focus" />Focus reading
+        </button>
+      {/if}
+      {#if onedit}<button
+          class="reader-control"
+          onclick={() => onedit?.(sections[at]?.start ?? 0)}
+          disabled={operationBusy}>Edit here</button
+        >{/if}
+    </div>
+  {/if}
+  <span
+    class="reader-progress"
+    class:sr-only={contextReady}
+    role="status"
+    data-context-ready={contextReady}
+    >{complete
+      ? contextReady
+        ? "Document ready"
+        : "Finalizing reading view…"
+      : `Resolving document context · ${total ? Math.round((scanned / total) * 100) : 0}%`}</span
+  >
+  {#if notice && !focused}<p class="reader-notice" role="status">
+      {notice}
+    </p>{/if}
   <div class="reading-layout">
-    {#if outline}<aside class="outline" aria-label="Document navigation">
+    {#if outline && !focused}<aside
+        class="outline"
+        aria-label="Document navigation"
+      >
         <label
           >Find in document<input
             aria-label="Find in document"
@@ -1249,8 +1339,9 @@
         >
         <nav aria-label="Headings">
           {#each filtered as h (h.id)}<button
-              style:padding-left={`${(h.level - 1) * 10 + 8}px`}
-              onclick={() => goHeading(h)}>{h.title}</button
+              aria-current={h.id === currentHeading ? "location" : undefined}
+              style:padding-inline-start={`${(h.level - 1) * 8 + 8}px`}
+              onclick={() => goHeading(h)}><bdi>{h.title}</bdi></button
             >{/each}
         </nav>
         {#if headings.length > 200}<p>

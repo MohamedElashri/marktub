@@ -189,7 +189,6 @@ describe("OS file open and accessibility", () => {
       args,
     );
   beforeEach(closeDocuments);
-  after(closeDocuments);
 
   it("hands native Unicode/space paths to the existing instance without replacing dirty Source", async () => {
     const fs = await import("node:fs/promises");
@@ -4568,6 +4567,127 @@ describe("Everyday workflows", () => {
     }
   });
   beforeEach(closeDocuments);
+
+  it("keeps the reading place and tab layout when entering and leaving reading focus", async () => {
+    const text =
+      "# Reading focus sample\n\n" +
+      Array.from(
+        { length: 24 },
+        (_, i) =>
+          `## Chapter ${i}\n\nA short paragraph in the reader.\n\nفقرة عربية قصيرة للقراءة.\n\n`,
+      ).join("");
+    await invoke("e2e_fixture", { action: "seed", text });
+    await openHomeFile();
+    const options = () => pane().$(".reader-options summary");
+    const enter = () => pane().$("button=Focus reading");
+    const exit = () => pane().$('button[aria-label="Exit focus"]');
+    const library = () => browser.$(".library-host");
+    const layout = () =>
+      browser.tauri.execute(() => {
+        const article = document.querySelector(
+          ".document-tab:not([hidden]) article",
+        );
+        const marker = article?.querySelector("#h-chapter-8");
+        const rect = article?.getBoundingClientRect();
+        return {
+          offset:
+            marker && rect
+              ? marker.getBoundingClientRect().top - rect.top
+              : null,
+          width: rect?.width,
+          sameArticle: article === window.focusTestArticle,
+          focus: document.activeElement === article,
+        };
+      });
+    await enter().waitForDisplayed();
+    await expect(exit()).not.toExist();
+    await expect(
+      pane().$('select[aria-label="Reading width"]'),
+    ).not.toBeDisplayed();
+    await options().click();
+    await expect(
+      pane().$('select[aria-label="Reading width"]'),
+    ).toBeDisplayed();
+    await browser.keys("Escape");
+    await expect(
+      pane().$('select[aria-label="Reading width"]'),
+    ).not.toBeDisplayed();
+    await browser.saveScreenshot("artifacts/native-reader-regular.png");
+    await browser.$(".workspace-actions").$("button=Library").click();
+    await library().waitForDisplayed();
+    await pane().$("button=Outline & find").click();
+    await pane().$(".outline").waitForDisplayed();
+    await browser.tauri.execute(() => {
+      const article = document.querySelector(
+        ".document-tab:not([hidden]) article",
+      );
+      window.focusTestArticle = article;
+      const marker = article.querySelector("#h-chapter-8");
+      article.scrollTop +=
+        marker.getBoundingClientRect().top -
+        article.getBoundingClientRect().top -
+        90;
+    });
+    const before = await layout();
+    expect(before.offset).toBeCloseTo(90, 0);
+    try {
+      await enter().click();
+      await exit().waitForDisplayed();
+      await expect(browser.$(".workbench-header")).not.toBeDisplayed();
+      await expect(library()).not.toBeDisplayed();
+      await expect(pane().$(".toolbar")).not.toBeDisplayed();
+      await expect(pane().$(".outline")).not.toExist();
+      await browser.waitUntil(async () => {
+        const current = await layout();
+        return (
+          current.sameArticle &&
+          current.focus &&
+          current.width > before.width &&
+          Math.abs(current.offset - before.offset) < 3
+        );
+      });
+      await browser.saveScreenshot("artifacts/native-reader-focus.png");
+      await browser.keys("Escape");
+      await enter().waitForDisplayed();
+      await expect(enter()).toBeFocused();
+      await expect(library()).toBeDisplayed();
+      await expect(pane().$(".outline")).toBeDisplayed();
+      await browser.waitUntil(
+        async () => Math.abs((await layout()).offset - before.offset) < 3,
+      );
+
+      await browser.keys([
+        process.platform === "darwin" ? "Meta" : "Control",
+        "Alt",
+        "f",
+      ]);
+      await exit().waitForDisplayed();
+      await browser.keys([
+        process.platform === "darwin" ? "Meta" : "Control",
+        "t",
+      ]);
+      await browser.$(".workbench-header").waitForDisplayed();
+      expect(await selected().getText()).toContain("New tab");
+      await browser.keys(["Control", "Shift", "Tab"]);
+      await exit().waitForDisplayed();
+      await exit().click();
+      await enter().waitForDisplayed();
+      await expect(browser.$(".tabbar")).toBeDisplayed();
+      await enter().click();
+      await exit().waitForDisplayed();
+      await browser.keys([
+        process.platform === "darwin" ? "Meta" : "Control",
+        "f",
+      ]);
+      const find = pane().$('input[aria-label="Find in document"]');
+      await find.waitForDisplayed();
+      await expect(find).toBeFocused();
+    } finally {
+      if (await exit().isDisplayed()) await exit().click();
+    }
+  });
+  after(closeDocuments);
+
   after(async () => {
     await closeDocuments();
     await writeFile(
@@ -5395,6 +5515,7 @@ describe("Everyday workflows", () => {
     const effective = (
       await invoke("get_settings", { id: null, scope: "global" })
     ).resolved;
+    await pane().$(".reader-options summary").click();
     await expect(pane().$('select[aria-label="Reading width"]')).toHaveValue(
       String(effective["reader.width"].value),
     );
@@ -6597,8 +6718,7 @@ describe("Continuous reader", () => {
       });
     });
     try {
-      if (await pane().$("button=Exit focus").isExisting())
-        await pane().$("button=Exit focus").click();
+      await pane().$(".reader-options summary").click();
       await pane().$("button=Copy document Markdown").click();
       await browser.waitUntil(
         () =>
