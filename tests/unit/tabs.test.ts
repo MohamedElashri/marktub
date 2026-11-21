@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sessionSelection, moveTab } from "../../src/tabs";
+import { sessionSelection, moveTab, closeTargets } from "../../src/tabs";
 import { libraryWidth } from "../../src/workspace";
 
 describe("restorable tab selection", () => {
@@ -79,5 +79,18 @@ describe("workspace layout", () => {
     expect(libraryWidth(600, 640)).toBe(280);
     expect(libraryWidth(NaN)).toBe(280);
     expect(libraryWidth(321.7)).toBe(322);
+  });
+});
+
+describe("tab close groups", () => {
+  it("targets tabs in visual order relative to the selected tab", () => {
+    const tabs = [10, 4, 8, 2];
+    expect(closeTargets(tabs, 1, "current")).toEqual([4]);
+    expect(closeTargets(tabs, 1, "others")).toEqual([10, 8, 2]);
+    expect(closeTargets(tabs, 1, "left")).toEqual([10]);
+    expect(closeTargets(tabs, 1, "right")).toEqual([8, 2]);
+    expect(closeTargets(tabs, 1, "all")).toEqual(tabs);
+    expect(closeTargets(tabs, 3, "right")).toEqual([]);
+    expect(closeTargets(tabs, -1, "all")).toEqual([]);
   });
 });
