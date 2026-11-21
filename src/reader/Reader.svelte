@@ -392,14 +392,13 @@
         continue;
       const kind = node.dataset.runKind;
       if (kind !== "shell" && kind !== "sqlite") continue;
-      const code = node.querySelector("pre > code")?.textContent;
-      if (!code || new TextEncoder().encode(code).length > 8192) continue;
+      const source = node.dataset.runSource;
+      if (!source) continue;
       const fence: Fence = {
         kind,
-        indent: Number(node.dataset.runIndent),
         // The native block line is the one-based first line of code.
         line: section.line + Number(node.dataset.sourceLine) + 1,
-        code,
+        code: JSON.parse(source) as string,
       };
       const anchor = document.createElement("div");
       anchor.className = "reader-fence-tools";

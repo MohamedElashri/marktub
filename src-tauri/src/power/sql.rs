@@ -153,8 +153,14 @@ pub fn query(
     cancel: Arc<AtomicBool>,
     validate: impl Fn() -> Result<(), FileError>,
 ) -> Result<Table, FileError> {
-    if sql.is_empty() || sql.len() > 65536 || sql.contains('\0') || !single_statement(sql) {
+    if sql.is_empty() || sql.len() > 65536 || sql.contains('\0') {
         return Err(FileError::new("capacity", "SQL admits 64 KiB without NUL."));
+    }
+    if !single_statement(sql) {
+        return Err(FileError::new(
+            "sqlite",
+            "Run one complete SQL statement at a time.",
+        ));
     }
     validate()?;
     let flags = (if write {

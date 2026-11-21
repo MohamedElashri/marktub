@@ -82,6 +82,12 @@
     font-size: 12px;
     color: var(--quiet);
   }
+  pre,
+  th,
+  td {
+    text-align: start;
+    unicode-bidi: plaintext;
+  }
   pre {
     margin: 6px 0 0;
     max-block-size: 16rem;
@@ -113,7 +119,6 @@
   td {
     padding: 7px 10px;
     border-bottom: 1px solid var(--line);
-    text-align: start;
     max-inline-size: 26rem;
     overflow-wrap: anywhere;
     white-space: pre-wrap;
