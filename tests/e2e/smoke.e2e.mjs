@@ -4448,6 +4448,24 @@ describe("Everyday workflows", () => {
     expect((await invoke("e2e_fixture", { action: "read" })).text).toBe(
       "# Recent العربية\n",
     );
+
+    const { writeFile, unlink } = await import("node:fs/promises");
+    const removed = join(dirname(fixture.path), "deleted-bookmark.md");
+    await writeFile(removed, "# Deleted bookmark\n");
+    const refresh = browser.$('button[aria-label="Refresh folders"]');
+    await refresh.click();
+    const file = browser.$('.tree-file[aria-label="Open deleted-bookmark.md"]');
+    await file.waitForEnabled();
+    await file.click();
+    const bookmark = browser.$(
+      'button[aria-label="Bookmark deleted-bookmark.md"]',
+    );
+    await bookmark.waitForDisplayed();
+    await bookmark.click();
+    await expect(bookmark).toHaveAttribute("aria-pressed", "true");
+    await unlink(removed);
+    await refresh.click();
+    await bookmark.waitForExist({ reverse: true });
   });
 
   it("distinguishes duplicate recent filenames using bounded native context", async () => {

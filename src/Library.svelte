@@ -316,6 +316,11 @@
       await poll(id);
     });
   }
+  function refreshFolders() {
+    treeRevision++;
+    void load(true);
+    void run(() => refreshState(false));
+  }
   async function changeView() {
     await run(() => api.configure(true, view));
   }
@@ -376,13 +381,7 @@
         detailsOpen = true;
       }}>File details</button
     >
-    <button
-      aria-label="Refresh folders"
-      onclick={() => {
-        treeRevision++;
-        void load(true);
-      }}>↻</button
-    >
+    <button aria-label="Refresh folders" onclick={refreshFolders}>↻</button>
     <button onclick={() => quickOpen()}>Find files</button>
   </nav>
   <div class="root-list" aria-label="Authorized folders">
@@ -479,7 +478,7 @@
           }}
         />Ignored</label
       >
-      <button onclick={() => load(true)}>Refresh</button><button
+      <button onclick={refreshFolders}>Refresh</button><button
         onclick={() => quickOpen()}>Search folders</button
       >
     </div>
