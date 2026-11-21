@@ -1,5 +1,6 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
+  import appIcon from "../src-tauri/icons/app.svg";
   import { errorMessage } from "./bridge";
 
   let {
@@ -109,10 +110,13 @@
 
 {#if active}
   <section class="app-updates" aria-label="Application updates">
-    <h3>Marktub</h3>
-    {#if status}
-      <p>Version {status.currentVersion}</p>
-    {/if}
+    <header class="app-identity">
+      <img src={appIcon} alt="" width="56" height="56" />
+      <div>
+        <h3>Marktub</h3>
+        {#if status}<p>Version {status.currentVersion}</p>{/if}
+      </div>
+    </header>
     <h4>Application updates</h4>
     {#if status}
       {#if status.phase === "current"}<p role="status">
@@ -194,7 +198,13 @@
   .app-updates {
     min-width: 0;
   }
-  h3 {
+  .app-identity {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+  }
+  .app-identity h3,
+  .app-identity p {
     margin: 0;
   }
   p {
