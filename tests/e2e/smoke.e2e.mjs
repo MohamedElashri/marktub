@@ -3857,6 +3857,99 @@ describe("Export and local jobs", () => {
     );
     await panel().$("button=Close export and jobs").click();
   });
+  it("runs the selected Shell and SQL fences inline and keeps their results with the block", async () => {
+    const { mkdirSync, writeFileSync } = await import("node:fs");
+    const path = await import("node:path");
+    await seed(
+      "# Inline jobs\n\n```sh\nprintf 'first block'\n```\n\n" +
+        "```sh\nprintf 'selected block'\nprintf 'selected stderr' >&2\n```\n\n" +
+        "> ```sh\n> printf nested\n> ```\n\n" +
+        "```sql\nSELECT 'العربية' AS label, 42 AS answer;\n```\n",
+    );
+    const shells = () => pane().$$('[aria-label="Shell code block"]');
+    const sql = () => pane().$('[aria-label="SQL code block"]');
+    await browser.waitUntil(async () => (await shells()).length === 2);
+    const selected = (await shells())[1];
+    await selected.$("button=Run shell").click();
+    await panel().$("h3=Set up Shell").waitForDisplayed();
+    await expect(panel().$('textarea[aria-label="Captured code"]')).toHaveValue(
+      expect.stringContaining("selected block"),
+    );
+    await consent();
+    await panel().$("button=Enable shell").click();
+    await panel().$("button=Trust folder for shell…").waitForEnabled();
+    await choose("root-shell", path.dirname(fixture.path));
+    await consent();
+    await panel().$("button=Trust folder for shell…").click();
+    await tool("shell", "/bin/sh", "Choose shell…");
+    await panel().$("button=Run captured fence…").waitForEnabled();
+    await consent();
+    await panel().$("button=Run captured fence…").click();
+    await panel().waitForDisplayed({ reverse: true });
+    await expect(selected.$('[aria-label="Job stdout"]')).toHaveText(
+      "selected block",
+    );
+    await expect(selected.$('[aria-label="Job stderr"]')).toHaveText(
+      "selected stderr",
+    );
+    const first = (await shells())[0];
+    await expect(first.$('[aria-label="Job stdout"]')).not.toExist();
+    await consent(false);
+    await first.$("button=Run shell").click();
+    await expect(first.$(".inline-result")).toHaveText(
+      expect.stringContaining("Run canceled."),
+    );
+    await expect(panel()).not.toBeDisplayed();
+    await consent();
+    await first.$("button=Run shell").click();
+    await expect(first.$('[aria-label="Job stdout"]')).toHaveText(
+      "first block",
+    );
+    await expect(panel()).not.toBeDisplayed();
+    const otherFolder = path.join(path.dirname(fixture.path), "other-folder");
+    mkdirSync(otherFolder);
+    await choose("root-shell", otherFolder);
+    await consent();
+    await call("power_trust", { kind: "shell" });
+    await first.$("button=Run shell").click();
+    await panel().$("h3=Set up Shell").waitForDisplayed();
+    await expect(panel().$('[role="alert"]')).toHaveText(
+      expect.stringContaining("outside this runner's trusted folder"),
+    );
+    await panel().$("button=Close export and jobs").click();
+    await sql().$("button=Run SQL").click();
+    await panel().$("h3=Set up SQLite").waitForDisplayed();
+    await consent();
+    await panel().$("button=Enable sqlite").click();
+    await panel().$("button=Trust folder for sqlite…").waitForEnabled();
+    await choose("root-sqlite", path.dirname(fixture.path));
+    await consent();
+    await panel().$("button=Trust folder for sqlite…").click();
+    const db = path.join(path.dirname(fixture.path), "inline.sqlite");
+    writeFileSync(db, "", { flag: "wx" });
+    await panel().$("button=Choose SQLite database…").waitForEnabled();
+    await choose("database", db);
+    await panel().$("button=Choose SQLite database…").click();
+    await panel().$("button=Run captured fence…").waitForEnabled();
+    await consent();
+    await panel().$("button=Run captured fence…").click();
+    await panel().waitForDisplayed({ reverse: true });
+    await expect(sql().$("table")).toHaveText(
+      expect.stringContaining("العربية"),
+    );
+    await expect(sql().$("tbody")).toHaveText(expect.stringContaining("42"));
+    await sql().$(".inline-result").scrollIntoView({ block: "end" });
+    await browser.saveScreenshot("artifacts/native-inline-local-results.png");
+    await sql().$("button=Clear output").click();
+    await expect(sql().$("table")).not.toExist();
+    await pane().$(".mode-switch").$("button=Split").click();
+    await pane().$(".cm-content").waitForDisplayed();
+    await sql().$("button=Run SQL").waitForEnabled();
+    await consent();
+    await sql().$("button=Run SQL").click();
+    await expect(sql().$("tbody")).toHaveText(expect.stringContaining("42"));
+    await expect(panel()).not.toBeDisplayed();
+  });
   it("keeps execution off, converts a selected saved revision with approved images/diagrams and exports an exclusive real PDF", async () => {
     const fs = await import("node:fs");
     const path = await import("node:path");
@@ -4151,7 +4244,7 @@ describe("Export and local jobs", () => {
     await panel().$("button=Close export and jobs").waitForEnabled();
     await consent();
     await panel().$("button=Run captured fence…").click();
-    expect(await finish()).toContain("1 rows");
+    expect(await finish()).toMatch(/1\s+row\b/);
     let options = await panel()
       .$('select[aria-label="Captured fence"]')
       .$$("option");

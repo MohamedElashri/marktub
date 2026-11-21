@@ -1,5 +1,7 @@
 <script lang="ts">
-  import { onMount, tick } from "svelte";
+  import { mount, onMount, tick, unmount } from "svelte";
+  import InlineFence from "../power/InlineFence.svelte";
+  import type { Fence, InlineRun } from "../power/fence";
   import { ReaderClient } from "./client";
   import { headingBoundary, matchingHeadings } from "./headings";
   import type { Read, Section, Heading, Page } from "./model";
@@ -27,6 +29,11 @@
     onnote = () => {},
     onimage,
     onerror,
+    onrun,
+    oncancelrun = () => {},
+    onclearrun = () => {},
+    getRun = () => undefined,
+    runBusy = () => false,
     title = "Document",
     revision = "Saved snapshot",
     operationBusy = false,
@@ -49,6 +56,11 @@
       link: string,
     ) => Promise<{ dataUrl: string; width: number; height: number } | null>;
     onerror: (message: string) => void;
+    onrun?: (fence: Fence) => void;
+    oncancelrun?: (fence: Fence) => void;
+    onclearrun?: (fence: Fence) => void;
+    getRun?: (fence: Fence) => InlineRun | undefined;
+    runBusy?: () => boolean;
     title?: string;
     revision?: string;
     operationBusy?: boolean;
@@ -359,19 +371,73 @@
       }
     }
   }
+  // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Tracks the lifetime of separately mounted DOM.
+  const fences = new Map<HTMLElement, ReturnType<typeof mount>>();
+  function removeFences(root?: HTMLElement) {
+    for (const [anchor, component] of fences) {
+      if (root && anchor.isConnected && !root.contains(anchor)) continue;
+      void unmount(component);
+      anchor.remove();
+      fences.delete(anchor);
+    }
+  }
+  function showFences(chunk: HTMLElement) {
+    if (!onrun || total > 2 * 1024 * 1024) return;
+    const section = sections[Number(chunk.dataset.section)];
+    if (section?.line === undefined) return;
+    for (const node of chunk.querySelectorAll<HTMLElement>(
+      ":scope > div[data-run-kind]",
+    )) {
+      if (node.nextElementSibling?.classList.contains("reader-fence-tools"))
+        continue;
+      const kind = node.dataset.runKind;
+      if (kind !== "shell" && kind !== "sqlite") continue;
+      const code = node.querySelector("pre > code")?.textContent;
+      if (!code || new TextEncoder().encode(code).length > 8192) continue;
+      const fence: Fence = {
+        kind,
+        indent: Number(node.dataset.runIndent),
+        // The native block line is the one-based first line of code.
+        line: section.line + Number(node.dataset.sourceLine) + 1,
+        code,
+      };
+      const anchor = document.createElement("div");
+      anchor.className = "reader-fence-tools";
+      node.after(anchor);
+      const component = mount(InlineFence, {
+        target: anchor,
+        props: {
+          fence,
+          getRun: (value: Fence) => getRun(value),
+          onrun: (value: Fence) => onrun?.(value),
+          oncancel: (value: Fence) => oncancelrun(value),
+          onclear: (value: Fence) => onclearrun(value),
+          isBusy: () => operationBusy || runBusy(),
+        },
+      });
+      fences.set(anchor, component);
+    }
+  }
   function observeBlocks() {
+    for (const [anchor, component] of fences) {
+      if (anchor.isConnected) continue;
+      void unmount(component);
+      fences.delete(anchor);
+    }
     observer?.disconnect();
     observer?.observe(host);
     richObserver?.disconnect();
     for (const block of host.querySelectorAll<HTMLElement>(".reader-chunk")) {
       observer?.observe(block);
       richObserver?.observe(block);
-      const html =
-        pages.find((item) => item.index === Number(block.dataset.section))?.page
-          .html ?? "";
+      const page = pages.find(
+        (item) => item.index === Number(block.dataset.section),
+      )?.page;
+      const html = page?.html ?? "";
       if (richSources.get(block) !== html) richBytes.delete(block);
       richSources.set(block, html);
       restoreImages(block);
+      if (page && !page.provisional) showFences(block);
     }
   }
   let lastAnchor: ReturnType<typeof visibleAnchor> = null;
@@ -449,7 +515,11 @@
           )
         )
           continue;
-        const html = richBytes.get(block)?.html ?? block.innerHTML;
+        const html =
+          richBytes.get(block)?.html ??
+          (block.querySelector(".reader-fence-tools")
+            ? sanitizeReader(item.page.html)
+            : block.innerHTML);
         const saved = visibleAnchor();
         const scrollAtStart = host.scrollTop;
         await hydrate(
@@ -482,10 +552,12 @@
             rect.top <= bounds.bottom + host.clientHeight)
         )
           continue;
+        removeFences(block);
         block.innerHTML = value.html;
         richBytes.delete(block);
         retained -= value.bytes;
         restoreImages(block);
+        showFences(block);
       }
     } catch (e) {
       if (current === client) onerror(String(e));
@@ -801,6 +873,7 @@
     }
   }
   async function click(event: MouseEvent) {
+    if ((event.target as Element).closest(".reader-fence-tools")) return;
     const target = (event.target as Element).closest<HTMLElement>(
       "a,button[data-image]",
     );
@@ -1063,6 +1136,7 @@
       richObserver?.disconnect();
       cache.clear();
       richBytes.clear();
+      removeFences();
       client = undefined;
       current.destroy();
       clearRichCache();
