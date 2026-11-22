@@ -6574,12 +6574,130 @@ describe("Arabic editing layout", () => {
       ),
       ...args,
     );
-  it("uses joined Arabic writing fonts, honors spacing and edits wrapped text without changing bytes", async () => {
-    const paragraph =
-      "اللُّغَةُ العربية جميلة، وهذه ملاحظات نكتبها مع English و١٢٣. ".repeat(
-        12,
+  const baselineSample =
+    "اللُّغَةُ العربية جميلة، وفيها الحروفُ المتّصلةُ والنقاطُ";
+  const literalSample =
+    "  اللُّغَةُ  العربية جميلة، وفيها الحروفُ\tالمتّصلةُ والنقاطُ  ";
+
+  async function comparePaintedWords(sample) {
+    const geometry = await editor((v, text) => {
+      const line = [...v.contentDOM.querySelectorAll(".cm-line")].find(
+        (node) => node.textContent === text,
       );
-    const original = `\uFEFF# دفتر الكتابة\r\n\r\n${paragraph}\r\n\r\nEnglish with العربية and 123.\r\nhttps://example.com/${"abc".repeat(160)}\r\n`;
+      const style = getComputedStyle(line);
+      const box = line.getBoundingClientRect();
+      const reference = document.createElement("div");
+      reference.id = "arabic-paint-reference";
+      reference.dir = style.direction;
+      reference.textContent = text;
+      Object.assign(reference.style, {
+        position: "fixed",
+        zIndex: "10000",
+        bottom: "40px",
+        left: `${box.left}px`,
+        width: `${box.width}px`,
+        boxSizing: "border-box",
+        paddingInline: style.paddingInline,
+        font: `${style.fontSize}/${style.lineHeight} ${style.fontFamily}`,
+        color: style.color,
+        backgroundColor: getComputedStyle(v.dom).backgroundColor,
+        textAlign: style.textAlign,
+        whiteSpace: "normal",
+      });
+      document.body.append(reference);
+      const bounds = (element) => {
+        const range = document.createRange();
+        const top = element.getBoundingClientRect().top;
+        const rowHeight = parseFloat(style.lineHeight);
+        const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+        const words = [];
+        while (walker.nextNode()) {
+          const node = walker.currentNode;
+          for (const word of node.data.matchAll(/\S+/gu)) {
+            range.setStart(node, word.index);
+            range.setEnd(node, word.index + word[0].length);
+            const { left, right } = range.getBoundingClientRect();
+            words.push({ word: word[0], top, rowHeight, left, right });
+          }
+        }
+        return words;
+      };
+      return [bounds(line), bounds(reference)];
+    }, sample);
+    try {
+      const screenshot = await browser.takeScreenshot();
+      return await editor(
+        async (_v, screenshot, geometry) => {
+          const image = new Image();
+          image.src = `data:image/png;base64,${screenshot}`;
+          await image.decode();
+          const canvas = document.createElement("canvas");
+          canvas.width = image.width;
+          canvas.height = image.height;
+          const context = canvas.getContext("2d");
+          context.drawImage(image, 0, 0);
+          const scale = image.width / innerWidth;
+          return geometry.map((words) =>
+            words.map(({ word, top, rowHeight, left, right }) => {
+              const x = Math.ceil(left * scale),
+                y = Math.ceil(top * scale);
+              const width = Math.floor(right * scale) - x;
+              const height = Math.floor((top + rowHeight) * scale) - y;
+              const { data } = context.getImageData(x, y, width, height);
+              const rows = [];
+              for (let row = 0; row < height; row++) {
+                for (let col = 0; col < width; col++) {
+                  const index = (row * width + col) * 4;
+                  if (
+                    Math.max(data[index], data[index + 1], data[index + 2]) <
+                    150
+                  ) {
+                    rows.push((y + row) / scale - top);
+                    break;
+                  }
+                }
+              }
+              if (!rows.length) throw Error(`No painted pixels for ${word}`);
+              return {
+                word,
+                top: Math.min(...rows),
+                bottom: Math.max(...rows),
+              };
+            }),
+          );
+        },
+        screenshot,
+        geometry,
+      );
+    } finally {
+      await editor(() =>
+        document.getElementById("arabic-paint-reference").remove(),
+      );
+    }
+  }
+
+  it("uses joined Arabic writing fonts, honors spacing and edits wrapped text without changing bytes", async () => {
+    const paragraph = [
+      "اللُّغَةُ العربية جميلة، وهذه ملاحظات نكتبها في دفتر الكتابة.",
+      "تظهر الكلمات بوضوح عندما تُعرَضُ الحروفُ المتّصلةُ والنقاطُ في مواضعها على السطر.",
+      "لا يمكن النظر إلى الملاحظات التي يكتبها أعضاء المجموعة على أنها عبارات عابرة، فهي تسجّل الأفكار وتساعد على تنظيمها.",
+      "وتظل القراءة سهلة في فقرة عربية طويلة تمتد على عدة أسطر، حتى حين يضيق العمود وتنتقل الكلمات إلى سطر جديد.",
+    ].join(" ");
+    const original = [
+      "\uFEFF# دفتر الكتابة",
+      "",
+      paragraph,
+      "",
+      baselineSample,
+      "",
+      "English with كلمات عربية and 123.",
+      "Plain English source line.",
+      "",
+      literalSample,
+      "",
+      `https://example.com/${"abc".repeat(160)}`,
+      "",
+    ].join("\r\n");
     const catalogue = await call("preference_catalogue");
     expect(catalogue.find((s) => s.key === "editor.font_size").default).toBe(
       "16",
@@ -6594,7 +6712,7 @@ describe("Arabic editing layout", () => {
     await call("update_settings", {
       id: null,
       scope: "session",
-      text: '$theme=light\n$editor.font="System Mono"\n$editor.font_size=16\n$editor.line_height=180\n$editor.wrap=true\n$ui.scale=100',
+      text: '$theme=riwaq_day\n$reader.font="Thmanyah Serif Text"\n$reader.font_size=18\n$reader.line_height=190\n$editor.font="Cousine"\n$editor.font_size=16\n$editor.line_height=180\n$editor.wrap=true\n$ui.scale=100',
     });
     await pane().$("button.open-button").waitForEnabled({ timeout: 60000 });
     await pane().$("button.open-button").click();
@@ -6602,19 +6720,18 @@ describe("Arabic editing layout", () => {
     await pane().$("button=Source").click();
     await pane().$(".cm-content").waitForDisplayed({ timeout: 60000 });
     const observations = [];
-    for (const mode of ["Source", "Split"]) {
+    for (const mode of ["Source", "Split", "Visual"]) {
       await pane().$(`button=${mode}`).click();
+      if (mode === "Split") await expectReadingHeading("دفتر الكتابة");
       const layout = await editor(async (v) => {
-        await document.fonts.load('16px "Marktub Arabic Source"', "العربية");
-        await document.fonts.load('16px "Noto Naskh Arabic"', "العربية");
+        await document.fonts.load('16px "Amiri"', "العربية");
         await document.fonts.ready;
         v.requestMeasure();
         await new Promise((done) =>
           requestAnimationFrame(() => requestAnimationFrame(done)),
         );
-        const style = getComputedStyle(v.contentDOM);
         const canvas = document.createElement("canvas").getContext("2d");
-        const metrics = (family, text) => {
+        const metrics = (style, text, family = style.fontFamily) => {
           canvas.font = `${style.fontSize} ${family}`;
           const m = canvas.measureText(text);
           return [
@@ -6623,14 +6740,35 @@ describe("Arabic editing layout", () => {
             m.actualBoundingBoxDescent,
           ];
         };
-        const line = [...v.contentDOM.querySelectorAll(".cm-line")].find((n) =>
-          n.textContent.startsWith("اللُّغَةُ"),
+        const lines = [...v.contentDOM.querySelectorAll(".cm-line")];
+        const line = lines.find((n) => n.textContent.startsWith("اللُّغَةُ"));
+        const arabicStyle = getComputedStyle(line);
+        const mixed = lines.find((n) =>
+          n.textContent.startsWith("English with"),
         );
+        const english = lines.find((n) =>
+          n.textContent.startsWith("Plain English"),
+        );
+        const englishStyle = getComputedStyle(english);
+        const mixedStyle = getComputedStyle(mixed);
         const range = document.createRange();
+        const spaceWidth = (line, word = "") => {
+          const node = line.firstChild;
+          const offset = node.textContent.indexOf(
+            " ",
+            node.textContent.indexOf(word),
+          );
+          range.setStart(node, offset);
+          range.setEnd(node, offset + 1);
+          return range.getBoundingClientRect().width;
+        };
+        const arabicSpace = spaceWidth(line);
+        const mixedArabicSpace = spaceWidth(mixed, "كلمات");
+        const englishSpace = spaceWidth(english);
         const walker = document.createTreeWalker(line, NodeFilter.SHOW_TEXT);
         let words = 0,
           splitWords = 0;
-        const height = parseFloat(style.lineHeight);
+        const height = parseFloat(arabicStyle.lineHeight);
         while (walker.nextNode()) {
           const node = walker.currentNode;
           for (const match of node.textContent.matchAll(/[\p{L}\p{M}]+/gu)) {
@@ -6648,13 +6786,25 @@ describe("Arabic editing layout", () => {
         range.selectNodeContents(line);
         const rects = [...range.getClientRects()].filter((r) => r.width > 0);
         const box = line.getBoundingClientRect();
+        const typography = (style) => [
+          style.fontFamily,
+          style.fontSize,
+          style.lineHeight,
+        ];
         return {
-          font: style.fontFamily,
-          size: style.fontSize,
-          lineHeight: style.lineHeight,
-          arabic: metrics(style.fontFamily, "العربية"),
-          reference: metrics('"Noto Naskh Arabic"', "العربية"),
-          latin: ["i", "m"].map((s) => metrics(style.fontFamily, s)[0]),
+          typography: typography(arabicStyle),
+          mixedTypography: typography(mixedStyle),
+          arabic: metrics(arabicStyle, "اللُّغَةُ العربية ١٢٣."),
+          reference: metrics(arabicStyle, "اللُّغَةُ العربية ١٢٣.", '"Amiri"'),
+          latin: ["i", "m"].map((s) => metrics(englishStyle, s)[0]),
+          arabicSpace,
+          mixedArabicSpace,
+          referenceSpace: metrics(arabicStyle, " ", '"Amiri"')[0],
+          englishSpace,
+          literalSpaces: [
+            ...v.contentDOM.querySelectorAll(".cm-arabic-literal-space"),
+          ].map((node) => node.textContent),
+          wrappedWhitespace: arabicStyle.whiteSpace,
           words,
           splitWords,
           rows: new Set(rects.map((r) => r.top.toFixed(1))).size,
@@ -6671,21 +6821,58 @@ describe("Arabic editing layout", () => {
         };
       });
       observations.push({ mode, ...layout });
-      expect(layout.size).toBe("16px");
-      expect(parseFloat(layout.lineHeight)).toBeCloseTo(28.8, 1);
+      const [font, size, lineHeight] = layout.typography;
+      expect(size).toBe("16px");
+      expect(parseFloat(lineHeight)).toBeCloseTo(28.8, 1);
+      expect(font).toMatch(/^"?Amiri"?(?:,|$)/);
+      expect(layout.typography).toEqual(observations[0].typography);
+      expect(layout.mixedTypography).toEqual(layout.typography);
       expect(layout.arabic).toEqual(layout.reference);
-      expect(layout.latin[0]).toBeCloseTo(layout.latin[1], 2);
-      expect(layout.words).toBeGreaterThan(50);
+      expect(
+        Math.abs(layout.arabicSpace - layout.referenceSpace),
+      ).toBeLessThanOrEqual(1.1);
+      // WebKit rounds the space inside an RTL run in an LTR line differently.
+      expect(
+        Math.abs(layout.mixedArabicSpace - layout.referenceSpace),
+      ).toBeLessThanOrEqual(1.1);
+      if (mode !== "Visual") {
+        expect(layout.latin[0]).toBeCloseTo(layout.latin[1], 2);
+        expect(
+          Math.abs(layout.englishSpace - layout.latin[0]),
+        ).toBeLessThanOrEqual(1.1);
+      }
+      expect(layout.wrappedWhitespace).toBe("normal");
+      expect(layout.literalSpaces).toEqual(["  ", "  ", "\t", "  "]);
+      expect(layout.words).toBeGreaterThan(40);
       expect(layout.splitWords).toBe(0);
       expect(layout.rows).toBeGreaterThan(2);
       expect(layout.clipped).toBe(false);
       expect(layout.horizontalOverflow).toBe(false);
       expect(layout.direction).toBe("rtl");
       expect(layout.padding).toEqual(["20px", "20px"]);
+      for (const sample of [baselineSample, literalSample]) {
+        const [painted, reference] = await comparePaintedWords(sample);
+        expect(painted.map((word) => word.word)).toEqual(
+          reference.map((word) => word.word),
+        );
+        const displaced = painted
+          .map((word, index) => ({
+            mode,
+            word: word.word,
+            topOffset: word.top - reference[index].top,
+            bottomOffset: word.bottom - reference[index].bottom,
+          }))
+          .filter(
+            ({ topOffset, bottomOffset }) =>
+              Math.max(Math.abs(topOffset), Math.abs(bottomOffset)) > 1.5,
+          );
+        expect(displaced).toEqual([]);
+      }
       await browser.saveScreenshot(
         `artifacts/native-arabic-writing-${mode.toLowerCase()}.png`,
       );
     }
+    await pane().$("button=Split").click();
     // Use native WebView editing, rather than a CodeMirror transaction, to
     // exercise DOM mutation reconciliation and caret/selection after shaping.
     const target = await editor((v) => {
@@ -6716,14 +6903,15 @@ describe("Arabic editing layout", () => {
       v.focus();
       v.dispatch({ selection: { anchor: from } });
     }, target.from);
-    for (const letter of "مرحبا ")
+    const insertion = "مرحبا  \u00A0";
+    for (const letter of insertion)
       await editor(
         (_v, letter) => document.execCommand("insertText", false, letter),
         letter,
       );
     const typed =
       target.original.slice(0, target.from) +
-      "مرحبا " +
+      insertion +
       target.original.slice(target.from);
     await browser.waitUntil(() =>
       editor((v, expected) => v.state.doc.toString() === expected, typed),
@@ -6731,17 +6919,23 @@ describe("Arabic editing layout", () => {
     await call("update_settings", {
       id: null,
       scope: "session",
-      text: "$editor.font_size=20\n$editor.line_height=200",
+      text: "$editor.font_size=20\n$editor.line_height=200\n$editor.wrap=false",
     });
     await browser.waitUntil(() =>
-      editor((v) => getComputedStyle(v.contentDOM).lineHeight === "40px"),
+      editor((v) => {
+        const prose = v.contentDOM.querySelector(
+          ".cm-arabic-prose:not(.cm-live-heading)",
+        );
+        const style = getComputedStyle(prose);
+        return style.lineHeight === "40px" && style.whiteSpace === "nowrap";
+      }),
     );
     await pane().$("header").$("button=Save").waitForEnabled();
     await pane().$("header").$("button=Save").click();
     const { readFile } = await import("node:fs/promises");
     await browser.waitUntil(async () =>
       (await readFile(fixture.path)).equals(
-        Buffer.from(original.replace("العربية", "مرحبا العربية")),
+        Buffer.from(original.replace("العربية", `${insertion}العربية`)),
       ),
     );
     await writeFile(

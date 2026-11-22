@@ -94,9 +94,11 @@
       "Maximum text width; narrower columns keep long lines comfortable.",
     "reader.line_height": "Space between lines of document text.",
     "editor.font":
-      "System Mono keeps Latin monospaced and uses bundled Noto Naskh Arabic for Arabic text.",
-    "editor.font_size": "Text size in Source and the Split editor.",
-    "editor.line_height": "Space between lines in the editor.",
+      "System Mono and Cousine use bundled Amiri for Arabic prose in all editing views.",
+    "editor.font_size":
+      "Text size in Source, Split, and Arabic prose in Visual.",
+    "editor.line_height":
+      "Line spacing in Source, Split, and Arabic prose in Visual.",
     "editor.tab_width":
       "The visual width of a tab character. Existing file bytes are preserved.",
     "editor.wrap":

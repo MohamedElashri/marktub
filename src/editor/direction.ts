@@ -8,11 +8,18 @@ import {
 import { syntaxTree } from "@codemirror/language";
 
 const automatic = Decoration.line({ attributes: { dir: "auto" } });
+const arabicProse = Decoration.line({
+  class: "cm-arabic-prose",
+  attributes: { dir: "auto" },
+});
 const code = Decoration.line({ attributes: { dir: "ltr" } });
+const literalSpace = Decoration.mark({ class: "cm-arabic-literal-space" });
+const literalSpaces = /^[ \t]+|[ \t]*\t[ \t]*| {2,}|[ \t]+$/g;
 
-function directions(view: EditorView) {
-  const lines = [];
+function lineDecorations(view: EditorView) {
+  const decorations = [];
   let last = -1;
+  let style = automatic;
   const tree = syntaxTree(view.state);
   for (const { from, to } of view.visibleRanges) {
     for (let pos = from; pos <= to;) {
@@ -21,18 +28,25 @@ function directions(view: EditorView) {
         let node = tree.resolveInner(line.from, 1);
         while (node.parent && !["FencedCode", "CodeBlock"].includes(node.name))
           node = node.parent;
-        lines.push(
-          (["FencedCode", "CodeBlock"].includes(node.name)
-            ? code
-            : automatic
-          ).range(line.from),
-        );
+        style = ["FencedCode", "CodeBlock"].includes(node.name)
+          ? code
+          : /\p{Script=Arabic}/u.test(line.text)
+            ? arabicProse
+            : automatic;
+        decorations.push(style.range(line.from));
+      }
+      if (style === arabicProse) {
+        const visibleText = line.text.slice(pos - line.from, to - line.from);
+        for (const match of visibleText.matchAll(literalSpaces)) {
+          const start = pos + match.index;
+          decorations.push(literalSpace.range(start, start + match[0].length));
+        }
       }
       last = line.from;
       pos = line.to + 1;
     }
   }
-  return Decoration.set(lines);
+  return Decoration.set(decorations);
 }
 
 // Resolve each rendered logical line in the browser. CodeMirror must use that
@@ -42,8 +56,9 @@ export const writingDirections = [
   ViewPlugin.fromClass(
     class {
       decorations: DecorationSet;
-      constructor(view: EditorView) {
-        this.decorations = directions(view);
+      private inputTimer: ReturnType<typeof setTimeout> | undefined;
+      constructor(readonly view: EditorView) {
+        this.decorations = lineDecorations(view);
       }
       update(update: ViewUpdate) {
         if (
@@ -51,10 +66,35 @@ export const writingDirections = [
           update.viewportChanged ||
           syntaxTree(update.startState) !== syntaxTree(update.state)
         )
-          this.decorations = directions(update.view);
+          this.decorations = lineDecorations(update.view);
+      }
+      beforeInput() {
+        if (!this.view.contentDOM.querySelector(".cm-arabic-prose")) return;
+        // WebKit rebalances collapsed spaces before reporting a native edit.
+        // Preserve them during the default action, then restore the paint style.
+        this.view.dom.classList.add("cm-native-input");
+        clearTimeout(this.inputTimer);
+        this.inputTimer = setTimeout(() => this.afterInput(), 0);
+      }
+      afterInput() {
+        clearTimeout(this.inputTimer);
+        this.view.dom.classList.remove("cm-native-input");
+      }
+      destroy() {
+        this.afterInput();
       }
     },
-    { decorations: (plugin) => plugin.decorations },
+    {
+      decorations: (plugin) => plugin.decorations,
+      eventObservers: {
+        beforeinput() {
+          this.beforeInput();
+        },
+        input() {
+          this.afterInput();
+        },
+      },
+    },
   ),
   EditorView.theme({ ".cm-line": { textAlign: "start" } }),
 ];
