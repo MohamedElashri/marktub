@@ -1,7 +1,7 @@
 import { desktopBinary } from "../../scripts/desktop-paths.mjs";
 import { browser, expect } from "@wdio/globals";
 import { spawnSync } from "node:child_process";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, realpath, writeFile } from "node:fs/promises";
 import { resolve, dirname, join } from "node:path";
 
 const nativeWebView = process.platform === "darwin" ? "WKWebView" : "WebKitGTK";
@@ -133,6 +133,19 @@ beforeEach(async () => {
   }
 });
 
+async function showFormatting() {
+  const menu = browser.$(".document-tab:not([hidden]) .formatting-tools");
+  if (!(await menu.getProperty("open"))) await menu.$("summary").click();
+}
+async function editorTool(label) {
+  await showFormatting();
+  const button = browser
+    .$(".document-tab:not([hidden]) .formatting-tools")
+    .$(`button[aria-label="${label}"]`);
+  await button.waitForEnabled({ timeout: 60000 });
+  await button.click();
+}
+
 async function documentAction(label) {
   const pane = browser.$(".document-tab:not([hidden])");
   const disclosure = pane.$(".document-actions");
@@ -189,6 +202,7 @@ describe("OS file open and accessibility", () => {
       args,
     );
   beforeEach(closeDocuments);
+  after(closeDocuments);
 
   it("hands native Unicode/space paths to the existing instance without replacing dirty Source", async () => {
     const fs = await import("node:fs/promises");
@@ -497,7 +511,7 @@ describe("Native WebView bootstrap", () => {
     expect(metrics.resourceUrls.some((url) => /^https:\/\//.test(url))).toBe(
       false,
     );
-    expect(metrics.nodes).toBeLessThan(500);
+    expect(metrics.nodes).toBeLessThan(550);
     await mkdir("artifacts", { recursive: true });
     await writeFile(
       "artifacts/webview-smoke.json",
@@ -509,6 +523,7 @@ describe("Native WebView bootstrap", () => {
     await browser.$("button=Source").waitForEnabled({ timeout: 60000 });
     await browser.$("button=Source").click();
     await expect(browser.$(".cm-content")).toBeDisplayed();
+    await showFormatting();
     await browser.$('input[type="checkbox"]').click();
     await expect(browser.$(".cm-live-heading")).toExist();
     await browser.$("button=Read").waitForEnabled({ timeout: 60000 });
@@ -610,7 +625,7 @@ describe("Source integrity", () => {
       .$(".document-tab:not([hidden]) .toolbar")
       .$("button=Save")
       .waitForEnabled();
-    await browser.$('button[aria-label="Undo"]').click();
+    await editorTool("Undo");
     await browser
       .$(".document-tab:not([hidden]) .toolbar")
       .$("button=Save")
@@ -626,7 +641,7 @@ describe("Source integrity", () => {
       .$(".document-tab:not([hidden]) .toolbar")
       .$("button=Save")
       .waitForEnabled();
-    await browser.$("button=Redo").click();
+    await editorTool("Redo");
     await browser
       .$(".document-tab:not([hidden]) .toolbar")
       .$("button=Save")
@@ -734,6 +749,9 @@ describe("Source integrity", () => {
       browser.$('dialog[open] [id$="-discard-title"]'),
     ).toBeDisplayed();
     await browser.$("button=Keep recovery").click();
+    await browser
+      .$(".document-tab:not([hidden]) .document-actions summary")
+      .click();
     await expect(browser.$(".recovery-list")).toBeDisplayed();
     await browser.$(".recovery-list summary").click();
     await browser.$(".recovery-list").$("button=Restore").click();
@@ -992,7 +1010,9 @@ describe("Reader and local renderers", () => {
                 .querySelector(".reader")
                 ?.getAttribute("data-revision"),
               busy: document.querySelector("main")?.getAttribute("aria-busy"),
-              name: document.querySelector(".document-name")?.textContent,
+              name: document.querySelector(
+                '.tabs [role="tab"][aria-selected="true"]',
+              )?.textContent,
               app: document
                 .querySelector(".window-shell")
                 ?.outerHTML.slice(0, 300),
@@ -1530,7 +1550,9 @@ describe("Library", () => {
     if (searchJob) await complete(searchJob);
     const moved = await operation("rename", [source], root, "renamed.txt");
     expect(moved.outcomes[0].status).toBe("completed");
-    await expect(activePane().$(".document-name")).toHaveText("renamed.txt");
+    await expect(
+      browser.$('.tabs [role="tab"][aria-selected="true"]'),
+    ).toHaveText("renamed.txt");
     expect(await fs.readFile(`${folder}/renamed.txt`)).toEqual(before);
     expect((await import("node:fs")).existsSync(`${folder}/source.txt`)).toBe(
       false,
@@ -1661,7 +1683,7 @@ describe("Library", () => {
       await browser.waitUntil(
         async () =>
           (await browser
-            .$(".document-tab:not([hidden]) .document-name")
+            .$('.tabs [role="tab"][aria-selected="true"]')
             .getText()) === "001-ui-renamed.txt",
       );
     } catch (error) {
@@ -1811,6 +1833,7 @@ describe("Preferences and commands", () => {
     });
     await documentAction("Settings");
     await prefs().waitForDisplayed();
+    expect(await prefs().$$("datalist option").length).toBeGreaterThan(4);
     for (const [label, hex] of [
       ["Light", "#ffffff"],
       ["Parchment", "#fbf5e9"],
@@ -1881,6 +1904,7 @@ describe("Preferences and commands", () => {
     expect(footer).toBe(true);
     await browser.saveScreenshot("artifacts/preferences-preferences.png");
     await prefs().$("button=Cancel").click();
+    await expect(prefs().$("datalist")).not.toExist();
     expect(
       await browser.tauri.execute(
         () =>
@@ -1944,7 +1968,7 @@ describe("Preferences and commands", () => {
     await pane()
       .$('button[aria-label="Undo"]')
       .waitForEnabled({ timeout: 60000 });
-    await pane().$('button[aria-label="Undo"]').click();
+    await editorTool("Undo");
     await browser.waitUntil(
       async () =>
         (await pane().$(".window-shell").getAttribute("data-dirty")) === "true",
@@ -2328,6 +2352,7 @@ describe("Author experience", () => {
       { timeout: 30000 },
     );
     expect(await view((v) => v.state.selection.main.anchor)).toBe(selected);
+    await showFormatting();
     const undo = pane().$(".source-toolbar").$("button=Undo");
     await undo.waitForEnabled();
     await undo.click();
@@ -2341,9 +2366,9 @@ describe("Author experience", () => {
   it("keeps the same editor, document, caret, folds and undo across Source/Split/Visual/Read", async () => {
     await seed();
     await select("alpha");
-    await pane().$(".author-controls").$('button[aria-label="Bold"]').click();
+    await editorTool("Bold");
     await select("```mermaid");
-    await pane().$(".author-controls").$("button=Fold").click();
+    await editorTool("Fold");
     await pane().$(".cm-foldPlaceholder").waitForDisplayed();
     await view((v) => {
       window.authorView = v;
@@ -2376,15 +2401,15 @@ describe("Author experience", () => {
       expect(await pane().$(".cm-foldPlaceholder").isExisting()).toBe(true);
     }
     await saved(content.replace("alpha", "**alpha**"));
-    await pane().$('button[aria-label="Undo"]').click();
+    await editorTool("Undo");
     await saved(content);
-    await pane().$(".author-controls").$("button=Find / replace").click();
+    await editorTool("Find / replace");
     await pane().$(".cm-search").waitForDisplayed();
     await pane().$('.cm-search input[name="search"]').setValue("alpha");
     await pane().$('.cm-search input[name="replace"]').setValue("replacement");
     await pane().$('.cm-search button[name="replaceAll"]').click();
     await saved(content.replace("alpha", "replacement"));
-    await pane().$('button[aria-label="Undo"]').click();
+    await editorTool("Undo");
     await saved(content);
   });
   it("edits escaped-code table cells and shape through Visual controls with byte-exact undo", async () => {
@@ -2411,7 +2436,7 @@ describe("Author experience", () => {
     await tools().$("button=Apply cell").click();
     await tools().$("button=Close").click();
     await saved(content.replace("cell", "文 \\| next"));
-    await pane().$('button[aria-label="Undo"]').click();
+    await editorTool("Undo");
     await saved(content);
     await pane().$(".cm-author-block table").$("button=cell").click();
     await tools().$("button=Add column").click();
@@ -2425,7 +2450,7 @@ describe("Author experience", () => {
         .replace("| :--- | ---: |", "| :--- | ---: | --- |")
         .replace("| `a\\|b` | cell |", "| `a\\|b` | cell |   |"),
     );
-    await pane().$('button[aria-label="Undo"]').click();
+    await editorTool("Undo");
     await saved(content);
     const layout = await browser.tauri.execute(() => {
       const tab = document.querySelector(".document-tab:not([hidden])");
@@ -2446,16 +2471,16 @@ describe("Author experience", () => {
   it("edits math and diagrams locally, rejects resource directives, and keeps one source transaction per Apply", async () => {
     await seed();
     await select("a^2");
-    await pane().$(".author-controls").$("button=Math").click();
+    await editorTool("Math");
     await tools().$("textarea").setValue("b^3");
     await tools().$("button=Preview locally").click();
     await tools().$(".katex").waitForExist();
     await tools().$("button=Apply block").click();
     await saved(content.replace("$a^2$", "$b^3$"));
-    await pane().$('button[aria-label="Undo"]').click();
+    await editorTool("Undo");
     await saved(content);
     await select("graph TD");
-    await pane().$(".author-controls").$("button=Diagram").click();
+    await editorTool("Diagram");
     await tools().$("button=Preview locally").click();
     await tools().$("svg").waitForExist({ timeout: 30000 });
     await tools()
@@ -2466,13 +2491,13 @@ describe("Author experience", () => {
     expect(await tools().$('p[role="alert"]').getText()).toContain("disabled");
     await tools().$("button=Close").click();
     await select("graph TD");
-    await pane().$(".author-controls").$("button=Diagram").click();
+    await editorTool("Diagram");
     await tools().$("textarea").setValue("graph TD\nA --> C");
     await tools().$("button=Apply block").click();
     await saved(
       content.replace("graph TD\nA[Read] --> B[Write]", "graph TD\nA --> C"),
     );
-    await pane().$('button[aria-label="Undo"]').click();
+    await editorTool("Undo");
     await saved(content);
   });
   it("copies only native-selected images, preserves assets on text undo and refuses collisions", async () => {
@@ -2480,7 +2505,7 @@ describe("Author experience", () => {
     await view((v) =>
       v.dispatch({ selection: { anchor: v.state.doc.length } }),
     );
-    await pane().$(".author-controls").$("button=Image").click();
+    await editorTool("Image");
     await invoke("e2e_fixture", { action: "image", text: null });
     await invoke("e2e_fixture", { action: "save-as", text: null });
     await tools().$("button=Choose and copy image").click();
@@ -2499,7 +2524,7 @@ describe("Author experience", () => {
     await pane().$(".cm-author-block").$("button=Edit image").click();
     await tools().$("button=Move block up").click();
     await saved("# Assets\r\n![文 🦀](asset.png)\r\n");
-    await pane().$('button[aria-label="Undo"]').click();
+    await editorTool("Undo");
     await saved("# Assets\r\n\r\n![文 🦀](asset.png)");
     const fs = await import("node:fs");
     const path = await import("node:path");
@@ -2509,10 +2534,10 @@ describe("Author experience", () => {
         .readFileSync(path.join(folder, "asset.png"))
         .equals(fs.readFileSync(path.join(folder, "pixel.png"))),
     ).toBe(true);
-    await pane().$('button[aria-label="Undo"]').click();
+    await editorTool("Undo");
     await saved("# Assets\r\n\r\n");
     expect(fs.existsSync(path.join(folder, "asset.png"))).toBe(true);
-    await pane().$(".author-controls").$("button=Image").click();
+    await editorTool("Image");
     await invoke("e2e_fixture", { action: "image", text: null });
     await invoke("e2e_fixture", { action: "save-as", text: null });
     await tools().$("button=Choose and copy image").click();
@@ -2523,11 +2548,11 @@ describe("Author experience", () => {
     const heightOnly = "# Size\r\n\r\n![one](pixel.png){height=120}\n";
     await seed(heightOnly);
     await select("![one]");
-    await pane().$(".author-controls").$("button=Image").click();
+    await editorTool("Image");
     await tools().$('input[aria-label="Image alt text"]').setValue("edited");
     await tools().$("button=Apply block").click();
     await saved(heightOnly.replace("![one]", "![edited]"));
-    await pane().$('button[aria-label="Undo"]').click();
+    await editorTool("Undo");
     await saved(heightOnly);
   });
   it("reviews an opaque native image drop before inserting a source reference", async () => {
@@ -2550,7 +2575,7 @@ describe("Author experience", () => {
     await pane().$("button=Visual").waitForEnabled({ timeout: 60000 });
     await pane().$("button=Visual").click();
     const before = await view((v) => v.state.doc.toString());
-    await pane().$(".author-controls").$("button=Writing focus").click();
+    await editorTool("Writing focus");
     await pane().$("button=Exit writing focus").waitForDisplayed();
     await browser.saveScreenshot("artifacts/author-writing-focus.png");
     await pane().$("button=Exit writing focus").click();
@@ -2564,7 +2589,7 @@ describe("Author experience", () => {
     await browser.waitUntil(
       async () => await view((v) => v.compositionStarted),
     );
-    await pane().$(".author-controls").$('button[aria-label="Bold"]').click();
+    await editorTool("Bold");
     expect(await view((v) => v.state.doc.toString())).toBe(before);
     await browser.tauri.execute(() =>
       document
@@ -3765,7 +3790,7 @@ describe("Export and local jobs", () => {
       });
       await browser.$('button[aria-label="Open feature guide"]').click();
       await pane().$("article").waitForDisplayed({ timeout: 60000 });
-      await pane().$(`button=${example.button}`).click();
+      await documentAction(example.button);
       const block = () => pane().$(`[aria-label="${example.block}"]`);
       await block().$("button=Save copy & run…").waitForEnabled();
       await call("e2e_fixture", { action: "save-as", text: null });
@@ -3818,7 +3843,9 @@ describe("Export and local jobs", () => {
     const approval = await call("e2e_fixture", {
       action: "power-read-confirmation",
     });
-    expect(approval.text).toContain(`Folder: ${dirname(fixture.path)}`);
+    expect(approval.text).toContain(
+      `Folder: ${await realpath(dirname(fixture.path))}`,
+    );
     expect(approval.text).toContain("printf 'selected block'");
     expect(approval.text).not.toContain("printf 'first block'");
     await expect(first.$('[aria-label="Job stdout"]')).not.toExist();
@@ -3886,7 +3913,7 @@ describe("Export and local jobs", () => {
       });
     });
     await consent();
-    await pane().$("button=Run block").click();
+    await documentAction("Run block");
     const shell = pane().$('[aria-label="Shell code block"]');
     await expect(shell.$('[aria-label="Job stdout"]')).toHaveText(
       "selected from Source",
@@ -4564,6 +4591,118 @@ describe("Everyday workflows", () => {
   });
   beforeEach(closeDocuments);
 
+  it("keeps reading and writing chrome within two compact rows across native window sizes", async () => {
+    const fixture = await invoke("e2e_fixture", {
+      action: "seed",
+      text:
+        "# Space for the document\n\n" +
+        "A paragraph for reading and writing.\n\n".repeat(40),
+    });
+    handoff(fixture.path);
+    await readDocument("Space for the document");
+    for (const button of await browser.$$(
+      '.notice button[aria-label^="Dismiss"]',
+    ))
+      if (await button.isDisplayed()) await button.click();
+    const session = await invoke("get_settings", {
+      id: null,
+      scope: "session",
+    });
+    const samples = [];
+    try {
+      await invoke("update_settings", {
+        id: null,
+        scope: "session",
+        text: "$ui.scale=100\n$theme=light",
+      });
+      for (const [width, height] of [
+        [1080, 760],
+        [640, 480],
+        [1280, 800],
+      ]) {
+        await browser.setWindowSize(width, height);
+        for (const mode of ["Read", "Source", "Split"]) {
+          await pane().$(`button=${mode}`).waitForEnabled({ timeout: 60000 });
+          await pane().$(`button=${mode}`).click();
+          await ready();
+          if (mode === "Source")
+            await pane().$(".cm-editor").waitForDisplayed();
+          else await pane().$("article h1").waitForDisplayed();
+          const geometry = await browser.tauri.execute(async (_api, mode) => {
+            await document.fonts.ready;
+            await new Promise((done) =>
+              requestAnimationFrame(() => requestAnimationFrame(done)),
+            );
+            const pane = document.querySelector(".document-tab:not([hidden])");
+            const content = pane
+              .querySelector(
+                mode === "Source" ? ".cm-editor" : ".reader-scroll",
+              )
+              .getBoundingClientRect();
+            const header = document
+              .querySelector(".workbench-header")
+              .getBoundingClientRect();
+            const toolbar = pane
+              .querySelector(".document-toolbar")
+              .getBoundingClientRect();
+            const rects = [
+              ...document.querySelectorAll(
+                ".workbench-header button, .workbench-header summary, .document-tab:not([hidden]) .document-toolbar button, .document-tab:not([hidden]) .document-toolbar summary",
+              ),
+            ]
+              .map((node) => node.getBoundingClientRect())
+              .filter((rect) => rect.width && rect.height);
+            return {
+              viewport: { width: innerWidth, height: innerHeight },
+              headerHeight: header.height,
+              toolbarHeight: toolbar.height,
+              contentTop: content.top,
+              contentHeight: content.height,
+              overflow: document.documentElement.scrollWidth > innerWidth + 1,
+              visibleControlsWithinWindow: rects.every(
+                (rect) => rect.left >= -1 && rect.right <= innerWidth + 1,
+              ),
+              readingControlTrees:
+                pane.querySelectorAll(".reader-controls").length,
+              authorControlTrees: pane.querySelectorAll(".author-tools").length,
+              formattingCollapsed:
+                !pane.querySelector(".formatting-tools")?.open,
+            };
+          }, mode);
+          samples.push({ width, height, mode, ...geometry });
+          await writeFile(
+            "artifacts/compact-workspace-geometry.json",
+            JSON.stringify(samples, null, 2),
+          );
+          expect(geometry.contentTop).toBeLessThanOrEqual(96);
+          expect(geometry.headerHeight).toBeLessThanOrEqual(48);
+          expect(geometry.toolbarHeight).toBeLessThanOrEqual(44);
+          expect(geometry.contentHeight).toBeGreaterThan(
+            geometry.viewport.height * 0.72,
+          );
+          expect(geometry.overflow).toBe(false);
+          expect(geometry.visibleControlsWithinWindow).toBe(true);
+          expect(geometry.formattingCollapsed).toBe(true);
+          expect(geometry.readingControlTrees).toBe(mode === "Source" ? 0 : 1);
+          expect(geometry.authorControlTrees).toBeLessThanOrEqual(1);
+        }
+      }
+      await pane().$("button=Source").click();
+      await showFormatting();
+      await expect(pane().$(".formatting-menu")).toBeDisplayed();
+      await browser.keys("Escape");
+      await expect(pane().$(".formatting-menu")).not.toBeDisplayed();
+      await browser.saveScreenshot("artifacts/native-compact-workspace.png");
+    } finally {
+      await browser.setWindowSize(1080, 760);
+      await invoke("update_settings", {
+        id: null,
+        scope: "session",
+        text: session.text,
+      });
+    }
+  });
+
   it("keeps a note open behind the Library drawer and restores the desktop sidebar", async () => {
     await invoke("e2e_fixture", {
       action: "seed",
@@ -5027,6 +5166,85 @@ describe("Everyday workflows", () => {
     expect(await fs.readFile(fixture.path, "utf8")).toBe("# First\n");
   });
 
+  it("closes tabs through context and overflow menus while preserving canceled unsaved work", async () => {
+    const fs = await import("node:fs/promises");
+    const fixture = await invoke("e2e_fixture", {
+      action: "seed",
+      text: "# Close menu 0\n",
+    });
+    const files = Array.from({ length: 4 }, (_, index) =>
+      join(dirname(fixture.path), `close-menu-${index}.md`),
+    );
+    for (const [index, file] of files.entries()) {
+      await fs.writeFile(file, `# Close menu ${index}\n`);
+      handoff(file);
+      await readDocument(`Close menu ${index}`);
+    }
+    const tab = (index) =>
+      browser.$(`.tabs [role="tab"][title^="close-menu-${index}.md"]`);
+    const context = () => browser.$(".tab-context-menu");
+    const overflow = () => browser.$(".tab-menu");
+    async function contextAction(index, label) {
+      // Embedded pointer actions omit contextmenu; use the keyboard entry.
+      await tab(index).click();
+      await browser.keys(["Shift", "F10"]);
+      await context().waitForDisplayed();
+      await context().$(`button=${label}`).waitForEnabled({ timeout: 60000 });
+      await context().$(`button=${label}`).click();
+    }
+    async function overflowAction(label) {
+      await browser.$('[aria-label="Tab actions"]').click();
+      await overflow().$(`button=${label}`).waitForEnabled({ timeout: 60000 });
+      await overflow().$(`button=${label}`).click();
+    }
+    await contextAction(1, "Close tabs to the right");
+    await browser.waitUntil(
+      async () => (await browser.$$(".tabs .tab")).length === 2,
+    );
+    await expect(selected()).toHaveText("close-menu-1.md");
+    await tab(0).click();
+    await ready();
+    await pane().$("button=Source").click();
+    await pane().$(".cm-content").waitForDisplayed();
+    await browser.tauri.execute(() => {
+      document.querySelector(".document-tab:not([hidden]) .cm-content").focus();
+      document.execCommand("insertText", false, "unsaved ");
+    });
+    await expect(selected()).toHaveText("close-menu-0.md *");
+    const dirtyTab = await selected().getAttribute("id");
+    const text = await pane().$(".cm-content").getText();
+    await contextAction(0, "Close other tabs");
+    await browser.waitUntil(
+      async () => (await browser.$$(".tabs .tab")).length === 1,
+    );
+    await overflowAction("Close all tabs");
+    const prompt = () => browser.$('dialog[open] [id$="-discard-title"]');
+    await prompt().waitForDisplayed();
+    await browser.$("dialog[open]").$("button=Keep editing").click();
+    await ready();
+    await expect(selected()).toHaveAttribute("id", dirtyTab);
+    await expect(pane().$(".cm-content")).toHaveText(text);
+    handoff(files[1]);
+    await readDocument("Close menu 1");
+    await overflowAction("Close tabs to the left");
+    await prompt().waitForDisplayed();
+    await browser.$("dialog[open]").$("button=Keep editing").click();
+    await ready();
+    await expect(selected()).toHaveText("close-menu-1.md");
+    await expect(browser.$(`#${dirtyTab}`)).toHaveText("close-menu-0.md *");
+    await overflowAction("Close tabs to the left");
+    await prompt().waitForDisplayed();
+    await browser.$("dialog[open]").$("button=Discard edits").click();
+    await browser.waitUntil(
+      async () => (await browser.$$(".tabs .tab")).length === 1,
+    );
+    await ready();
+    await overflowAction("Close tab");
+    await expect(selected()).toHaveText("New tab");
+    for (const [index, file] of files.entries())
+      expect(await fs.readFile(file, "utf8")).toBe(`# Close menu ${index}\n`);
+  });
+
   it("browses expandable folders and opens live filename and content search results with the keyboard", async () => {
     const fs = await import("node:fs/promises");
     const fixture = await invoke("e2e_fixture", {
@@ -5261,7 +5479,7 @@ describe("Everyday workflows", () => {
       document.querySelector(".document-tab:not([hidden]) .cm-content").focus();
       document.execCommand("insertText", false, "# A new thought\n");
     });
-    await pane().$('button[aria-label="Undo"]').click();
+    await editorTool("Undo");
     await expect(pane().$(".cm-content")).toHaveText("");
     await browser.tauri.execute(() => {
       document.querySelector(".document-tab:not([hidden]) .cm-content").focus();
@@ -5392,7 +5610,7 @@ describe("Everyday workflows", () => {
     await expect(pane().$(".cm-content")).toHaveText(
       expect.stringContaining("moving "),
     );
-    await pane().$('button[aria-label="Undo"]').click();
+    await editorTool("Undo");
     await pane().$("header").$("button=Save").waitForEnabled();
     await pane().$("header").$("button=Save").click();
     await expect(pane().$(".statusbar")).toHaveText(
@@ -5661,7 +5879,7 @@ describe("Everyday workflows", () => {
           document.querySelector(".document-tab:not([hidden]) .cm-editor"),
       ),
     ).toBe(true);
-    await pane().$('button[aria-label="Undo"]').click();
+    await editorTool("Undo");
     await pane()
       .$("header")
       .$("button=Save")
@@ -5699,12 +5917,14 @@ describe("Everyday workflows", () => {
     await pane().$("button=Source").click();
     await pane().$(".cm-content").waitForDisplayed({ timeout: 60000 });
     await ready();
+    await pane().$(".document-actions summary").click();
     const recoveries = pane().$(".recovery-list");
     await recoveries.waitForDisplayed({ timeout: 60000 });
     expect(await recoveries.getProperty("open")).toBe(false);
     await recoveries.$("summary").click();
     await expect(recoveries.$("button=Restore")).toBeDisplayed();
     await recoveries.$("summary").click();
+    await browser.keys("Escape");
     const observations = [];
     const priorSession = await invoke("get_settings", {
       id: null,
@@ -5740,6 +5960,16 @@ describe("Everyday workflows", () => {
             host.style.maxHeight = "555px";
           }, width);
           await pane().$(".document-actions summary").click();
+          const moreBounds = await browser.tauri.execute(() => {
+            const pane = document.querySelector(".document-tab:not([hidden])");
+            const rect = pane.getBoundingClientRect(),
+              popup = pane
+                .querySelector(".document-actions-list")
+                .getBoundingClientRect();
+            return popup.left >= rect.left && popup.right <= rect.right;
+          });
+          await browser.keys("Escape");
+          await showFormatting();
           const geometry = await browser.tauri.execute(async () => {
             await new Promise((done) =>
               requestAnimationFrame(() => requestAnimationFrame(done)),
@@ -5750,7 +5980,7 @@ describe("Everyday workflows", () => {
               .querySelector(".toolbar")
               .getBoundingClientRect();
             const popup = pane
-              .querySelector(".document-actions-list")
+              .querySelector(".formatting-menu")
               .getBoundingClientRect();
             const editor = pane
               .querySelector(".cm-editor")
@@ -5786,6 +6016,7 @@ describe("Everyday workflows", () => {
                 pane.querySelector(".author-controls").clientWidth,
             };
           });
+          expect(moreBounds).toBe(true);
           observations.push(geometry);
           await writeFile(
             "artifacts/workflow-layout-observations.json",
@@ -6023,13 +6254,15 @@ describe("Arabic reading layout", () => {
       await browser.$("button=Discard edits").click();
     await pane().$("button=Read").waitForEnabled({ timeout: 60000 });
     await pane().$("button=Read").click();
-    await pane().$(".reader-scroll h1").waitForDisplayed({ timeout: 60000 });
+    await expectReadingHeading("القراءة بالعربية مع English");
     await pane().$("button=Export HTML").waitForEnabled({ timeout: 60000 });
     const observations = [];
     for (const mode of ["Read", "Split"]) {
       await pane().$(`button=${mode}`).waitForEnabled({ timeout: 60000 });
       await pane().$(`button=${mode}`).click();
-      await pane().$(".reader-scroll h1").waitForDisplayed({ timeout: 60000 });
+      if (mode === "Split")
+        await pane().$(".cm-content").waitForDisplayed({ timeout: 60000 });
+      await expectReadingHeading("القراءة بالعربية مع English");
       await pane().$("button=Export HTML").waitForEnabled({ timeout: 60000 });
       await browser.tauri.execute(() =>
         document
@@ -6055,13 +6288,17 @@ describe("Arabic reading layout", () => {
           });
           await browser.waitUntil(() =>
             browser.tauri.execute(
-              (_api, size) =>
+              (_api, size, theme) =>
+                document.querySelector(
+                  ".document-tab:not([hidden]) .window-shell",
+                ).dataset.theme === theme &&
                 getComputedStyle(
                   document.querySelector(
                     ".document-tab:not([hidden]) .reader-scroll",
                   ),
                 ).fontSize === `${size}px`,
               size,
+              theme,
             ),
           );
           const layout = await browser.tauri.execute(async () => {
@@ -6141,6 +6378,7 @@ describe("Arabic reading layout", () => {
               });
             };
             return {
+              bodyFont: getComputedStyle(host).fontFamily,
               fallbackMetrics: metrics(getComputedStyle(host).fontFamily),
               referenceMetrics: metrics('"Noto Sans Arabic"'),
               headingFont: getComputedStyle(host.querySelector("h1"))
@@ -6421,7 +6659,7 @@ describe("Arabic editing layout", () => {
     await browser.waitUntil(
       async () => (await directions())[0]?.direction === "ltr",
     );
-    await pane().$('button[aria-label="Undo"]').click();
+    await editorTool("Undo");
     await browser.waitUntil(() =>
       editor((v) => v.state.doc.toString() === window.arabicOriginal),
     );

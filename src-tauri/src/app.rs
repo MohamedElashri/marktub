@@ -2031,7 +2031,8 @@ fn power_confirm_action(app: &tauri::AppHandle, message: &str, run_title: Option
     // Keep percentages in source and filenames literal in the native dialog.
     #[cfg(target_os = "linux")]
     let message = message.replace('%', "%%");
-    app.dialog()
+    let dialog = app
+        .dialog()
         .message(message)
         .title(run_title.unwrap_or("Confirm this local action"))
         .kind(tauri_plugin_dialog::MessageDialogKind::Warning)
@@ -2041,8 +2042,16 @@ fn power_confirm_action(app: &tauri::AppHandle, message: &str, run_title: Option
                 "Cancel".into(),
             ),
             None => tauri_plugin_dialog::MessageDialogButtons::OkCancel,
-        })
-        .blocking_show()
+        });
+    // Unparented macOS messages use CFUserNotification, whose system alert can
+    // remain invisible while the app waits forever. Keep consent in an AppKit
+    // sheet owned by the document window; a missing window cannot approve a job.
+    #[cfg(target_os = "macos")]
+    let dialog = match app.get_webview_window("main") {
+        Some(window) => dialog.parent(&window),
+        None => return false,
+    };
+    dialog.blocking_show()
 }
 fn power_pick(
     app: &tauri::AppHandle,

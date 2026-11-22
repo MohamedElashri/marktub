@@ -27,7 +27,7 @@ In Read, choose **Focus reading** to hide the library, tabs and editing tools
 while keeping your place. **Exit focus** or **Esc** brings them back. Use
 **Reading options** to change the theme, page width or text size.
 
-Try selecting a word in Source, then choose **Bold** or **Italic**. The tools
+Try selecting a word in Source, then open **Format** and choose **Bold** or **Italic**. The tools
 edit the Markdown itself. Find/replace, folding, line numbers, spellcheck and
 writing focus are available in the editor.
 
@@ -186,13 +186,13 @@ Keep **System fonts** when other scripts or installed families are needed.
 
 ## Optional local tools
 
-Choose **Shell example** or **SQLite example** beneath the Guide toolbar to
+Choose **More → Shell example** or **More → SQLite example** in the Guide toolbar to
 jump to its block. **Save copy & run…** asks where to save your copy, then opens
 the run confirmation.
 
 In a saved Markdown file, use **Run shell** or **Run SQL** below a closed
 top-level block in Read or Split. From Source or Visual, put the caret in the
-block and choose **Run block**. Review the code and destination in the native
+block and choose **More → Run block**. Review the code and destination in the native
 confirmation. The result appears below the block, where you can copy or hide
 the output.
 

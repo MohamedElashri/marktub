@@ -95,6 +95,10 @@ Browse folders in the Library’s **Files** view; use **File details** for sorti
 and file operations. Quick Open filters filenames as you type; choose **File
 contents** to search text, then use the arrow keys and Enter to open a result.
 
+Tabs and navigation share a compact row; reading and editing controls share the
+document toolbar. **Format** opens writing tools and editor options. **More**
+keeps recovery records, backups and less frequent document actions close by.
+
 Drag tabs to arrange them, resize the Library with its divider, and use **Settings**
 to preview themes, fonts and layout changes before applying them. Riwaq Day/Night
 add cream or navy with gold accents; **Use Riwaq typography** applies Arabic fonts

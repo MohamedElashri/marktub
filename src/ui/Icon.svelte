@@ -1,6 +1,10 @@
 <script lang="ts">
   let { name }: { name: string } = $props();
   const paths: Record<string, string> = {
+    git: "M6 5v10m0-6c0 4 8 0 8-4M6 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm0 12a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm8-12a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z",
+    commands:
+      "M7 7H5a2 2 0 1 1 2-2v10a2 2 0 1 1-2-2h10a2 2 0 1 1-2 2V5a2 2 0 1 1 2 2H7Z",
+    export: "M10 13V2m-4 4 4-4 4 4M3 11v7h14v-7",
     undo: "M7 4 3 8l4 4M3 8h8a5 5 0 0 1 0 10",
     redo: "m13 4 4 4-4 4m4-4H9a5 5 0 0 0 0 10",
     bold: "M6 3h5a3.5 3.5 0 0 1 0 7H6m0 0h6a3.5 3.5 0 0 1 0 7H6V3",
