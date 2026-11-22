@@ -46,7 +46,7 @@
         offset,
         "name",
         showHidden,
-        "all",
+        "markdown",
         refresh,
         showIgnored,
       );
@@ -151,7 +151,7 @@
         Loading folder…
       </p>{/if}
     {#if page?.complete && !page.items.length}<p class="library-help">
-        Empty folder.
+        No Markdown files or folders.
       </p>{/if}
     {#if offset > 0 || (page?.total ?? 0) > 100}<div class="pagination">
         <button

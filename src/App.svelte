@@ -323,7 +323,19 @@
   let LibraryComponent = $state<typeof Library | null>(null);
   let panel = $state<Library>();
   let message = $state("");
-  let recentFiles = $state<library.Hint[]>([]);
+  let recentInfo = $state<
+    Pick<library.LibraryState, "recent" | "canClearRecent">
+  >({
+    recent: [],
+    canClearRecent: false,
+  });
+  const recentFiles = $derived(recentInfo.recent.slice(0, 6));
+  function showRecents({ recent, canClearRecent }: typeof recentInfo) {
+    recentInfo = { recent, canClearRecent };
+  }
+  async function refreshRecents() {
+    showRecents(await library.state());
+  }
   let folderBusy = $state(false);
   let history = $state<library.Hint[]>([]),
     historyAt = $state(-1);
@@ -349,8 +361,10 @@
     tabs[active]?.pane?.revealNavigation();
     await tick();
     if (quick) await panel?.quickOpen(content);
+    const state = await library.state();
+    showRecents(state);
     await library
-      .configure(true, (await library.state()).view)
+      .configure(true, state.view)
       .catch((e) => (message = bridge.errorMessage(e)));
   }
   async function chooseFolder() {
@@ -359,7 +373,7 @@
     try {
       await showLibrary();
       await panel?.chooseFolder();
-      recentFiles = (await library.state()).recent.slice(0, 6);
+      await refreshRecents();
     } catch (error) {
       message = bridge.errorMessage(error);
     } finally {
@@ -564,10 +578,10 @@
     navigationQueue = navigationQueue
       .then(async () => {
         if (!tabs.some((tab) => tab.document === id)) return;
-        await bridge.rememberDocument(id);
+        const record = await bridge.rememberDocument(id);
         const state = await library.state();
-        recentFiles = state.recent.slice(0, 6);
-        const hint = state.recent[0];
+        showRecents(state);
+        const hint = state.recent.find((entry) => entry.id === record);
         if (!hint) return;
         if (history[historyAt]?.id === hint.id) {
           history[historyAt] = hint;
@@ -583,12 +597,23 @@
           message = bridge.errorMessage(error);
       });
   }
+  async function clearRecent() {
+    const clear = navigationQueue.then(async () => {
+      await library.clearRecent();
+      history = [];
+      historyAt = -1;
+      await refreshRecents();
+    });
+    navigationQueue = clear.catch(() => {});
+    await clear;
+  }
   async function recent(hint: library.Hint, record = true) {
     try {
       const descriptor = await library.open(hint.id, true);
       suppressed.add(descriptor.id);
       await openTab(descriptor);
       suppressed.delete(descriptor.id);
+      await refreshRecents().catch(() => {});
       if (record && history[historyAt]?.id !== hint.id) {
         history = history.slice(0, historyAt + 1);
         history.push(hint);
@@ -596,6 +621,7 @@
       }
     } catch (error) {
       message = bridge.errorMessage(error);
+      await refreshRecents().catch(() => {});
     }
   }
   async function navigate(delta: number) {
@@ -641,10 +667,12 @@
       }
     };
     window.addEventListener("keydown", keys, true);
+    const focus = () => void refreshRecents().catch(() => {});
+    window.addEventListener("focus", focus);
     void library
       .state()
       .then((s) => {
-        recentFiles = s.recent.slice(0, 6);
+        showRecents(s);
         if (s.sidebar) void showLibrary();
       })
       .catch((e) => (message = bridge.errorMessage(e)));
@@ -653,6 +681,7 @@
       void osOpen.then((fn) => fn());
       void drop.then((fn) => fn());
       window.removeEventListener("keydown", keys, true);
+      window.removeEventListener("focus", focus);
     };
   });
 </script>
@@ -763,7 +792,10 @@
           onopen={openTab}
           onrecent={recent}
           onrestore={restoreSession}
-          onrecentchange={(hints) => (recentFiles = hints.slice(0, 6))}
+          recentFiles={recentInfo.recent}
+          canClearRecent={recentInfo.canClearRecent}
+          onrecentchange={showRecents}
+          onclearrecent={clearRecent}
         />
       </aside>{/if}
     {#if sidebar}<ResizeHandle
@@ -795,10 +827,7 @@
             onarchive={showReviewArchive}
             {recentFiles}
             {folderBusy}
-            onrecent={async (hint) => {
-              if (hint.authorized) await recent(hint);
-              else await chooseFolder();
-            }}
+            onrecent={recent}
             onfolder={chooseFolder}
             active={index === active}
             onpreferences={showPreferences}

@@ -1311,15 +1311,10 @@
                       ><span>{hint.name}</span>{#if hint.context}<span
                           class="recent-context">{hint.context}</span
                         >{/if}</span
-                    ><small>{hint.authorized ? "Open" : "Select folder"}</small>
+                    ><small>Open</small>
                   </button>
                 </li>{/each}
             </ul>
-            {#if recentFiles.some((hint) => !hint.authorized)}<p
-                class="recent-help"
-              >
-                Select the containing folder to reopen remembered files.
-              </p>{/if}
           </section>{/if}
       </section>
     {:else}
