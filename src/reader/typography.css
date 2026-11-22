@@ -1,9 +1,15 @@
 .prose :is(h1, h2, h3, h4, h5, h6) {
   font-family: var(--reader-heading-font, inherit);
 }
+.prose :is(b, strong) {
+  font-weight: 700;
+  line-height: inherit;
+  vertical-align: baseline;
+  font-synthesis-weight: auto;
+}
 .prose em {
   /* Arabic faces often lack italics; retain explicit Markdown emphasis. */
-  font-synthesis: style;
+  font-synthesis-style: auto;
 }
 .prose [dir] {
   text-align: start;

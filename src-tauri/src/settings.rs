@@ -189,9 +189,17 @@ impl Settings {
     /// already passed the same closed allowlist; none can add security authority.
     pub fn resolve(global: &Self, workspace: &Self, file: &Self, session: &Self) -> Self {
         let mut values = Self::defaults().0;
-        for layer in [global, workspace, file, session] {
-            values.extend(layer.0.clone());
+        values.extend(global.0.clone());
+        for layer in [workspace, file] {
+            values.extend(
+                layer
+                    .0
+                    .iter()
+                    .filter(|(key, _)| key.as_str() != "ui.font")
+                    .map(|(key, value)| (key.clone(), value.clone())),
+            );
         }
+        values.extend(session.0.clone());
         Self(values)
     }
     /// Reject an entire invalid file and keep the previous settings unchanged.
@@ -287,12 +295,16 @@ mod tests {
     #[test]
     fn validates_utf8_bom_crlf_and_safe_scope_precedence() {
         let global = Settings::parse(b"\xef\xbb\xbf$theme=light\r\n$reader.width=800\r\n").unwrap();
-        let workspace = Settings::parse(b"$theme=dark").unwrap();
-        let file = Settings::parse(b"$reader.width=900").unwrap();
+        let workspace = Settings::parse(b"$theme=dark\n$ui.font=\"Amiri\"").unwrap();
+        let file = Settings::parse(b"$reader.width=900\n$ui.font=\"Noto Sans Arabic\"").unwrap();
         let session = Settings::parse(b"$reader.width=1000").unwrap();
         let resolved = Settings::resolve(&global, &workspace, &file, &session);
         assert_eq!(resolved.get("reader.width"), Some(&Value::Number(1000.0)));
         assert_eq!(resolved.get("theme"), Some(&Value::Enum("dark".into())));
         assert_eq!(resolved.get("editor.wrap"), Some(&Value::Boolean(true)));
+        assert_eq!(
+            resolved.get("ui.font"),
+            Some(&Value::Text("System UI".into()))
+        );
     }
 }

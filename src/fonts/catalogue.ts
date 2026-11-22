@@ -1,11 +1,11 @@
 import type { Values } from "../preferences";
 
-export const bundledFamilies = [
+export const arabicFamilies = [
   "Noto Naskh Arabic",
   "Noto Sans Arabic",
   "Amiri",
-  "Cousine",
 ];
+export const bundledFamilies = [...arabicFamilies, "Cousine"];
 
 export const fontFaces = [
   {
