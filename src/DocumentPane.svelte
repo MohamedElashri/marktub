@@ -367,6 +367,7 @@
     }
   }
   export function revealNavigation() {
+    actionsOpen = false;
     void setReadingFocus(false, false);
   }
   export async function requestClose() {
@@ -1293,19 +1294,12 @@
           disabled={busy}>Visual</button
         >
       </div>{/if}
-    {#if document && realDocument()}<button
-        aria-pressed={reviewEnabled}
-        onclick={toggleReview}
-        disabled={busy}>{reviewEnabled ? "Review on" : "Review"}</button
-      >{/if}
-    {#if realDocument()}<button onclick={() => showLinks()} disabled={busy}
-        >Links</button
-      >{/if}
     {#if session}<button
         class="save-button"
+        class:primary={dirty}
         onclick={() => save()}
         disabled={busy}>Save</button
-      ><button onclick={() => save(true)} disabled={busy}>Save As</button>{/if}
+      >{/if}
     {#if session && !session.range && (mode === "source" || mode === "visual")}
       <button
         onclick={runFenceAtCaret}
@@ -1313,8 +1307,15 @@
         >Run block</button
       >
     {/if}
-    <button class="open-button" onclick={() => open()} disabled={busy}
-      >Open file{#if !document}
+    <button
+      class="open-button"
+      onclick={() => open()}
+      disabled={busy}
+      title={openShortcut.visual
+        ? `Open file (${openShortcut.visual})`
+        : "Open file"}
+    >
+      <Icon name="folder" />Open file{#if !document}
         <kbd aria-label={openShortcut.spoken}>{openShortcut.visual}</kbd
         >{/if}</button
     >
@@ -1325,10 +1326,24 @@
     >
       <summary aria-label="More document actions">More</summary>
       <div class="document-actions-list">
+        {#if session}<button
+            onclick={() => documentAction(() => save(true), true)}
+            disabled={busy}>Save As</button
+          >{/if}
         {#if document && realDocument()}<button
             onclick={() => documentAction(reload)}
             disabled={busy}>Reload</button
           >{/if}
+        {#if realDocument()}<button
+            onclick={() => documentAction(() => showLinks(), true)}
+            disabled={busy}>Links</button
+          >
+          <button
+            aria-pressed={reviewEnabled}
+            onclick={() => documentAction(toggleReview)}
+            disabled={busy}>{reviewEnabled ? "Review on" : "Review"}</button
+          >
+        {/if}
         {#if document}<button
             onclick={() => documentAction(openPower, true)}
             disabled={busy}>Export &amp; run</button
@@ -1724,23 +1739,22 @@
       </div>
     {/if}
   </main>
-  <footer class="statusbar">
-    <span
-      >{session
-        ? (dirty
+  {#if session || (document && !document.bundledGuide && !document.watching && realDocument())}
+    <footer class="statusbar">
+      {#if session}<span
+          >{(dirty
             ? "Unsaved changes"
             : stale
               ? "Disk revision changed"
               : "Saved") +
-          " · " +
-          (durable ? "Recovery up to date" : "Recovery pending")
-        : document
-          ? "Read only"
-          : "Local files. No account. No connection."}</span
-    >{#if document && !document.watching && realDocument()}<span
-        >File watching unavailable; rechecked on focus</span
-      >{/if}
-  </footer>
+            " · " +
+            (durable ? "Recovery up to date" : "Recovery pending")}</span
+        >{/if}
+      {#if document && !document.bundledGuide && !document.watching && realDocument()}<span
+          >File watching unavailable; rechecked on focus</span
+        >{/if}
+    </footer>
+  {/if}
 </div>
 
 <svelte:window

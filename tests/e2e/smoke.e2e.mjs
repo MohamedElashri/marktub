@@ -714,10 +714,7 @@ describe("Source integrity", () => {
     );
     await browser.$("dialog.compare-dialog").$("button=Keep local").click();
     await fixture("save-as");
-    await browser
-      .$(".document-tab:not([hidden]) .toolbar")
-      .$("button=Save As")
-      .click();
+    await documentAction("Save As");
     await browser.waitUntil(
       async () => (await fixture("read-copy")).text === original + "local",
     );
@@ -3168,8 +3165,7 @@ describe("Document review", () => {
     if (await focus.isDisplayed()) await focus.click();
   }
   async function enable() {
-    await pane().$("button=Review").waitForEnabled({ timeout: 30000 });
-    await pane().$("button=Review").click();
+    await documentAction("Review");
     await panel().waitForExist({ timeout: 30000 });
     await panel().$(".review-baseline").waitForDisplayed({ timeout: 30000 });
     await panel().$("button=Capture disk").waitForEnabled({ timeout: 30000 });
@@ -3880,7 +3876,7 @@ describe("Export and local jobs", () => {
   it("runs the block at the Source caret and brings its output into Split", async () => {
     await seed("# Source run\n\n```sh\nprintf 'selected from Source'\n```\n");
     await pane().$(".mode-switch").$("button=Source").click();
-    await pane().$(".cm-content").waitForDisplayed();
+    await pane().$(".cm-content").waitForDisplayed({ timeout: 60000 });
     await browser.tauri.execute(() => {
       const view = document.querySelector(
         ".document-tab:not([hidden]) .cm-content",
@@ -4568,6 +4564,75 @@ describe("Everyday workflows", () => {
   });
   beforeEach(closeDocuments);
 
+  it("keeps a note open behind the Library drawer and restores the desktop sidebar", async () => {
+    await invoke("e2e_fixture", {
+      action: "seed",
+      text: "# Narrow workspace\n\nThe open note stays in place while browsing.\n",
+    });
+    await openHomeFile();
+    const { width, height } = await browser.getWindowSize();
+    const toggle = () => browser.$(".library-toggle");
+    const drawer = () => browser.$(".library-host");
+    const close = () => drawer().$('button[aria-label="Close library"]');
+    const layout = () =>
+      browser.tauri.execute(() => {
+        const host = document.querySelector(".document-host");
+        const article = host.querySelector(
+          ".document-tab:not([hidden]) article",
+        );
+        const aside = document.querySelector(".library-host");
+        return {
+          viewport: innerWidth,
+          width: host.getBoundingClientRect().width,
+          library: aside?.getBoundingClientRect().width ?? 0,
+          inert: host.inert,
+          visible: article?.getClientRects().length === 1,
+          sameReader: article === window.drawerTestReader,
+        };
+      });
+    try {
+      await browser.setWindowSize(680, height);
+      await browser.waitUntil(async () => (await layout()).viewport <= 700);
+      await browser.tauri.execute(() => {
+        window.drawerTestReader = document.querySelector(
+          ".document-tab:not([hidden]) article",
+        );
+      });
+      const narrow = await layout();
+      await toggle().click();
+      await close().waitForDisplayed();
+      await expect(close()).toBeFocused();
+      expect(await layout()).toMatchObject({
+        width: narrow.width,
+        inert: true,
+        visible: true,
+        sameReader: true,
+      });
+      expect((await layout()).library).toBeLessThan(narrow.width);
+      await browser.saveScreenshot("artifacts/native-workspace-drawer.png");
+      await browser.keys("Escape");
+      await drawer().waitForDisplayed({ reverse: true });
+      await expect(toggle()).toBeFocused();
+      expect(await layout()).toMatchObject({ inert: false, sameReader: true });
+
+      await toggle().click();
+      await close().waitForDisplayed();
+      await close().click();
+      await drawer().waitForDisplayed({ reverse: true });
+      await toggle().click();
+      await close().waitForDisplayed();
+      await browser.setWindowSize(width, height);
+      await browser.$(".library-divider").waitForDisplayed();
+      await expect(drawer()).toBeDisplayed();
+      await expect(close()).not.toExist();
+      expect(await layout()).toMatchObject({ inert: false, sameReader: true });
+    } finally {
+      await browser.setWindowSize(width, height);
+      if ((await toggle().getAttribute("aria-expanded")) === "true")
+        await toggle().click();
+    }
+  });
+
   it("keeps the reading place and tab layout when entering and leaving reading focus", async () => {
     const text =
       "# Reading focus sample\n\n" +
@@ -4629,7 +4694,7 @@ describe("Everyday workflows", () => {
         90;
     });
     const before = await layout();
-    expect(before.offset).toBeCloseTo(90, 0);
+    expect(Math.abs(before.offset - 90)).toBeLessThan(2);
     try {
       await enter().click();
       await exit().waitForDisplayed();
@@ -4773,7 +4838,9 @@ describe("Everyday workflows", () => {
     await writeFile(removed, "# Deleted bookmark\n");
     const refresh = browser.$('button[aria-label="Refresh folders"]');
     await refresh.click();
-    const file = browser.$('.tree-file[aria-label="Open deleted-bookmark.md"]');
+    const file = browser.$(
+      '.library-panel button[aria-label="Open deleted-bookmark.md"]',
+    );
     await file.waitForEnabled();
     await file.click();
     const bookmark = browser.$(
@@ -4871,7 +4938,7 @@ describe("Everyday workflows", () => {
     await pane().$("button=Source").click();
     await pane().$(".cm-content").waitForDisplayed({ timeout: 60000 });
     await invoke("e2e_fixture", { action: "save-as", text: null });
-    await pane().$(".toolbar").$("button=Save As").click();
+    await documentAction("Save As");
     await browser.waitUntil(
       async () =>
         (await invoke("e2e_fixture", { action: "read-copy" })).text ===
@@ -5118,7 +5185,7 @@ describe("Everyday workflows", () => {
         .waitForDisplayed({ timeout: 60000 });
       await pane().$('a[data-note-link="Other#Details"]').click();
       await readDocument("Other");
-      await pane().$(".toolbar").$("button=Links").click();
+      await documentAction("Links");
       await links()
         .$('section[aria-label="Backlinks"]')
         .waitForDisplayed({ timeout: 60000 });

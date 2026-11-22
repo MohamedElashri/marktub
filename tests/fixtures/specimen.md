@@ -33,12 +33,13 @@ writing focus are available in the editor.
 
 **Save** writes an ordinary file. Recovery keeps acknowledged edits separately;
 it does not replace saving. This app-owned guide and recovered documents require
-**Save As**. Existing line endings and untouched source bytes are preserved.[^files]
+**More → Save As**. Existing line endings and untouched source bytes are preserved.[^files]
 
 ## Notes and navigation
 
 - **Library** opens your selected local folders. Click a filename to open it;
-  use checkboxes for file-management selections.
+  use checkboxes for file-management selections. In a narrow window, the Library
+  opens over your document. Press **Esc** to close it.
 - **Quick open** finds files in selected folders. The library also supports
   content search, pinned recent files, sorting and list, compact or grid views.
 - Drag the library's divider to set its width. Arrow keys also resize it when
@@ -159,7 +160,7 @@ saved-file changes, compare revisions and stage or unstage selected native hunks
 Close live Source sessions before changing the index or discarding files.
 Discard creates a durable backup first.
 
-**Review** is optional feedback on saved captures: mark a revision reviewed,
+**More → Review** opens optional feedback on saved captures: mark a revision reviewed,
 attach comments to verified source ranges, inspect changes since that review,
 and export feedback. It does not write changes into the document. Unsaved review
 drafts require an explicit discard before leaving.
@@ -247,7 +248,7 @@ daily journal. The draft is kept in recovery; Save opens a native Save As dialog
 ## Connect notes
 
 Use `[[Note]]`, `[[folder/Note]]` or `[[Note#Heading|label]]` to connect Markdown
-files. Open the containing folder in Library, then use **Links** for outgoing
+files. Open the containing folder in Library, then use **More → Links** for outgoing
 links and backlinks in saved files. Bare names prefer the same folder; otherwise
 only unique matches open automatically. Ambiguous or partial scans ask you to
 choose. Backlinks exclude hidden, ignored and symlinked files and report limits.

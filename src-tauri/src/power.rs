@@ -355,8 +355,17 @@ fn fence(line: &str) -> Option<(u8, usize, &str)> {
     Some((c, n, line[n..].trim()))
 }
 pub fn blocks(text: &str) -> Result<Vec<Block>, FileError> {
+    struct OpenFence<'a> {
+        marker: u8,
+        width: usize,
+        language: &'a str,
+        kind: Option<Kind>,
+        code_start: usize,
+        code_line: usize,
+    }
+
     let mut result = vec![];
-    let mut open: Option<(u8, usize, &str, Option<Kind>, usize, usize)> = None;
+    let mut open: Option<OpenFence<'_>> = None;
     let mut at = 0;
     // split_inclusive also recognizes raw CR, CRLF and LF without normalizing
     // byte coordinates. Nested/indented/blockquote fences remain source only.
@@ -389,10 +398,12 @@ pub fn blocks(text: &str) -> Result<Vec<Block>, FileError> {
         } else {
             line
         };
-        if let Some((ch, n, language, kind, from, line_number)) = open {
-            if fence(check).is_some_and(|(c, len, tail)| c == ch && len >= n && tail.is_empty()) {
-                if let Some(kind) = kind {
-                    let code = &text[from..at];
+        if let Some(active) = &open {
+            if fence(check).is_some_and(|(marker, width, tail)| {
+                marker == active.marker && width >= active.width && tail.is_empty()
+            }) {
+                if let Some(kind) = active.kind {
+                    let code = &text[active.code_start..at];
                     if code.len() > 65536 {
                         return Err(err("Runnable fences admit 64 KiB each."));
                     }
@@ -402,23 +413,30 @@ pub fn blocks(text: &str) -> Result<Vec<Block>, FileError> {
                     result.push(Block {
                         id: uid(),
                         kind,
-                        language: language.into(),
-                        start: from,
+                        language: active.language.into(),
+                        start: active.code_start,
                         end: at,
-                        line: line_number,
+                        line: active.code_line,
                         code: code.into(),
                     });
                 }
                 open = None;
             }
-        } else if let Some((ch, n, info)) = fence(check) {
-            let kind = match info {
+        } else if let Some((marker, width, language)) = fence(check) {
+            let kind = match language {
                 "sh" | "bash" | "shell" | "zsh" => Some(Kind::Shell),
                 "sql" | "sqlite" => Some(Kind::Sqlite),
                 "tex" | "latex" => Some(Kind::Tex),
                 _ => None,
             };
-            open = Some((ch, n, info, kind, at + line.len(), number + 2));
+            open = Some(OpenFence {
+                marker,
+                width,
+                language,
+                kind,
+                code_start: at + line.len(),
+                code_line: number + 2,
+            });
         }
         at += line.len();
     }
