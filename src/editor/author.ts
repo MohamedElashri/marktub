@@ -34,34 +34,37 @@ export function format(
     kind === "link"
   ) {
     const changes: Patch[] = [];
+    let delta = 0;
     const ranges = state.selection.ranges.map((r) => {
       if (
         !writableBlock(state, r.from) ||
         state.doc.sliceString(r.from, r.to).includes("\n")
       )
         throw Error("Select one inline span outside a code/HTML block.");
-      const text = state.doc.sliceString(r.from, r.to);
+      const selected = state.doc.sliceString(r.from, r.to);
+      const emphasis = kind === "bold" || kind === "italic";
+      const text = emphasis ? selected.trim() : selected;
+      if (selected && !text) throw Error("Select text to apply emphasis.");
       const mark = kind === "bold" ? "**" : kind === "italic" ? "*" : "`";
       if (kind === "code" && text.includes("`"))
         throw Error("Backtick-containing code is source-only.");
       const left = kind === "link" ? "[" : mark,
         right = kind === "link" ? "](local-path)" : mark;
-      changes.push({ from: r.from, to: r.to, insert: left + text + right });
-      return { from: r.from, to: r.to, left: left.length };
-    });
-    let delta = 0;
-    const selected = ranges.map((r) => {
-      const selection = EditorSelection.range(
-        r.from + delta + r.left,
-        r.to + delta + r.left,
-      );
-      delta +=
-        changes[selectedIndex(ranges, r)].insert.length - (r.to - r.from);
-      return selection;
+      const from = emphasis
+        ? r.from + selected.length - selected.trimStart().length
+        : r.from;
+      const to = from + text.length;
+      changes.push({ from, to, insert: left + text + right });
+      const start = from + delta + left.length;
+      const end = start + text.length;
+      delta += left.length + right.length;
+      return r.anchor > r.head
+        ? EditorSelection.range(end, start)
+        : EditorSelection.range(start, end);
     });
     return {
       changes,
-      selection: EditorSelection.create(selected, state.selection.mainIndex),
+      selection: EditorSelection.create(ranges, state.selection.mainIndex),
     };
   }
   const seen = new Set<number>(),
@@ -98,9 +101,6 @@ export function format(
       });
     }
   return { changes };
-}
-function selectedIndex<T>(values: T[], value: T) {
-  return values.indexOf(value);
 }
 export function cellSpans(line: string) {
   if (
@@ -336,13 +336,22 @@ export function imageText(
 
 // Exact inline spelling admitted by the image controls; references/angle paths
 // and other spellings stay visible in Source instead of guessing a patch.
-export function imageSpan(line: string, at: number) {
+export function imageSpan(state: EditorState, at: number) {
+  const line = state.doc.lineAt(at);
+  const column = at - line.from;
   const pattern =
     /!\[((?:\\.|[^\]\\\n])*)\]\(([^\s)]+)(?:\s+"((?:\\.|[^"\\\n])*)")?\)(?:\{((?:(?:width|height)=\d+\s*){1,2})\})?/g;
-  const m = [...line.matchAll(pattern)].find(
-    (m) => at >= m.index! && at <= m.index! + m[0].length,
-  );
+  const matches = [...line.text.matchAll(pattern)];
+  const m =
+    matches.find((m) => column >= m.index && column < m.index + m[0].length) ??
+    matches.find((m) => column === m.index + m[0].length);
   if (!m) return null;
+  const from = line.from + m.index;
+  const to = from + m[0].length;
+  const imageEnd = m[4] ? to - m[4].length - 2 : to;
+  let node = ensureSyntaxTree(state, imageEnd, 25)?.resolveInner(from + 1, 1);
+  while (node && node.name !== "Image") node = node.parent ?? undefined;
+  if (node?.from !== from || node.to !== imageEnd) return null;
   const token = grammar()
     .parseInline(m[0], { ...emptyContext() })[0]
     ?.children?.find((t) => t.type === "image");
@@ -359,8 +368,8 @@ export function imageSpan(line: string, at: number) {
     dimensions[d[1]] = Number(d[2]);
   }
   return {
-    from: m.index!,
-    to: m.index! + m[0].length,
+    from,
+    to,
     path,
     alt: m[1].replace(/\\([\\[\]])/g, "$1"),
     title: (m[3] ?? "").replace(/\\(["\\])/g, "$1"),

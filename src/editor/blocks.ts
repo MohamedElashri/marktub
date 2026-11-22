@@ -246,12 +246,10 @@ function build(
       }
       // Inline images remain an explicit control, never an automatic filesystem read.
       if (node.name === "Image" && inactive(from, to)) {
-        const line = state.doc.lineAt(from),
-          image = imageSpan(line.text, from - line.from);
+        const image = imageSpan(state, from);
         if (!image) return false;
         kind = "image";
-        from = line.from + image.from;
-        to = line.from + image.to;
+        ({ from, to } = image);
         body = state.doc.sliceString(from, to);
       }
       if (kind) {

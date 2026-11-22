@@ -2202,6 +2202,29 @@ describe("Author experience", () => {
       .$('.window-shell[data-busy="false"][data-dirty="false"]')
       .waitForExist({ timeout: 30000 });
   }
+  it("renders padded Arabic emphasis and protects literal image Markdown through the editor toolbar", async () => {
+    const doc =
+      "\uFEFFقبل  العربية 🦀  after\r\n\r\n`![literal](keep.png)`\r\n";
+    const expected = doc.replace("العربية 🦀", "**العربية 🦀**");
+    await seed(doc);
+    await select("  العربية 🦀  ");
+    await editorTool("Bold");
+    await pane().$("button=Split").click();
+    const strong = pane().$(".reader-scroll strong");
+    await strong.waitForDisplayed();
+    expect(await strong.getText()).toBe("العربية 🦀");
+
+    await pane().$("button=Visual").click();
+    await select("keep.png");
+    await editorTool("Image");
+    const notice = pane().$('.notice[role="status"]');
+    await notice.waitForDisplayed();
+    expect(await notice.getText()).toContain(
+      "This image spelling remains editable in Source.",
+    );
+    expect(await tools().isDisplayed()).toBe(false);
+    await saved(expected);
+  });
   it("syncs actual viewport positions both ways without moving the editor selection", async () => {
     let ending = 0;
     const source =
