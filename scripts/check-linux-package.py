@@ -74,8 +74,7 @@ def inspect(package, binary, kind="deb"):
         if kind == "deb":
             subprocess.run(["dpkg-deb", "--extract", str(package), directory], check=True)
         else:
-            payload = subprocess.run(["rpm2cpio", str(package)], capture_output=True, check=True)
-            subprocess.run(["cpio", "--extract", "--make-directories", "--no-absolute-filenames"], input=payload.stdout, cwd=root, check=True, stdout=subprocess.DEVNULL)
+            subprocess.run(["bsdtar", "--extract", "--file", str(package), "--no-same-owner"], cwd=root, check=True)
         executable = root / "usr/bin/marktub"
         assert executable.is_file() and executable.stat().st_mode & 0o111
         bundled = executable.read_bytes()

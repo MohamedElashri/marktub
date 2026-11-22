@@ -83,6 +83,8 @@ version with update support must be installed using the existing installer.
 The original two-platform feed remains unchanged for 0.3.0 clients; installed
 RPMs use the separate RPM feed. Run Installation checks manually after publishing
 to verify public downloads on macOS, Debian/Ubuntu and Fedora.
+Before publication, its optional `candidate_run` input can verify Fedora
+installation of a built RPM when only qualification scripts have changed.
 
 Run `pnpm check:repository` before `pnpm source:archive`. Scoped release validation
 and known limits are recorded in [release-status.json](docs/evidence/release-status.json).

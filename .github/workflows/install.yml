@@ -17,6 +17,11 @@ on:
       - tests/tooling/test_installer.py
       - .github/workflows/install.yml
   workflow_dispatch:
+    inputs:
+      candidate_run:
+        description: Optional desktop CI run for pre-release RPM installation checks
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -56,10 +61,13 @@ jobs:
           export -f curl
           /bin/bash scripts/install.sh --download-only --directory "$RUNNER_TEMP/marktub-download"
   rpm-download:
-    name: Published RPM download on Fedora
+    name: RPM installation and download on Fedora
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     container: fedora:44
+    permissions:
+      contents: read
+      actions: read
     timeout-minutes: 5
     steps:
       - name: Fedora checkout prerequisites
@@ -68,7 +76,28 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+          fetch-depth: 0
+      - name: Qualify a candidate RPM before publication
+        if: inputs.candidate_run != ''
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          CANDIDATE_RUN: ${{ inputs.candidate_run }}
+        run: |
+          [[ "$CANDIDATE_RUN" =~ ^[0-9]+$ ]]
+          dnf install -y gh python3
+          candidate=$(gh run view "$CANDIDATE_RUN" --json headSha --jq .headSha)
+          # Only qualification scripts/docs may differ from the compiled candidate.
+          git diff --name-only "$candidate" HEAD > /tmp/marktub-candidate-changes
+          changed=$(grep -Ev '^(scripts/check-linux-package.py|\.github/workflows/(check|install)\.yml|development\.md)$' /tmp/marktub-candidate-changes || true)
+          [[ -z "$changed" ]]
+          gh run download "$CANDIDATE_RUN" --name desktop-ubuntu-24.04 --dir /tmp/marktub-candidate
+          version=$(python3 -c 'import json; print(json.load(open("package.json"))["version"])')
+          package="/tmp/marktub-candidate/src-tauri/target/release/bundle/rpm/Marktub_${version}_x86_64.rpm"
+          bash scripts/check-fedora-rpm.sh "$package" "$version"
       - name: Download and verify the latest RPM
+        if: inputs.candidate_run == ''
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
