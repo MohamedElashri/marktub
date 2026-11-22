@@ -6831,10 +6831,10 @@ describe("Arabic editing layout", () => {
       expect(
         Math.abs(layout.arabicSpace - layout.referenceSpace),
       ).toBeLessThanOrEqual(1.1);
-      // WebKit rounds the space inside an RTL run in an LTR line differently.
+      // Mixed-direction DOM ranges include glyph-edge rounding on X11 and Wayland.
       expect(
         Math.abs(layout.mixedArabicSpace - layout.referenceSpace),
-      ).toBeLessThanOrEqual(1.1);
+      ).toBeLessThanOrEqual(2);
       if (mode !== "Visual") {
         expect(layout.latin[0]).toBeCloseTo(layout.latin[1], 2);
         expect(
