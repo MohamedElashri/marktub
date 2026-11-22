@@ -826,18 +826,20 @@
         message = bridge.errorMessage(e);
       });
   }
+  function applySettings(next: SettingsResult, owner: string | null) {
+    settings = next;
+    settingsDocument = owner;
+    if (next.diagnostics.length)
+      message =
+        "Preferences use safe defaults: " +
+        next.diagnostics.map((d) => d.message).join(" ");
+  }
   async function loadSettings() {
     const request = ++settingsRequest;
     const owner = document?.id ?? null;
     const next = await bridge.getSettings(realDocument(), "global");
-    if (request === settingsRequest && owner === (document?.id ?? null)) {
-      settings = next;
-      settingsDocument = owner;
-      if (next.diagnostics.length)
-        message =
-          "Preferences use safe defaults: " +
-          next.diagnostics.map((d) => d.message).join(" ");
-    }
+    if (request === settingsRequest && owner === (document?.id ?? null))
+      applySettings(next, owner);
   }
   async function refreshRecoveries() {
     try {
@@ -848,6 +850,14 @@
   }
   async function showDocument(selected: Descriptor, loaded: SourceRange) {
     ReaderComponent ??= (await import("./reader/Reader.svelte")).default;
+    // Resolve this file's rendering preferences before mounting the reader.
+    // A second mount on open would discard its viewport and pending navigation.
+    const nextSettings = await bridge
+      .getSettings(selected.id, "global")
+      .catch((error) => {
+        message = bridge.errorMessage(error);
+        return null;
+      });
     if (reviewEnabled && document?.location !== selected.location)
       await endReview();
     reviewDisplayed = false;
@@ -860,6 +870,7 @@
     if (document && realDocument() && selected.id !== document.id)
       await bridge.releaseDocument(document.id);
     document = selected;
+    if (nextSettings) applySettings(nextSettings, selected.id);
     page = loaded;
     stale = false;
     diskState = "unchanged";
@@ -868,9 +879,6 @@
     readerPending = "";
     currentRead = (start) => bridge.readRange(selected.id, start);
     readerEpoch++;
-    await loadSettings().catch(
-      (error) => (message = bridge.errorMessage(error)),
-    );
     void refreshRecoveries();
     void bridge
       .rememberDocument(selected.id)
