@@ -57,8 +57,7 @@
         "desktopTemplate": "marktub.desktop"
       },
       "rpm": {
-        "desktopTemplate": "marktub.desktop",
-        "depends": ["libwebkit2gtk-4.1.so.0()(64bit)", "libgtk-3.so.0()(64bit)"]
+        "desktopTemplate": "marktub.desktop"
       }
     },
     "fileAssociations": [
