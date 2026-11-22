@@ -42,6 +42,7 @@
   import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
   import { liveFormatting } from "./visual";
   import { writingDirections } from "./direction";
+  import { fromGtk, NativeSource } from "./native-source";
   import { applyEdits, flushEdits, errorMessage } from "../bridge";
   import { EditQueue, MAX_QUEUE } from "../document/queue";
   import type { Change, EditDescriptor } from "../document/protocol";
@@ -82,6 +83,8 @@
     spellcheck = false,
     focus = false,
     numbers = true,
+    nativeAllowed = false,
+    active = true,
   }: {
     session: Omit<EditDescriptor, "text">;
     text: string;
@@ -107,6 +110,8 @@
     spellcheck?: boolean;
     focus?: boolean;
     numbers?: boolean;
+    nativeAllowed?: boolean;
+    active?: boolean;
   } = $props();
   let host: HTMLDivElement;
   let tools: RichTools;
@@ -123,6 +128,19 @@
     | undefined;
   let view: EditorView | undefined;
   let queue: EditQueue;
+  let native = $state.raw<NativeSource>();
+  let nativeFailed = $state(false);
+  let hasArabic = $state(false);
+  let nativeAnchor: { line: number; fraction: number } | undefined;
+  const arabic = /\p{Script=Arabic}/u;
+  function focusEditor() {
+    if (native?.visible) native.focus();
+    else view?.focus();
+  }
+  const nativeTestEnabled =
+    import.meta.env.VITE_MARKTUB_E2E !== "1" ||
+    (window as Window & { __marktubTestNativeSource?: boolean })
+      .__marktubTestNativeSource;
   let undoStack: Entry[] = [],
     redoStack: Entry[] = [];
   let undoing = false;
@@ -161,6 +179,7 @@
     onchange(queue);
     const enabled =
       !externalLocked && !undoing && queue.bytes < MAX_QUEUE - 4096;
+    native?.setEditable(enabled);
     if (enabled !== lastEditable) {
       lastEditable = enabled;
       queueMicrotask(() =>
@@ -184,13 +203,14 @@
           ...format(view.state, kind),
           userEvent: "input.format",
         });
-        view.focus();
+        focusEditor();
       }
     } catch (e) {
       onerror(errorMessage(e));
     }
   }
   export function viewportAnchor() {
+    if (native?.visible && nativeAnchor) return nativeAnchor;
     if (!view) return null;
     const height =
       view.scrollDOM.getBoundingClientRect().top - view.documentTop + 1;
@@ -216,9 +236,11 @@
     syncUntil = performance.now() + 200;
     lastLine = line.number;
     if (focusEditor) {
-      view.focus();
       view.dispatch({ selection: { anchor: line.from } });
+      if (native?.visible) native.focus();
+      else view.focus();
     }
+    native?.scrollTo(line.number, fraction);
     const align = (attempt = 0) => {
       if (!view || request !== scrollGeneration) return;
       view.requestMeasure({
@@ -250,8 +272,12 @@
   export function assetDrop(id: string) {
     void tools.dropped(id);
   }
+  export function flushNative() {
+    return native?.flush();
+  }
   export function settle() {
     view?.dispatch({});
+    return flushNative();
   }
   export function lock(value: boolean) {
     externalLocked = value;
@@ -318,13 +344,15 @@
     return undoing;
   }
   export async function undo(redo = false) {
-    if (undoing || !view || !(redo ? redoStack : undoStack).length) return;
+    if (undoing || !view) return;
     undoing = true;
     notify();
     try {
-      await queue.flush();
+      await settle();
       const stack = redo ? redoStack : undoStack;
       const entry = stack[stack.length - 1];
+      if (!entry) return;
+      await queue.flush();
       const receipt = queue.receipts.get(entry.operation);
       if (!receipt?.inverse.length)
         throw new Error(
@@ -345,7 +373,7 @@
     } finally {
       undoing = false;
       notify();
-      view?.focus();
+      focusEditor();
     }
   }
   onMount(() => {
@@ -375,6 +403,7 @@
     host.addEventListener("author-dragstart", drag);
 
     logicalBytes = encodedLength(text);
+    hasArabic = arabic.test(text);
     queue = new EditQueue(
       session,
       {
@@ -596,12 +625,19 @@
                 onanchor(line);
               }
             }
-            for (const transaction of update.transactions)
+            for (const transaction of update.transactions) {
+              if (
+                (transaction.docChanged || transaction.selection) &&
+                !transaction.annotation(fromGtk)
+              )
+                native?.changes(transaction.changes, !!transaction.selection);
               if (transaction.docChanged) {
                 transaction.changes.iterChanges(
                   (from, to, _a, _b, inserted) => {
+                    const insertion = inserted.toString();
+                    if (!hasArabic && arabic.test(insertion)) hasArabic = true;
                     logicalBytes +=
-                      encodedLength(inserted.toString()) -
+                      encodedLength(insertion) -
                       encodedLength(
                         transaction.startState.doc.sliceString(from, to),
                       );
@@ -628,6 +664,7 @@
                 if (undoStack.length > 1000) undoStack.shift();
                 notify();
               }
+            }
           }),
           formatting.of(visual ? [liveFormatting, visualBlocks] : []),
         ],
@@ -638,11 +675,73 @@
     return () => {
       host.removeEventListener("author-block", block);
       host.removeEventListener("author-dragstart", drag);
+      native?.destroy();
       queue.dispose();
       view?.destroy();
       view = undefined;
     };
   });
+  $effect(() => {
+    const enabled =
+      active &&
+      nativeAllowed &&
+      nativeTestEnabled &&
+      hasArabic &&
+      !visual &&
+      !spellcheck;
+    if (enabled && view && !native && !nativeFailed) {
+      native = new NativeSource(
+        view,
+        (line, fraction) => {
+          nativeAnchor = { line, fraction };
+          if (performance.now() >= syncUntil && !focus) {
+            lastLine = line;
+            onanchor(line, fraction);
+          }
+        },
+        ({ key, ctrl, shift, alt }) => {
+          // Global commands use the same configured key bindings in either editor.
+          const event = new KeyboardEvent("keydown", {
+            key,
+            ctrlKey: ctrl,
+            shiftKey: shift,
+            altKey: alt,
+            cancelable: true,
+            bubbles: true,
+          });
+          if (!window.dispatchEvent(event) || !ctrl || alt) return;
+          if (key.toLowerCase() === "z") void undo(shift);
+          else if (key.toLowerCase() === "y") void undo(true);
+          else if (key.toLowerCase() === "f") action("find");
+          else if (key.toLowerCase() === "b") action("bold");
+          else if (key.toLowerCase() === "i") action("italic");
+          else if (key.toLowerCase() === "k") action("link");
+        },
+        (error) => {
+          nativeFailed = true;
+          onerror(errorMessage(error));
+        },
+      );
+      native.setEditable(lastEditable);
+    }
+    void presentation;
+    if (native) {
+      const css = getComputedStyle(host);
+      const value = (name: string) => css.getPropertyValue(name).trim();
+      native.configure(Boolean(enabled), {
+        ink: value("--ink"),
+        paper: value("--paper"),
+        quiet: value("--quiet"),
+        selection: value("--selection"),
+        size: parseInt(value("--reader-size"), 10) || 18,
+        spacing: Number(value("--reader-line-height")) || 1.75,
+        tabWidth,
+        wrap,
+        numbers: numbers && !focus,
+      });
+    }
+  });
+
   $effect(() => {
     const enabled = visual,
       width = tabWidth,

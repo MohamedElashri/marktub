@@ -2141,13 +2141,14 @@ checksum = "5d15f86d12da44cd8d4ec3c73984537eb7f4cadcb9776a575a0a8a05ca11005c"
 
 [[package]]
 name = "marktub"
-version = "0.3.4"
+version = "0.3.5"
 dependencies = [
  "base64 0.22.1",
  "futures-util",
  "git2",
  "glib 0.18.5",
  "globset",
+ "gtk",
  "ignore",
  "libc",
  "notify",

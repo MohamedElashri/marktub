@@ -130,6 +130,11 @@ describe("presentation and command contracts", () => {
     expect(css).toContain('--reader-font:"My font"');
     expect(css).toContain('--reader-heading-font:"My font"');
     expect(appearance({})).toContain('--reader-font:"Noto Naskh Arabic"');
+    const compatibility = appearance(values, false, true);
+    for (const role of ["reader", "reader-heading", "source"])
+      expect(compatibility).toContain(
+        `--${role}-font:"Marktub Arabic Compatibility", `,
+      );
     expect(css.split("--ui-font:")[1]?.split(";")[0]).toBe(
       appearance({}).split("--ui-font:")[1]?.split(";")[0],
     );

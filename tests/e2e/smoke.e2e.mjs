@@ -226,7 +226,7 @@ describe("OS file open and accessibility", () => {
     await expect(browser.$("article h1")).toHaveText("Native source");
     await browser.$("button=Source").waitForEnabled({ timeout: 60000 });
     await browser.$("button=Source").click();
-    await browser.$(".cm-content").waitForDisplayed();
+    await browser.$(".cm-content").waitForDisplayed({ timeout: 60000 });
     await browser.tauri.execute(() => {
       const content = document.querySelector(".cm-content");
       content.focus();
@@ -6333,6 +6333,13 @@ describe("Arabic reading layout", () => {
             const host = document.querySelector(
               ".document-tab:not([hidden]) .reader-scroll",
             );
+            const bodyFont = getComputedStyle(host).fontFamily;
+            const referenceFont = bodyFont.includes(
+              "Marktub Arabic Compatibility",
+            )
+              ? '"Amiri"'
+              : '"Noto Sans Arabic"';
+            await document.fonts.load(`18px ${referenceFont}`, "العربية");
             host.scrollTop = 0;
             const paragraphs = [
               ...host.querySelectorAll(".reader-chunk > p:not(.context-note)"),
@@ -6401,9 +6408,9 @@ describe("Arabic reading layout", () => {
               });
             };
             return {
-              bodyFont: getComputedStyle(host).fontFamily,
-              fallbackMetrics: metrics(getComputedStyle(host).fontFamily),
-              referenceMetrics: metrics('"Noto Sans Arabic"'),
+              bodyFont,
+              fallbackMetrics: metrics(bodyFont),
+              referenceMetrics: metrics(referenceFont),
               headingFont: getComputedStyle(host.querySelector("h1"))
                 .fontFamily,
               loadedFonts: [...document.fonts]
@@ -6580,6 +6587,199 @@ describe("Arabic reading layout", () => {
   });
 });
 
+describe("Native GTK Arabic source", () => {
+  const pane = () => browser.$(".document-tab:not([hidden])");
+  const call = (action, text) =>
+    browser.tauri.execute(
+      ({ core }, action, text) => core.invoke("e2e_fixture", { action, text }),
+      action,
+      text ?? null,
+    );
+  const native = async (action = "native-source-status", data) =>
+    JSON.parse((await call(action, data && JSON.stringify(data))).text);
+  const widgetVisible = () =>
+    pane().$(".cm-editor[data-native-source]").isExisting();
+
+  it("edits the same source through GTK in Source and Split and saves exact text", async function () {
+    if (process.platform !== "linux") this.skip();
+    await browser.tauri.execute(
+      () => (window.__marktubTestNativeSource = true),
+    );
+    const original =
+      "\uFEFF# Heading 🦀\r\n\r\nب بً بٌّ حٍ\r\nمرحبا\u2029English\r\n\r\n" +
+      "هذه جملة طويلة تحمل تشكيلًا وعلامات ترقيم، وهي تمتد على أكثر من سطر عندما تضيق نافذة التحرير.\r\n";
+    const normalized = original.slice(1).replaceAll("\r\n", "\n");
+    const insertion = "حَقًّا عَرَبِيٌّ 🦀 ";
+    const at = normalized.indexOf("ب ");
+    const scalar = [...normalized.slice(0, at)].length;
+    const modified = normalized.slice(0, at) + insertion + normalized.slice(at);
+    try {
+      const fixture = await call("seed", original);
+      await pane().$("button.open-button").waitForEnabled({ timeout: 60000 });
+      await pane().$("button.open-button").click();
+      await pane().$("button=Source").waitForEnabled({ timeout: 60000 });
+      await pane().$("button=Source").click();
+      await browser.waitUntil(widgetVisible, { timeout: 15000 });
+      const initial = await native();
+      expect(initial.text).toBe(normalized);
+      expect(initial.width).toBeGreaterThan(340);
+
+      await native("native-source-insert", {
+        selection: { anchor: scalar, head: scalar },
+        text: insertion,
+      });
+      await pane().$("header").$("button=Save").click();
+      const { readFile } = await import("node:fs/promises");
+      await browser.waitUntil(async () =>
+        (await readFile(fixture.path)).equals(
+          Buffer.from(original.replace("ب ", insertion + "ب ")),
+        ),
+      );
+
+      await pane().$("button=Split").waitForEnabled();
+      await pane().$("button=Split").click();
+      await browser.waitUntil(
+        () =>
+          browser.tauri.execute(
+            () =>
+              document
+                .querySelector(
+                  ".document-tab:not([hidden]) .reader-scroll:not(.placeholder)",
+                )
+                ?.textContent.includes("حَقًّا") ?? false,
+          ),
+        {
+          timeout: 30000,
+          timeoutMsg: "The Split preview did not render the GTK edit.",
+        },
+      );
+      await browser.waitUntil(async () => {
+        const status = await native();
+        const rect = await browser.tauri.execute(() => {
+          const box = document
+            .querySelector(".document-tab:not([hidden]) .cm-scroller")
+            .getBoundingClientRect();
+          return {
+            width: Math.round(box.right) - Math.round(box.left),
+            height: Math.round(box.bottom) - Math.round(box.top),
+          };
+        });
+        return (
+          !!status &&
+          status.width < initial.width &&
+          Math.abs(status.width - rect.width) <= 1 &&
+          Math.abs(status.height - rect.height) <= 1 &&
+          status.text === modified
+        );
+      });
+
+      if (process.env.MARKTUB_E2E_NATIVE_SCREENSHOTS === "1") {
+        const capture = await call("native-source-screenshot");
+        await writeFile(
+          "artifacts/native-gtk-split.png",
+          Buffer.from(capture.text, "base64"),
+        );
+      }
+
+      await native("native-source-select", {
+        anchor: scalar,
+        head: scalar + [...insertion.trimEnd()].length,
+      });
+      await browser.waitUntil(() =>
+        browser.tauri.execute(() => {
+          const cm = document.querySelector(
+            ".document-tab:not([hidden]) .cm-content",
+          ).cmTile.root.view;
+          const { from, to } = cm.state.selection.main;
+          return cm.state.doc.sliceString(from, to) === "حَقًّا عَرَبِيٌّ 🦀";
+        }),
+      );
+      await browser.tauri.execute(() =>
+        document
+          .querySelector(
+            '.document-tab:not([hidden]) button[aria-label="Bold"]',
+          )
+          .click(),
+      );
+      await browser.waitUntil(async () =>
+        (await native())?.text.includes("**حَقًّا عَرَبِيٌّ 🦀**"),
+      );
+      await browser.tauri.execute(() =>
+        document
+          .querySelector(
+            '.document-tab:not([hidden]) button[aria-label="Undo"]',
+          )
+          .click(),
+      );
+      await browser.waitUntil(async () => (await native())?.text === modified);
+
+      await browser.tauri.execute(() => {
+        const dialog = document.createElement("dialog");
+        dialog.id = "gtk-pane-test-dialog";
+        document.body.append(dialog);
+        dialog.showModal();
+      });
+      await browser.waitUntil(async () => (await native()) === null);
+      await browser.tauri.execute(() =>
+        document.getElementById("gtk-pane-test-dialog").remove(),
+      );
+      await browser.waitUntil(widgetVisible);
+
+      await pane().$("button=Read").waitForEnabled();
+      await pane().$("button=Read").click();
+      await browser.waitUntil(async () => (await native()) === null);
+      await pane().$("button=Source").click();
+      await browser.waitUntil(async () => (await native())?.text === modified);
+
+      // Deliver a GTK paste and a web toolbar-style transaction in the same
+      // turn. The model must retain both regardless of which IPC arrives first.
+      const english = modified.indexOf("English");
+      const point = [...modified.slice(0, english)].length;
+      const pasted = "\r\nسُطُورٌ جديدة\r\n";
+      const tail = "\n**متابعة**";
+      await browser.tauri.execute(
+        async ({ core }, point, pasted, tail) => {
+          const insertion = core.invoke("e2e_fixture", {
+            action: "native-source-insert",
+            text: JSON.stringify({
+              selection: { anchor: point, head: point },
+              text: pasted,
+            }),
+          });
+          const cm = document.querySelector(
+            ".document-tab:not([hidden]) .cm-content",
+          ).cmTile.root.view;
+          cm.dispatch({ changes: { from: cm.state.doc.length, insert: tail } });
+          await insertion;
+        },
+        point,
+        pasted,
+        tail,
+      );
+      const merged =
+        modified.slice(0, english) +
+        pasted.replaceAll("\r\n", "\n") +
+        modified.slice(english) +
+        tail;
+      await browser.waitUntil(async () => (await native())?.text === merged);
+      await pane().$("header").$("button=Save").click();
+      await browser.waitUntil(
+        async () =>
+          (await readFile(fixture.path, "utf8")).replaceAll("\r\n", "\n") ===
+          "\uFEFF" + merged,
+      );
+      await pane().$("button=Read").waitForEnabled({ timeout: 60000 });
+      await pane().$("button=Read").click();
+      await browser.waitUntil(async () => (await native()) === null);
+    } finally {
+      await browser.tauri.execute(() => {
+        document.getElementById("gtk-pane-test-dialog")?.remove();
+        delete window.__marktubTestNativeSource;
+      });
+    }
+  });
+});
+
 describe("Arabic editing layout", () => {
   const pane = () => browser.$(".document-tab:not([hidden])");
   const call = (command, args = {}) =>
@@ -6739,6 +6939,154 @@ describe("Arabic editing layout", () => {
       );
     expect(displaced).toEqual([]);
   }
+
+  it("paints Arabic vowel marks above and below the base and saves their exact Unicode order", async () => {
+    const letters = ["ب", "د", "س", "ل", "ف", "بب", "كتب", "محمد"];
+    const marks = [..."ًٌٍَُِّْ"];
+    const editable = "نص";
+    const paragraphs = letters.map((letter) =>
+      [letter, ...marks.map((mark) => letter + mark)].join(" "),
+    );
+    const original =
+      "\uFEFF" + [...paragraphs, editable].join("\r\n\r\n") + "\r\n";
+    const fixture = await call("e2e_fixture", {
+      action: "seed",
+      text: original,
+    });
+    await call("update_settings", {
+      id: null,
+      scope: "session",
+      text: '$theme=light\n$reader.font="Noto Naskh Arabic"\n$reader.font_size=24',
+    });
+    await pane().$("button.open-button").waitForEnabled({ timeout: 60000 });
+    await pane().$("button.open-button").click();
+    try {
+      for (const mode of ["Read", "Source", "Split", "Visual"]) {
+        await pane().$(`button=${mode}`).waitForEnabled({ timeout: 60000 });
+        await pane().$(`button=${mode}`).click();
+        for (const surface of mode === "Split"
+          ? ["reader", "editor"]
+          : [mode === "Read" ? "reader" : "editor"]) {
+          const selector =
+            surface === "reader" ? ".reader-scroll p" : ".cm-content .cm-line";
+          const sample = (fn, ...args) =>
+            browser.tauri.execute(
+              new Function(
+                "_api",
+                "selector",
+                "paragraphs",
+                "args",
+                `const root = document.querySelector('.document-tab:not([hidden])');
+                 const nodes = [...root.querySelectorAll(selector)];
+                 const samples = paragraphs.map(text => nodes.find(node => node.textContent.trim() === text));
+                 return (${fn.toString()})(samples, ...args);`,
+              ),
+              selector,
+              paragraphs,
+              args,
+            );
+          await browser.waitUntil(() =>
+            sample((nodes) => nodes.every(Boolean)),
+          );
+          const measured = await sample(
+            async (nodes, letters, marks) => {
+              const canvas = document.createElement("canvas");
+              canvas.width = 150;
+              canvas.height = 175;
+              const ctx = canvas.getContext("2d", { willReadFrequently: true });
+              ctx.direction = "rtl";
+              ctx.textAlign = "left";
+              const results = [];
+              for (const [index, letter] of letters.entries()) {
+                const { fontFamily, fontWeight } = getComputedStyle(
+                  nodes[index],
+                );
+                const font = `${fontWeight} 72px ${fontFamily}`;
+                await document.fonts.load(font, nodes[index].textContent);
+                ctx.font = font;
+                const paint = (text) => {
+                  ctx.clearRect(0, 0, canvas.width, canvas.height);
+                  ctx.fillText(text, 25, 105);
+                  const rgba = ctx.getImageData(
+                    0,
+                    0,
+                    canvas.width,
+                    canvas.height,
+                  ).data;
+                  const ink = new Set();
+                  let top = canvas.height,
+                    bottom = 0;
+                  for (let i = 3; i < rgba.length; i += 4) {
+                    if (rgba[i] <= 127) continue;
+                    const pixel = (i - 3) / 4;
+                    ink.add(pixel);
+                    const y = Math.floor(pixel / canvas.width);
+                    top = Math.min(top, y);
+                    bottom = Math.max(bottom, y);
+                  }
+                  return { ink, top, bottom };
+                };
+                const bare = paint(letter);
+                for (const mark of marks) {
+                  const placed = paint(letter + mark);
+                  const shared = [...bare.ink].filter((pixel) =>
+                    placed.ink.has(pixel),
+                  ).length;
+                  results.push({
+                    letter,
+                    mark,
+                    retained: shared / bare.ink.size,
+                    above: bare.top - placed.top,
+                    below: placed.bottom - bare.bottom,
+                  });
+                }
+              }
+              return results;
+            },
+            letters,
+            marks,
+          );
+          const misplaced = measured.filter(
+            ({ mark, retained, above, below }) =>
+              retained < 0.8 ||
+              ("ٍِ".includes(mark) ? below <= 0 : above <= 0 || below > 2),
+          );
+          expect({ mode, surface, misplaced }).toEqual({
+            mode,
+            surface,
+            misplaced: [],
+          });
+        }
+      }
+
+      const typed = "حَقًّا عَرَبِيٌّ وَكِتَابٍ كِتَابًا كِتَاباً";
+      await editor((v, text) => {
+        const pos = v.state.doc.toString().lastIndexOf(text);
+        v.focus();
+        v.dispatch({ selection: { anchor: pos, head: pos + text.length } });
+      }, editable);
+      await editor(
+        (_v, text) => document.execCommand("insertText", false, text),
+        typed,
+      );
+      await browser.waitUntil(() =>
+        editor(
+          (v, expected) => v.state.doc.toString().includes(expected),
+          typed,
+        ),
+      );
+      await pane().$("header").$("button=Save").waitForEnabled();
+      await pane().$("header").$("button=Save").click();
+      const { readFile } = await import("node:fs/promises");
+      await browser.waitUntil(async () =>
+        (await readFile(fixture.path)).equals(
+          Buffer.from(original.replace(editable, typed)),
+        ),
+      );
+    } finally {
+      await call("update_settings", { id: null, scope: "session", text: "" });
+    }
+  });
 
   it("shares Arabic fonts between the reader and every editing view", async () => {
     const mixed = "English with كلمات عربية and 123.";
@@ -7019,7 +7367,9 @@ describe("Arabic editing layout", () => {
       const [font, size, lineHeight] = layout.typography;
       expect(size).toBe("18px");
       expect(parseFloat(lineHeight)).toBeCloseTo(34.2, 1);
-      expect(font).toMatch(/^"?Amiri"?(?:,|$)/);
+      expect(font).toMatch(
+        /^(?:"Marktub Arabic Compatibility", )?"?Amiri"?(?:,|$)/,
+      );
       expect(layout.typography).toEqual(observations[0].typography);
       expect(layout.mixedTypography).toEqual(layout.typography);
       expect(layout.arabic).toEqual(layout.reference);
@@ -7327,15 +7677,38 @@ describe("Continuous reader", () => {
           .find((button) => button.textContent.trim() === "Source")
           .click();
       });
-      await pane().$(".cm-content").waitForDisplayed();
+      await browser.waitUntil(
+        () =>
+          browser.tauri.execute(() =>
+            Boolean(
+              document.querySelector(".document-tab:not([hidden]) .cm-content"),
+            ),
+          ),
+        { timeout: 60000 },
+      );
       await browser.tauri.execute(
         () =>
           new Promise((resolve) =>
             requestAnimationFrame(() => requestAnimationFrame(resolve)),
           ),
       );
-      await pane().$("button=Read").click();
-      await pane().$("button=Export HTML").waitForEnabled({ timeout: 60000 });
+      await browser.tauri.execute(() => {
+        const pane = document.querySelector(".document-tab:not([hidden])");
+        [...pane.querySelectorAll("button")]
+          .find((button) => button.textContent.trim() === "Read")
+          .click();
+      });
+      await browser.waitUntil(
+        () =>
+          browser.tauri.execute(() => {
+            const pane = document.querySelector(".document-tab:not([hidden])");
+            return [...pane.querySelectorAll("button")].some(
+              (button) =>
+                !button.disabled && button.textContent.trim() === "Export HTML",
+            );
+          }),
+        { timeout: 60000 },
+      );
     }
     expect(
       await browser.tauri.execute(

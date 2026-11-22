@@ -16,6 +16,7 @@
     type Values,
   } from "./preferences";
   import { arabicFamilies, readyFontChoices } from "./fonts/catalogue";
+  import { arabicCompatibility } from "./fonts/arabic-compatibility";
   import { chord } from "./commands";
   import Updates from "./Updates.svelte";
   let {
@@ -81,12 +82,14 @@
     session:
       "Temporary overrides until you quit Marktub. Your saved defaults stay unchanged.",
   };
-  const help: Record<string, string> = {
+  const help: Record<string, string> = $derived({
     "ui.font": "Used for tabs, menus and controls throughout the app.",
     "ui.scale": "Make the interface more compact or easier to read.",
     "library.width":
       "Drag the library divider to resize it, or enter a width here. Global or session-only.",
-    "reader.font": "Noto Naskh Arabic, Noto Sans Arabic and Amiri are bundled.",
+    "reader.font": $arabicCompatibility
+      ? "This WebView uses Amiri for Arabic text to improve diacritic placement."
+      : "Noto Naskh Arabic, Noto Sans Arabic and Amiri are bundled.",
     "reader.heading_font":
       "Applies to Arabic headings in the editor too. Same as body uses the reading font.",
     "reader.font_size":
@@ -110,7 +113,7 @@
       "Choose colored syntax, a quiet code panel, or plain text colors.",
     "recovery.flush_ms":
       "How long edits can batch before recovery is flushed. This is not automatic file saving.",
-  };
+  });
   const optionLabel = (spec: Spec, option: string) =>
     spec.key === "theme"
       ? ({
@@ -711,7 +714,7 @@
     >{/if}
   {#if !about}<aside
       class="preferences-specimen"
-      style={appearance(effective, $osDark)}
+      style={appearance(effective, $osDark, $arabicCompatibility)}
       aria-label="Live theme specimen"
     >
       <span class="specimen-title" dir="auto"

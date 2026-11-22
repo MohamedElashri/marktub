@@ -1,5 +1,6 @@
 import { mount } from "svelte";
 import App from "./App.svelte";
+import { applyArabicCompatibilityFont } from "./fonts/arabic-compatibility";
 import "./styles.css";
 import "./reader/typography.css";
 import "./fonts/fonts.css";
@@ -10,3 +11,6 @@ if (import.meta.env.VITE_MARKTUB_E2E === "1") {
 }
 
 mount(App, { target: document.getElementById("app")! });
+void applyArabicCompatibilityFont().catch(() => {
+  // Keep the requested typography if the renderer cannot sample the font.
+});
