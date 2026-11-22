@@ -1,6 +1,6 @@
 [package]
 name = "marktub"
-version = "0.3.5"
+version = "0.3.6"
 description = "Offline Markdown reader and source-preserving editor"
 authors = ["Marktub contributors"]
 license = "MIT"
