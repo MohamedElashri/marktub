@@ -34,6 +34,7 @@ fn main() {
         "power_diagram",
         "power_math",
         "power_prepare",
+        "power_prepare_inline",
         "power_run",
         "power_poll",
         "power_cancel",

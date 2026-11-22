@@ -30,6 +30,7 @@
     foldKeymap,
     foldCode,
     unfoldCode,
+    syntaxTree,
   } from "@codemirror/language";
   import { rectangularSelection, crosshairCursor } from "@codemirror/view";
   import { defaultKeymap } from "@codemirror/commands";
@@ -44,6 +45,7 @@
   import { applyEdits, flushEdits, errorMessage } from "../bridge";
   import { EditQueue, MAX_QUEUE } from "../document/queue";
   import type { Change, EditDescriptor } from "../document/protocol";
+  import { closedFence, fenceKind, type Fence } from "../power/fence";
   const syntaxColors: Record<string, string> = {
     "#708": "var(--keyword)",
     "#085": "var(--string)",
@@ -278,6 +280,27 @@
   }
   export function caret() {
     return (session.range?.from ?? 0) + (view?.state.selection.main.head ?? 0);
+  }
+  export function fenceAtCaret(): Fence | undefined {
+    if (!view || session.range || logicalBytes > 2 * 1024 * 1024) return;
+    const { state } = view;
+    let node = syntaxTree(state).resolveInner(state.selection.main.head, -1);
+    while (node.parent && node.name !== "FencedCode") node = node.parent;
+    if (node.name !== "FencedCode" || node.parent?.name !== "Document") return;
+    const first = state.doc.lineAt(node.from);
+    const last = state.doc.lineAt(node.to);
+    const kind = fenceKind(
+      first.text.replace(/^ {0,3}(?:`{3,}|~{3,})/, "").trim(),
+    );
+    if (
+      !kind ||
+      first.number >= last.number ||
+      !closedFence(first.text, last.text)
+    )
+      return;
+    const code = state.doc.sliceString(first.to + 1, last.from);
+    if (code.trim() && new TextEncoder().encode(code).length <= 8192)
+      return { kind, line: first.number + 1, code };
   }
   export function preview() {
     let value = view?.state.doc.sliceString(0, 65536) ?? "";

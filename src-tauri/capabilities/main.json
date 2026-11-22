@@ -99,6 +99,7 @@
     "allow-power-diagram",
     "allow-power-math",
     "allow-power-prepare",
+    "allow-power-prepare-inline",
     "allow-power-run",
     "allow-power-poll",
     "allow-power-cancel",

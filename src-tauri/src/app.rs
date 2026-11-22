@@ -143,8 +143,16 @@ async fn read_range(
 }
 
 #[tauri::command]
-fn release_document(docs: State<'_, Documents>, id: String) -> Result<(), FileError> {
-    docs.release(&id)
+fn release_document(
+    app: tauri::AppHandle,
+    docs: State<'_, Documents>,
+    id: String,
+) -> Result<(), FileError> {
+    docs.release(&id)?;
+    if let Ok(mut service) = powers(&app).lock() {
+        service.document_databases.remove(&id);
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -626,7 +634,7 @@ async fn install_application_update(app: tauri::AppHandle) -> Result<(), FileErr
     Ok(())
 }
 
-macro_rules! commands {($($extra:ident),*)=>{tauri::generate_handler![crate::updates::prepare_application_update,crate::updates::application_update_status,crate::updates::cancel_application_update,crate::updates::check_application_update,crate::updates::download_application_update,crate::updates::open_application_installer,install_application_update,take_os_open,power_state,power_enable,power_choose_tool,power_trust,power_choose_database,power_capture,power_release,power_image,power_diagram,power_math,power_prepare,power_run,power_poll,power_cancel,power_clear,power_save_pdf,power_open_pdf,review_begin,review_sync,review_displayed,review_end,review_update,review_compare,review_export,review_save,review_list,review_delete,review_archive_export,review_archive_save,git_badges,git_history_files,git_choose,git_refresh,git_revoke,git_compare,git_page,git_mutate,git_open,git_backups,git_export_backup,git_forget_backup,capture_edit_read,read_edit_snapshot,import_author_image,change_edit_window,preference_catalogue,list_fonts,preview_settings,library_location,library_session,library_remember_document,library_accept_drop,library_state,library_choose_root,library_page,library_open,note_catalogue,library_preview,library_scan,library_job,library_prepare,library_commit,library_configure,library_pin,library_clear_recent,library_remove_root,open_document_link,choose_image,export_html,choose_document,open_example,read_range,release_document,document_status,runtime_info,execution_status,
+macro_rules! commands {($($extra:ident),*)=>{tauri::generate_handler![crate::updates::prepare_application_update,crate::updates::application_update_status,crate::updates::cancel_application_update,crate::updates::check_application_update,crate::updates::download_application_update,crate::updates::open_application_installer,install_application_update,take_os_open,power_state,power_enable,power_choose_tool,power_trust,power_choose_database,power_capture,power_release,power_image,power_diagram,power_math,power_prepare,power_prepare_inline,power_run,power_poll,power_cancel,power_clear,power_save_pdf,power_open_pdf,review_begin,review_sync,review_displayed,review_end,review_update,review_compare,review_export,review_save,review_list,review_delete,review_archive_export,review_archive_save,git_badges,git_history_files,git_choose,git_refresh,git_revoke,git_compare,git_page,git_mutate,git_open,git_backups,git_export_backup,git_forget_backup,capture_edit_read,read_edit_snapshot,import_author_image,change_edit_window,preference_catalogue,list_fonts,preview_settings,library_location,library_session,library_remember_document,library_accept_drop,library_state,library_choose_root,library_page,library_open,note_catalogue,library_preview,library_scan,library_job,library_prepare,library_commit,library_configure,library_pin,library_clear_recent,library_remove_root,open_document_link,choose_image,export_html,choose_document,open_example,read_range,release_document,document_status,runtime_info,execution_status,
     create_note,begin_edit,apply_edits,flush_edits,save_document,save_as_document,editing_status,compare_document,reopen_document,release_editor,
     list_recoveries,restore_recovery,discard_recovery,get_settings,update_settings,import_settings,export_settings,document_position,remember_position,storage_warning,close_application,reset_settings,$($extra),*]};}
 
@@ -2009,6 +2017,9 @@ fn powers(app: &tauri::AppHandle) -> std::sync::Arc<Mutex<power::Powers>> {
     app.state::<PowerHost>().0.clone()
 }
 fn power_confirm(app: &tauri::AppHandle, message: &str) -> bool {
+    power_confirm_action(app, message, None)
+}
+fn power_confirm_action(app: &tauri::AppHandle, message: &str, run_title: Option<&str>) -> bool {
     #[cfg(feature = "e2e")]
     if let Some(answer) = app
         .state::<crate::test_support::Fixtures>()
@@ -2016,11 +2027,21 @@ fn power_confirm(app: &tauri::AppHandle, message: &str) -> bool {
     {
         return answer;
     }
+    // rfd's GTK backend passes the description to a printf-style API.
+    // Keep percentages in source and filenames literal in the native dialog.
+    #[cfg(target_os = "linux")]
+    let message = message.replace('%', "%%");
     app.dialog()
         .message(message)
-        .title("Confirm this local action")
+        .title(run_title.unwrap_or("Confirm this local action"))
         .kind(tauri_plugin_dialog::MessageDialogKind::Warning)
-        .buttons(tauri_plugin_dialog::MessageDialogButtons::OkCancel)
+        .buttons(match run_title {
+            Some(_) => tauri_plugin_dialog::MessageDialogButtons::OkCancelCustom(
+                "Run".into(),
+                "Cancel".into(),
+            ),
+            None => tauri_plugin_dialog::MessageDialogButtons::OkCancel,
+        })
         .blocking_show()
 }
 fn power_pick(
@@ -2035,10 +2056,11 @@ fn power_pick(
     {
         return Ok(Some(path));
     }
-    let picker = app
-        .dialog()
-        .file()
-        .set_title(format!("Select {role} explicitly"));
+    let picker = app.dialog().file().set_title(if role == "database" {
+        "Choose a SQLite database".into()
+    } else {
+        format!("Select {role} explicitly")
+    });
     let path = if folder {
         picker.blocking_pick_folder()
     } else {
@@ -2095,28 +2117,43 @@ async fn power_trust(
 }).await.map_err(|_|power::err("Folder trust interrupted."))?
 }
 #[tauri::command]
-async fn power_choose_database(app: tauri::AppHandle) -> Result<Option<power::DbView>, FileError> {
+async fn power_choose_database(
+    app: tauri::AppHandle,
+    document: Option<String>,
+    temporary: Option<bool>,
+) -> Result<Option<power::DbView>, FileError> {
     tauri::async_runtime::spawn_blocking(move || {
+        let host = powers(&app);
+        let docs = app.state::<Documents>();
+        if let Some(id) = document.as_ref() {
+            docs.scoped(id)?;
+            if temporary == Some(true) {
+                host.lock()
+                    .map_err(|_| power::err("Local jobs unavailable."))?
+                    .document_databases
+                    .remove(id);
+                return Ok(None);
+            }
+        }
         let Some(path) = power_pick(&app, "database", false)? else {
             return Ok(None);
         };
         let db = std::sync::Arc::new(power::Database::select(&path)?);
-        let host = powers(&app);
         let mut p = host
             .lock()
             .map_err(|_| power::err("Local jobs unavailable."))?;
         p.protect(&db.path)?;
-        if p.databases.len() >= 4 {
-            return Err(power::err(
-                "Four database grants reached; restart to clear selection.",
-            ));
-        }
         let view = power::DbView {
             id: db.id.clone(),
             name: db.path.display().to_string(),
         };
-        p.databases.clear();
-        p.databases.insert(db.id.clone(), db);
+        if let Some(id) = document {
+            docs.scoped(&id)?;
+            p.document_databases.insert(id, db);
+        } else {
+            p.databases.clear();
+            p.databases.insert(db.id.clone(), db);
+        }
         Ok(Some(view))
     })
     .await
@@ -2138,6 +2175,7 @@ async fn power_capture(
 ) -> Result<power::CaptureView, FileError> {
     tauri::async_runtime::spawn_blocking(move || {
         let docs = app.state::<Documents>();
+        let document = input.document.clone();
         let (name, bytes, path, origin, proof) = if input.saved {
             let id = input
                 .document
@@ -2190,7 +2228,7 @@ async fn power_capture(
                 },
             )
         };
-        let mut c = power::Capture::new(name, bytes, origin, path, None)?;
+        let mut c = power::Capture::new(name, bytes, origin, path, document)?;
         c.proof = Some(proof);
         powers(&app)
             .lock()
@@ -2422,6 +2460,32 @@ async fn power_prepare(
     .map_err(|_| power::err("Job preparation interrupted."))?
 }
 #[tauri::command]
+async fn power_prepare_inline(
+    app: tauri::AppHandle,
+    capture: String,
+    block: String,
+    database: Option<String>,
+) -> Result<PowerApproval, FileError> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let host = powers(&app);
+        let captured = host
+            .lock()
+            .map_err(|_| power::err("Local jobs unavailable."))?
+            .captures
+            .get(&capture)
+            .cloned()
+            .ok_or_else(|| power::err("Capture ended."))?;
+        power_proof(&app, &captured)?;
+        let (token, summary) = host
+            .lock()
+            .map_err(|_| power::err("Local jobs unavailable."))?
+            .prepare_inline(capture, block, database)?;
+        Ok(PowerApproval { token, summary })
+    })
+    .await
+    .map_err(|_| power::err("Block preparation interrupted."))?
+}
+#[tauri::command]
 async fn power_run(app: tauri::AppHandle, token: String) -> Result<Option<String>, FileError> {
     tauri::async_runtime::spawn_blocking(move || {
         let host = powers(&app);
@@ -2431,27 +2495,25 @@ async fn power_run(app: tauri::AppHandle, token: String) -> Result<Option<String
             .take(&token)?;
         let scratch=host.lock().map_err(|_|power::err("Local jobs unavailable."))?.scratch()?;
         let cwd=if p.request.mode==power::Mode::Shell {p.root.as_ref().unwrap().path.clone()} else {scratch.path.clone()};
-        let summary=format!("{}\n\nWorking directory: {}\nConverter: {}\nLimits: 256 KiB per stream; shell/TeX 30 seconds per process; SQLite 5 seconds. Attached process-group cancellation is best effort; detached descendants may survive.",p.summary,cwd.display(),p.pandoc.as_ref().map(|t|format!("{} ({})",t.path.display(),t.view.version)).unwrap_or_else(||"None".into()));
-        if !power_confirm(&app, &summary) { return Ok(None); }
+        let approved = if p.inline {
+            power_confirm_action(&app, &p.summary,
+                Some(if p.request.mode == power::Mode::Shell { "Run this Shell block?" } else { "Run this SQL query?" }))
+        } else {
+            let summary=format!("{}\n\nWorking directory: {}\nConverter: {}\nLimits: 256 KiB per stream; shell/TeX 30 seconds per process; SQLite 5 seconds. Attached process-group cancellation is best effort; detached descendants may survive.",p.summary,cwd.display(),p.pandoc.as_ref().map(|t|format!("{} ({})",t.path.display(),t.view.version)).unwrap_or_else(||"None".into()));
+            power_confirm(&app, &summary)
+        };
+        if !approved { return Ok(None); }
 
         if p.request.mode.kind().is_some() {
             power_proof(&app, &p.capture)?;
         }
-        let job = std::sync::Arc::new(power::Job::new(p.request.mode.kind()));
+        let job = std::sync::Arc::new(power::Job::new(p.request.mode.kind(), p.inline));
         let id = uuid::Uuid::new_v4().to_string();
         let scratch = {
             let mut service = host
                 .lock()
                 .map_err(|_| power::err("Local jobs unavailable."))?;
-            if !service.captures.contains_key(&p.request.capture)
-                || p.request.mode.kind().is_some_and(|k| !service.enabled(k))
-                || p.root
-                    .as_ref()
-                    .is_some_and(|r| !service.roots.contains_key(&r.id))
-                || p.tool.as_ref().is_some_and(|t|!service.tools.contains_key(&t.view.id))
-                || p.pandoc.as_ref().is_some_and(|t|!service.tools.contains_key(&t.view.id))
-                || p.database.as_ref().is_some_and(|d|!service.databases.contains_key(&d.id))
-            {
+            if !service.authorized(&p) {
                 return Err(power::err("Authority revoked while confirmation was open."));
             }
             if service
@@ -2478,7 +2540,7 @@ async fn power_run(app: tauri::AppHandle, token: String) -> Result<Option<String
 #[tauri::command]
 fn power_poll(app: tauri::AppHandle, job: String) -> Result<power::ResultView, FileError> {
     let host = powers(&app);
-    let p = host
+    let mut p = host
         .lock()
         .map_err(|_| power::err("Local jobs unavailable."))?;
     let j = p
@@ -2490,6 +2552,9 @@ fn power_poll(app: tauri::AppHandle, job: String) -> Result<power::ResultView, F
         .lock()
         .map_err(|_| power::err("Job result unavailable."))?
         .clone();
+    if j.inline && result.status != "running" {
+        p.jobs.remove(&job);
+    }
     Ok(result)
 }
 #[tauri::command]
