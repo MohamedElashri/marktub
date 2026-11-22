@@ -55,7 +55,7 @@ export function dependency(from, name) {
 export function validateJavaScriptOverrides(directory) {
   const root = realpathSync(directory);
   const record = JSON.parse(
-    readFileSync(join(root, "docs/evidence/dependency-overrides.json")),
+    readFileSync(join(root, "patches/dependency-overrides.json")),
   ).javascript;
   assert.equal(record.advisory, advisory);
   assert.equal(record.reviewedAdvisory.url, advisory);

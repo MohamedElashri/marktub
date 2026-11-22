@@ -5,7 +5,7 @@ import { readFileSync, readdirSync } from "node:fs";
 
 test("bundled typography retains the recorded upstream bytes and font licences", () => {
   const record = JSON.parse(
-    readFileSync("docs/evidence/riwaq-assets.json", "utf8"),
+    readFileSync("tests/tooling/font-sources.json", "utf8"),
   );
   const fonts = record.files.filter((file) => file.path.endsWith(".ttf"));
   assert.deepEqual(

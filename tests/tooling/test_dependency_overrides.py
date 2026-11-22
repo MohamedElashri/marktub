@@ -25,8 +25,7 @@ class DependencyOverrides(unittest.TestCase):
         (self.root / "patches").mkdir()
         (self.root / "patches/example.patch").write_text("reviewed patch")
         record = {"packages": [{"name": "example", "version": "1.0.0", "path": "src-tauri/vendor/example", "patch": "patches/example.patch", "patchSha256": checker.digest(self.root / "patches/example.patch"), "files": [{"path": "Cargo.toml", "sha256": checker.digest(vendor / "Cargo.toml"), "upstreamSha256": hashlib.sha256(b"original").hexdigest()}]}]}
-        (self.root / "docs/evidence").mkdir(parents=True)
-        (self.root / "docs/evidence/dependency-overrides.json").write_text(json.dumps(record))
+        (self.root / "patches/dependency-overrides.json").write_text(json.dumps(record))
         self.metadata = {"packages": [{"manifest_path": str(path), "name": name, "source": None} for path, name in [(self.root / "src-tauri/Cargo.toml", "marktub"), (vendor / "Cargo.toml", "example")]]}
 
     def test_exact_reviewed_source_and_cargo_version_fallback(self):

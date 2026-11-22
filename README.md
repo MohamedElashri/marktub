@@ -20,8 +20,6 @@
   <a href="LICENSE"><img src="https://img.shields.io/github/license/MohamedElashri/marktub" alt="License" /></a>
 </p>
 
-![Read mode in Marktub 0.3.1, with compact tabs and document controls](docs/assets/read.png)
-
 ## Why Marktub?
 
 - **Ordinary files, kept local.** Open Markdown files and folders directly. Use
@@ -31,13 +29,6 @@
   for a live preview beside your Markdown.
 - **Review and share.** Inspect Git diffs, stage changes and leave revision
   feedback. Export standalone HTML or create PDFs with your selected local tools.
-
-<details>
-<summary>See the Split writing workspace</summary>
-
-![Split mode in Marktub 0.3.1, with Markdown source beside the rendered document](docs/assets/split.png)
-
-</details>
 
 ## Get started
 

@@ -32,7 +32,7 @@ const metadata = spawnSync(
 if (metadata.status !== 0)
   throw Error(metadata.stderr || "Cargo license inventory failed.");
 const overrides = JSON.parse(
-  readFileSync("docs/evidence/dependency-overrides.json", "utf8"),
+  readFileSync("patches/dependency-overrides.json", "utf8"),
 ).packages;
 const localOverride = (pkg) =>
   overrides.find(
@@ -49,7 +49,7 @@ const supplements = JSON.parse(
 for (const pkg of rust) {
   const override = localOverride(pkg);
   const origin = override
-    ? `Source: ${override.upstream}; locally modified source in ${override.path}, with original archive/file hashes and changes recorded in docs/evidence/dependency-overrides.json and ${override.patch}. ${override.repository}`
+    ? `Source: ${override.upstream}; locally modified source in ${override.path}, with original archive/file hashes and changes recorded in patches/dependency-overrides.json and ${override.patch}. ${override.repository}`
     : `Source: https://crates.io/crates/${pkg.name}/${pkg.version} (unmodified registry archive); ${pkg.repository || "origin is recorded in the archive"}`;
   const directory = join(pkg.manifest_path, "..");
   const candidates = licenseFiles(directory, pkg.license_file);

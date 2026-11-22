@@ -24,7 +24,7 @@ def validate(root, metadata):
     version = manifest["package"]["version"]
     assert application["version"] == version, "Application manifest versions differ"
     assert config.get("version") in (None, version), "Tauri version differs from the Cargo fallback"
-    record = json.loads((root / "docs/evidence/dependency-overrides.json").read_text())
+    record = json.loads((root / "patches/dependency-overrides.json").read_text())
     packages = {p["name"]: p for p in record["packages"]}
     assert len(packages) == len(record["packages"]), "Duplicate dependency override"
     assert set(manifest["patch"]["crates-io"]) == set(packages), "Unreviewed dependency override"
