@@ -367,7 +367,8 @@
     }
   }
   export function revealNavigation() {
-    reader?.navigation();
+    actionsOpen = false;
+    void setReadingFocus(false, false);
   }
   export async function requestClose() {
     if (busy || inlinePending || powerPanel?.inlineRunning()) return false;
@@ -402,6 +403,10 @@
   let editor = $state<SourceEditor | undefined>();
   let SourceComponent = $state<typeof SourceEditor | null>(null);
   let mode = $state<"read" | "source" | "split" | "visual">("read");
+  let readingFocus = $state(false);
+  const focusedReading = $derived(
+    !!document && mode === "read" && readingFocus,
+  );
   let splitPercent = $state(50),
     writingFocus = $state(false),
     windowStart = $state(0);
@@ -432,6 +437,15 @@
   let readerAnchor = $state<string | null>(null);
   let reader = $state<Reader | undefined>();
   let ReaderComponent = $state<typeof Reader | null>(null);
+  async function setReadingFocus(next: boolean, moveFocus = true) {
+    if (!document || mode !== "read" || readingFocus === next) return;
+    const restore = reader?.captureLayout();
+    actionsOpen = false;
+    readingFocus = next;
+    await tick();
+    restore?.();
+    if (active && moveFocus) reader?.focusReading(next);
+  }
   let currentRead = $state<Read>((start) =>
     bridge.readRange(document!.id, start),
   );
@@ -497,6 +511,7 @@
       editing: !!session,
       busy: busy || inlinePending || !!powerPanel?.inlineRunning(),
       mode,
+      readingFocus: focusedReading,
       authorBudget:
         !session?.range &&
         (editor?.sizeBytes() ?? document?.byteLength ?? 0) <= 2 * 1024 * 1024,
@@ -528,15 +543,18 @@
       case "compare":
         return compare();
       case "focus":
-        if (mode === "read") reader?.action("focus");
+        if (mode === "read") await setReadingFocus(!readingFocus);
         else writingFocus = !writingFocus;
         break;
       case "outline":
+        await setReadingFocus(false, false);
         reader?.action("outline");
         break;
       case "find":
-        if (mode === "read") reader?.action("find");
-        else editor?.action("find");
+        if (mode === "read") {
+          await setReadingFocus(false, false);
+          reader?.action("find");
+        } else editor?.action("find");
         break;
     }
   }
@@ -807,6 +825,12 @@
     if (reviewEnabled && document?.location !== selected.location)
       await endReview();
     reviewDisplayed = false;
+    if (
+      !document ||
+      (document.id !== selected.id &&
+        (!document.location || document.location !== selected.location))
+    )
+      readingFocus = false;
     if (document && realDocument() && selected.id !== document.id)
       await bridge.releaseDocument(document.id);
     document = selected;
@@ -912,6 +936,7 @@
         "Split and Visual currently admit ordinary documents up to 2 MiB; use Source/range editing for this document.";
       next = "source";
     }
+    if (next !== "read") readingFocus = false;
     mode = next;
     if (next === "visual") visual = true;
     else if (next === "source") visual = false;
@@ -1230,19 +1255,26 @@
   data-editing={!!session}
   data-busy={busy}
   data-mode={mode}
-  class:with-review={reviewEnabled}
+  class:with-review={reviewEnabled && !focusedReading}
+  class:reading-focus={focusedReading}
   class:writing-focus={writingFocus && mode !== "read"}
   data-theme={String(value("theme", "system"))}
   style={appearance(displayed, $osDark)}
   data-code-style={String(value("code.style", "classic"))}
 >
   <header class="toolbar" class:document-toolbar={!!document}>
-    <span class="wordmark"
-      >Marktub<span class="wordmark-dot" aria-hidden="true"></span></span
-    >
-    <span class="document-name" title={document?.name}
-      >{document?.name ?? "Markdown, at your own pace"}</span
-    >
+    {#if document}
+      <div class="document-title" title={document.name}>
+        <Icon name="file" /><span class="document-name" dir="auto"
+          >{document.name}</span
+        >
+      </div>
+    {:else}
+      <span class="wordmark"
+        >Marktub<span class="wordmark-dot" aria-hidden="true"></span></span
+      >
+      <span class="document-name">Markdown, at your own pace</span>
+    {/if}
     {#if document}<div class="mode-switch" aria-label="Document mode">
         <button
           aria-pressed={mode === "read"}
@@ -1262,19 +1294,12 @@
           disabled={busy}>Visual</button
         >
       </div>{/if}
-    {#if document && realDocument()}<button
-        aria-pressed={reviewEnabled}
-        onclick={toggleReview}
-        disabled={busy}>{reviewEnabled ? "Review on" : "Review"}</button
-      >{/if}
-    {#if realDocument()}<button onclick={() => showLinks()} disabled={busy}
-        >Links</button
-      >{/if}
     {#if session}<button
         class="save-button"
+        class:primary={dirty}
         onclick={() => save()}
         disabled={busy}>Save</button
-      ><button onclick={() => save(true)} disabled={busy}>Save As</button>{/if}
+      >{/if}
     {#if session && !session.range && (mode === "source" || mode === "visual")}
       <button
         onclick={runFenceAtCaret}
@@ -1282,10 +1307,17 @@
         >Run block</button
       >
     {/if}
-    <button class="open-button" onclick={() => open()} disabled={busy}
-      >Open file <kbd aria-label={openShortcut.spoken}
-        >{openShortcut.visual}</kbd
-      ></button
+    <button
+      class="open-button"
+      onclick={() => open()}
+      disabled={busy}
+      title={openShortcut.visual
+        ? `Open file (${openShortcut.visual})`
+        : "Open file"}
+    >
+      <Icon name="folder" />Open file{#if !document}
+        <kbd aria-label={openShortcut.spoken}>{openShortcut.visual}</kbd
+        >{/if}</button
     >
     <details
       class="document-actions"
@@ -1294,10 +1326,24 @@
     >
       <summary aria-label="More document actions">More</summary>
       <div class="document-actions-list">
+        {#if session}<button
+            onclick={() => documentAction(() => save(true), true)}
+            disabled={busy}>Save As</button
+          >{/if}
         {#if document && realDocument()}<button
             onclick={() => documentAction(reload)}
             disabled={busy}>Reload</button
           >{/if}
+        {#if realDocument()}<button
+            onclick={() => documentAction(() => showLinks(), true)}
+            disabled={busy}>Links</button
+          >
+          <button
+            aria-pressed={reviewEnabled}
+            onclick={() => documentAction(toggleReview)}
+            disabled={busy}>{reviewEnabled ? "Review on" : "Review"}</button
+          >
+        {/if}
         {#if document}<button
             onclick={() => documentAction(openPower, true)}
             disabled={busy}>Export &amp; run</button
@@ -1618,6 +1664,8 @@
                 bind:this={reader}
                 read={currentRead}
                 embedded={mode === "split"}
+                focused={focusedReading}
+                ontogglefocus={() => setReadingFocus(!readingFocus)}
                 onedit={mode === "read" &&
                 (session?.range || document.byteLength > 16 * 1024 * 1024)
                   ? async (byte) => {
@@ -1691,28 +1739,29 @@
       </div>
     {/if}
   </main>
-  <footer class="statusbar">
-    <span
-      >{session
-        ? (dirty
+  {#if session || (document && !document.bundledGuide && !document.watching && realDocument())}
+    <footer class="statusbar">
+      {#if session}<span
+          >{(dirty
             ? "Unsaved changes"
             : stale
               ? "Disk revision changed"
               : "Saved") +
-          " · " +
-          (durable ? "Recovery up to date" : "Recovery pending")
-        : document
-          ? "Read only"
-          : "Local files. No account. No connection."}</span
-    >{#if document && !document.watching && realDocument()}<span
-        >File watching unavailable; rechecked on focus</span
-      >{/if}
-  </footer>
+            " · " +
+            (durable ? "Recovery up to date" : "Recovery pending")}</span
+        >{/if}
+      {#if document && !document.bundledGuide && !document.watching && realDocument()}<span
+          >File watching unavailable; rechecked on focus</span
+        >{/if}
+    </footer>
+  {/if}
 </div>
 
 <svelte:window
   onkeydown={(event) => {
     if (
+      !active ||
+      event.defaultPrevented ||
       event.isComposing ||
       event.keyCode === 229 ||
       window.document.querySelector("dialog[open]")
@@ -1722,6 +1771,9 @@
       event.preventDefault();
       actionsOpen = false;
       actionsElement?.querySelector("summary")?.focus();
+    } else if (focusedReading && event.key === "Escape") {
+      event.preventDefault();
+      void setReadingFocus(false);
     }
   }}
 />

@@ -15,6 +15,7 @@
     canClearRecent,
     onrecentchange,
     onclearrecent,
+    onclose,
   }: {
     onopen: (d: Descriptor) => Promise<void>;
     onrecent: (h: api.Hint) => Promise<void>;
@@ -23,6 +24,7 @@
     canClearRecent: boolean;
     onrecentchange: (state: api.LibraryState) => void;
     onclearrecent: () => Promise<void>;
+    onclose?: () => void;
   } = $props();
   let libraryState = $state<api.LibraryState | null>(null);
   let current = $state<api.Folder | null>(null),
@@ -353,9 +355,17 @@
 <div class="library-panel">
   <div class="library-title">
     <h2>Library</h2>
-    <button class="folder-button" onclick={addRoot} disabled={busy}
-      >Add folder</button
-    >
+    <div class="library-title-actions">
+      <button class="folder-button" onclick={addRoot} disabled={busy}
+        >Add folder</button
+      >
+      {#if onclose}<button
+          class="library-close icon-button"
+          aria-label="Close library"
+          title="Close library (Escape)"
+          onclick={onclose}><span aria-hidden="true">×</span></button
+        >{/if}
+    </div>
   </div>
   <p class="library-help">Local folders. Reselect after restarting.</p>
   {#if libraryState?.rootHints.length && !libraryState.roots.length}<p
