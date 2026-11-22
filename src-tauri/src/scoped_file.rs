@@ -49,6 +49,50 @@ fn data_identity(a: &Metadata, b: &Metadata) -> bool {
         && a.mtime_nsec() == b.mtime_nsec()
 }
 
+#[cfg(target_os = "macos")]
+fn materialize(file: &File, before: &Metadata) -> Result<(), FileError> {
+    use std::os::macos::fs::MetadataExt as _;
+    use std::os::unix::fs::FileExt as _;
+
+    // Darwin sys/stat.h and sys/resource.h. Scope the policy to this read
+    // on the blocking thread so listing and search never download a library.
+    const SF_DATALESS: u32 = 0x4000_0000;
+    const MATERIALIZE_DATALESS_FILES: libc::c_int = 3;
+    const SCOPE_THREAD: libc::c_int = 1;
+    const MATERIALIZE_ON: libc::c_int = 2;
+    unsafe extern "C" {
+        fn getiopolicy_np(kind: libc::c_int, scope: libc::c_int) -> libc::c_int;
+        fn setiopolicy_np(
+            kind: libc::c_int,
+            scope: libc::c_int,
+            policy: libc::c_int,
+        ) -> libc::c_int;
+    }
+    if before.st_flags() & SF_DATALESS == 0 {
+        return Ok(());
+    }
+    let unavailable = || {
+        FileError::new(
+            "cloud-file",
+            "macOS could not download this cloud file. Check the sync app or download the file in Finder, then reopen it.",
+        )
+    };
+    let previous = unsafe { getiopolicy_np(MATERIALIZE_DATALESS_FILES, SCOPE_THREAD) };
+    if previous < 0
+        || unsafe { setiopolicy_np(MATERIALIZE_DATALESS_FILES, SCOPE_THREAD, MATERIALIZE_ON) } != 0
+    {
+        return Err(unavailable());
+    }
+    // Request the contents on the already-pinned regular file. Capture starts
+    // after materialization because File Provider can change its metadata.
+    let result = file.read_at(&mut [0], 0);
+    let restored = unsafe { setiopolicy_np(MATERIALIZE_DATALESS_FILES, SCOPE_THREAD, previous) };
+    if result.is_err() || restored != 0 {
+        return Err(unavailable());
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 thread_local! {
     static AFTER_COPY: std::cell::RefCell<Option<Box<dyn FnMut()>>> = const { std::cell::RefCell::new(None) };
@@ -249,17 +293,42 @@ impl ScopedFile {
     /// Copy to an unlinked mode-0600 file. The original FD is not a snapshot:
     /// external in-place writes must never change bytes already granted to the UI.
     pub fn snapshot(&self) -> Result<(File, String, u64), FileError> {
-        self.snapshot_bounded(u64::MAX)
+        self.snapshot_impl(u64::MAX, true)
     }
     pub fn snapshot_bounded(&self, limit: u64) -> Result<(File, String, u64), FileError> {
+        self.snapshot_impl(limit, false)
+    }
+    pub fn snapshot_asset(&self, limit: u64) -> Result<(File, String, u64), FileError> {
+        self.snapshot_impl(limit, true)
+    }
+    fn snapshot_impl(
+        &self,
+        limit: u64,
+        materialize_cloud: bool,
+    ) -> Result<(File, String, u64), FileError> {
         let mut source = self.open()?;
-        let before = source.metadata()?;
-        if before.len() > limit {
-            return Err(FileError::new(
+        let check_length = |metadata: &Metadata| {
+            if metadata.len() <= limit {
+                return Ok(());
+            }
+            Err(FileError::new(
                 "capacity",
                 "The requested snapshot exceeds its resource budget; no data was changed.",
-            ));
-        }
+            ))
+        };
+        let before = source.metadata()?;
+        check_length(&before)?;
+        #[cfg(target_os = "macos")]
+        let before = if materialize_cloud {
+            materialize(&source, &before)?;
+            let ready = source.metadata()?;
+            check_length(&ready)?;
+            ready
+        } else {
+            before
+        };
+        #[cfg(not(target_os = "macos"))]
+        let _ = materialize_cloud;
         let path = std::env::temp_dir().join(format!("marktub-{}", Uuid::new_v4()));
         let mut snapshot = OpenOptions::new()
             .read(true)

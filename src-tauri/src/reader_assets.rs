@@ -66,7 +66,7 @@ pub(crate) fn example_image(
     image(&resources.join("guide/marktub-example.png")).map(Some)
 }
 pub(crate) fn image_scoped(scoped: ScopedFile) -> Result<Image, FileError> {
-    let (mut file, _, _) = scoped.snapshot_bounded(8 * 1024 * 1024)?;
+    let (mut file, _, _) = scoped.snapshot_asset(8 * 1024 * 1024)?;
     let mut bytes = vec![];
     file.read_to_end(&mut bytes)?;
     image_bytes(&bytes)
