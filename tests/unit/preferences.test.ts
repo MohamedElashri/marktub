@@ -76,10 +76,14 @@ describe("presentation and command contracts", () => {
       expect(fontStack(family)).toMatch(/^"Marktub Arabic",/);
     for (const family of ["Amiri", "Noto Naskh Arabic", "Noto Sans Arabic"])
       expect(fontStack(family)).toMatch(new RegExp(`^"${family}",`));
-    expect(fontStack("System Mono", true)).toMatch(/^"Marktub Arabic Source",/);
-    expect(fontStack("Cousine", true)).toMatch(
-      /^"Cousine", "Marktub Arabic Source",/,
-    );
+    expect(fontStack("System Mono", true)).toMatch(/^"Marktub Arabic",/);
+    expect(fontStack("Cousine", true)).toMatch(/^"Cousine", "Marktub Arabic",/);
+    expect(appearance({})).toContain('--source-arabic-font:"Amiri"');
+    expect(
+      appearance({
+        "editor.font": { type: "text", value: "Amiri" },
+      }),
+    ).toContain("--source-arabic-font:var(--source-font)");
     expect(appearance({})).toContain(
       "--source-size:16px;--source-line-height:1.8",
     );

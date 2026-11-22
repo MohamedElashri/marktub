@@ -23,11 +23,6 @@ export async function exportFontCSS(values: Values) {
       file: "NotoSansArabic[wdth,wght].ttf",
       weight: "400 700",
     },
-    {
-      family: "Marktub Arabic Source",
-      file: "NotoNaskhArabic[wght].ttf",
-      weight: "400 700",
-    },
   ];
   return (
     await Promise.all(
@@ -37,9 +32,10 @@ export async function exportFontCSS(values: Values) {
         const source = await load();
         if (!/^data:font\/ttf;base64,[A-Za-z0-9+/=]+$/.test(source))
           throw Error("Bundled export font is not self-contained.");
-        const range = face.family.startsWith("Marktub Arabic")
-          ? ";unicode-range:U+0600-06FF,U+0750-077F,U+0870-08FF,U+FB50-FDFF,U+FE70-FEFF,U+10EC0-10EFF,U+1EE00-1EEFF"
-          : "";
+        const range =
+          face.family === "Marktub Arabic"
+            ? ";unicode-range:U+0600-06FF,U+0750-077F,U+0870-08FF,U+FB50-FDFF,U+FE70-FEFF,U+10EC0-10EFF,U+1EE00-1EEFF"
+            : "";
         return `@font-face{font-family:${JSON.stringify(face.family)};font-style:normal;font-weight:${face.weight};src:url(${source}) format('truetype')${range}}`;
       }),
     )
