@@ -6534,23 +6534,22 @@ describe("Continuous reader", () => {
 describe("Manual application updates", () => {
   const invoke = (command, args = {}) =>
     browser.tauri.execute(({ core }, c, a) => core.invoke(c, a), command, args);
-  it("opens from preferences without checking, and refuses installation without a verified download", async () => {
+  it("opens from About without checking, and refuses installation without a verified download", async () => {
     const before = await invoke("application_update_status");
     expect(before.phase).toBe("idle");
     await browser.$('button[aria-label="Settings"]').click();
     const prefs = browser.$('dialog[aria-label="Preferences"]');
-    await prefs.$("button=Application updates…").waitForEnabled();
-    await prefs.$("button=Application updates…").click();
-    const dialog = browser.$('dialog[aria-label="Application updates"]');
-    await dialog.waitForDisplayed();
+    await prefs.$("button=About").click();
+    const updates = prefs.$('section[aria-label="Application updates"]');
+    await updates.waitForDisplayed();
     expect((await invoke("application_update_status")).phase).toBe("idle");
-    await expect(dialog.$("button=Check for updates")).toBeDisplayed();
-    await expect(dialog.$("button=Download update")).not.toBeExisting();
+    await expect(updates.$("button=Check for updates")).toBeDisplayed();
+    await expect(updates.$("button=Download update")).not.toBeExisting();
     await expect(invoke("prepare_application_update")).rejects.toBeDefined();
     await expect(invoke("download_application_update")).rejects.toBeDefined();
     await expect(invoke("open_application_installer")).rejects.toBeDefined();
     await expect(invoke("install_application_update")).rejects.toBeDefined();
-    await dialog.$("button=Close").click();
+    await prefs.$("button=Close").click();
     expect((await invoke("application_update_status")).phase).toBe("idle");
   });
   it("cancels an explicit check without downloading or starting another request", async () => {
