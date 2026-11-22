@@ -33,7 +33,7 @@ elif name in ['curl','wget']:
     if url==config.get('failedUrl'): sys.exit(22)
 elif name=='sudo':
     os.execv(str(pathlib.Path(sys.argv[0]).parent/args[0]),args)
-elif name in ['apt-get','open']:
+elif name in ['apt-get','dnf','zypper','open']:
     record['sha256']=hashlib.sha256(pathlib.Path(args[-1]).read_bytes()).hexdigest()
     with open(os.environ['MARKTUB_INSTALL_TEST_LOG'],'a') as log: log.write(json.dumps(record)+'\n')
 else:
@@ -52,7 +52,7 @@ class InstallerTests(unittest.TestCase):
             (self.bin / name).symlink_to(shutil.which(name))
         digest = shutil.which("sha256sum") or shutil.which("shasum")
         (self.bin / Path(digest).name).symlink_to(digest)
-        for name in ["uname", "curl", "wget", "sudo", "apt-get", "open"]:
+        for name in ["uname", "curl", "wget", "sudo", "apt-get", "dnf", "zypper", "open"]:
             path = self.bin / name
             path.write_text(MOCK.replace("#!PYTHON", "#!" + sys.executable))
             path.chmod(0o755)
@@ -87,7 +87,7 @@ class InstallerTests(unittest.TestCase):
         return result
 
     def assert_no_install(self):
-        self.assertFalse(any(c['command'] in ['apt-get', 'open'] for c in self.commands))
+        self.assertFalse(any(c['command'] in ['apt-get', 'dnf', 'zypper', 'open'] for c in self.commands))
 
     def test_latest_compact_metadata_pins_checksum_to_selected_release(self):
         self.release(compact=True)
@@ -150,6 +150,55 @@ class InstallerTests(unittest.TestCase):
         install, = [c for c in self.commands if c['command']=='apt-get']
         self.assertEqual(install['args'][:2], ['install', '-y'])
         self.assertEqual(install['sha256'], self.checksum)
+
+    def test_rpm_detection_uses_dnf_or_zypper_and_only_verified_bytes(self):
+        (self.bin / 'apt-get').unlink()
+        self.release('x86_64.rpm')
+        for manager in ['dnf', 'zypper']:
+            with self.subTest(manager=manager):
+                self.log.unlink(missing_ok=True)
+                if manager == 'zypper':
+                    (self.bin / 'dnf').unlink()
+                result = self.run_script()
+                self.assertEqual(result.returncode, 0, result.stderr)
+                install, = [c for c in self.commands if c['command'] == manager]
+                self.assertEqual(install['args'][0], 'install')
+                self.assertEqual(install['sha256'], self.checksum)
+                self.assertTrue(install['args'][-1].endswith('_x86_64.rpm'))
+
+    def test_explicit_rpm_download_ignores_deb_and_needs_no_package_manager(self):
+        self.release('x86_64.rpm')
+        assets = json.loads(self.config['responses'][API])
+        assets['assets'].append({'browser_download_url': RELEASE+'/Marktub_88.7.6_amd64.deb'})
+        self.config['responses'][API] = json.dumps(assets)
+        for name in ['apt-get', 'dnf', 'zypper']:
+            (self.bin / name).unlink()
+        result = self.run_script('--package-format', 'rpm', '--download-only', '--directory', str(self.output))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        saved, = self.output.glob('Marktub.*/*')
+        self.assertEqual(saved.name, self.filename)
+        self.assertEqual(saved.read_bytes(), PACKAGE)
+        self.assert_no_install()
+
+    def test_corrupt_rpm_never_reaches_a_package_manager(self):
+        self.release('x86_64.rpm')
+        self.config['responses'][RELEASE+'/'+self.filename] = 'corrupt RPM'
+        result = self.run_script('--package-format', 'rpm')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('Checksum mismatch', result.stderr)
+        self.assert_no_install()
+
+    def test_unsupported_format_and_missing_manager_fail_before_downloading(self):
+        for args in [('--package-format',), ('--package-format', 'zip')]:
+            with self.subTest(args=args):
+                result = self.run_script(*args)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual(self.commands, [])
+        for name in ['apt-get', 'dnf', 'zypper']:
+            (self.bin / name).unlink()
+        result = self.run_script('--package-format', 'rpm')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(self.commands, [])
 
     def test_macos_both_architectures_open_persistent_verified_universal_image(self):
         self.config['platform'] = 'Darwin'

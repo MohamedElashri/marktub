@@ -5,7 +5,7 @@
 <h1 align="center">Marktub</h1>
 
 <p align="center"><strong>Read, write and review technical Markdown, offline and in your own files.</strong></p>
-<p align="center">macOS · Ubuntu · Free and open source</p>
+<p align="center">macOS · Linux · Free and open source</p>
 
 <p align="center">
   <a href="https://github.com/MohamedElashri/marktub/releases/latest"><strong>Download the latest release</strong></a> ·
@@ -54,11 +54,20 @@ Download the [latest release](https://github.com/MohamedElashri/marktub/releases
   system-wide. You can also use Apple’s
   [per-app opening instructions](https://support.apple.com/en-us/102445).
 
-- **Ubuntu amd64:** download the `.deb` and install it from your Downloads folder:
+- **Linux x86_64 — Debian/Ubuntu:** download the `.deb` and install it from your Downloads folder:
 
   ```sh
   sudo apt install ./Marktub_*_amd64.deb
   ```
+
+- **Linux x86_64 — Fedora/RPM:** download the `.rpm` and install it from your Downloads folder:
+
+  ```sh
+  sudo dnf install ./Marktub_*_x86_64.rpm
+  ```
+
+Linux packages require GTK 3, WebKitGTK 4.1 and glibc 2.39 or newer. CI checks
+the installed app on Ubuntu 24.04 and RPM dependency installation on Fedora 44.
 
 <details>
 <summary>Install with curl or wget</summary>
@@ -74,7 +83,9 @@ wget -qO- https://raw.githubusercontent.com/MohamedElashri/marktub/main/scripts/
 ```
 
 The script downloads the latest package and verifies its SHA-256. It installs the
-Ubuntu package or opens the macOS disk image. To download without installing,
+Linux package with your system package manager or opens the macOS disk image.
+It detects DEB or RPM from the available package manager; use `--package-format
+deb` or `--package-format rpm` to choose explicitly. To download without installing,
 append `-s -- --download-only` after `bash`.
 
 </details>
@@ -131,8 +142,8 @@ Checking, downloading and installing are separate actions; nothing runs
 automatically. Reading and editing stay offline; only an explicit update action
 contacts GitHub. Downloads are verified with Marktub’s pinned signing key.
 
-On macOS, choose **Install and restart** after downloading. On Ubuntu/Zorin,
-choose **Open system installer**, approve the DEB installation there, then choose
+On macOS, choose **Install and restart** after downloading. On Linux,
+choose **Open system installer**, approve the matching DEB or RPM installation there, then choose
 **Restart after installation**. Marktub asks how to handle unsaved work before
 restarting. You can also use the installer above to get the latest release.
 

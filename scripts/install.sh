@@ -15,15 +15,21 @@ fetch() {
 main() {
   download_only=false
   download_dir=''
+  package_format=''
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --download-only) download_only=true; shift ;;
       --directory)
         [[ $# -ge 2 && -n "$2" ]] || fail '--directory needs a path.'
         download_dir=$2; shift 2 ;;
+      --package-format)
+        [[ $# -ge 2 ]] || fail '--package-format needs deb or rpm.'
+        case "$2" in deb|rpm) package_format=$2 ;; *) fail '--package-format needs deb or rpm.' ;; esac
+        shift 2 ;;
       --help|-h)
-        printf '%s\n' 'Install the latest Marktub release for Ubuntu amd64 or macOS.' \
+        printf '%s\n' 'Install the latest Marktub release for Linux x86_64 or macOS.' \
           '  --download-only   Verify and save the package without installing/opening it.' \
+          '  --package-format deb|rpm   Override Linux package format detection.' \
           '  --directory DIR   Save downloads here (default: current directory for' \
           '                    --download-only, Downloads on macOS).'
         return ;;
@@ -35,14 +41,27 @@ main() {
   architecture=$(uname -m)
   case "$platform/$architecture" in
     Linux/x86_64|Linux/amd64)
-      asset_pattern='_amd64\.deb$'
+      if [[ -z "$package_format" ]]; then
+        if command -v apt-get >/dev/null; then package_format=deb
+        elif command -v dnf >/dev/null || command -v zypper >/dev/null; then package_format=rpm
+        else fail 'Choose --package-format deb or rpm with --download-only, or install using your system package manager.'; fi
+      fi
+      case "$package_format" in
+        deb) asset_pattern='_amd64\.deb$'; package_manager=apt-get ;;
+        rpm)
+          asset_pattern='_x86_64\.rpm$'
+          if command -v dnf >/dev/null; then package_manager=dnf
+          else package_manager=zypper; fi ;;
+      esac
       if ! "$download_only"; then
-        command -v apt-get >/dev/null || fail 'The Linux package needs Ubuntu with apt-get.'
+        command -v "$package_manager" >/dev/null || fail "Install the verified $package_format download with your system package manager, or use --download-only."
         if [[ "$EUID" -ne 0 ]]; then
-          command -v sudo >/dev/null || fail 'sudo is required to install the Ubuntu package.'
+          command -v sudo >/dev/null || fail 'sudo is required to install the Linux package.'
         fi
       fi ;;
-    Darwin/arm64|Darwin/x86_64) asset_pattern='_universal\.dmg$' ;;
+    Darwin/arm64|Darwin/x86_64)
+      [[ -z "$package_format" ]] || fail '--package-format is only used on Linux.'
+      asset_pattern='_universal\.dmg$' ;;
     *) fail "No released package for $platform/$architecture. See https://github.com/MohamedElashri/marktub/releases/latest" ;;
   esac
 
@@ -92,8 +111,12 @@ main() {
     # Allow apt's unprivileged download helper to read the verified public package.
     chmod 755 "$install_workdir"
     chmod 644 "$package"
-    if [[ "$EUID" -eq 0 ]]; then apt-get install -y "$package"
-    else sudo apt-get install -y "$package"; fi
+    case "$package_manager" in
+      apt-get|dnf) install_args=(install -y "$package") ;;
+      zypper) install_args=(install "$package") ;;
+    esac
+    if [[ "$EUID" -eq 0 ]]; then "$package_manager" "${install_args[@]}"
+    else sudo "$package_manager" "${install_args[@]}"; fi
   fi
 }
 

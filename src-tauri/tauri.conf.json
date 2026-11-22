@@ -34,7 +34,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["app", "dmg", "deb"],
+    "targets": ["app", "dmg", "deb", "rpm"],
     "icon": [
       "icons/icon.png",
       "icons/32x32.png",
@@ -55,6 +55,10 @@
     "linux": {
       "deb": {
         "desktopTemplate": "marktub.desktop"
+      },
+      "rpm": {
+        "desktopTemplate": "marktub.desktop",
+        "depends": ["libwebkit2gtk-4.1.so.0()(64bit)", "libgtk-3.so.0()(64bit)"]
       }
     },
     "fileAssociations": [

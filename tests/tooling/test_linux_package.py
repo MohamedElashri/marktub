@@ -10,6 +10,15 @@ spec.loader.exec_module(module)
 
 
 class PackageExecutable(unittest.TestCase):
+    def test_rpm_marker_is_required_and_deb_cannot_substitute_for_rpm(self):
+        original = b"executable\0__TAURI_BUNDLE_TYPE_VAR_UNK\0end"
+        rpm = original.replace(b"_UNK", b"_RPM")
+        module.verify_executable(rpm, original, "rpm")
+        self.assertEqual(module.verify_executable(rpm, rpm, "rpm"), "identical")
+        for invalid in [original, original.replace(b"_UNK", b"_DEB"), rpm + b"extra"]:
+            with self.assertRaises(AssertionError):
+                module.verify_executable(invalid, original, "rpm")
+
     def test_only_the_unique_fixed_bundle_marker_may_change(self):
         normal = b"executable before\0__TAURI_BUNDLE_TYPE_VAR_UNK\0after"
         package = b"executable before\0__TAURI_BUNDLE_TYPE_VAR_DEB\0after"

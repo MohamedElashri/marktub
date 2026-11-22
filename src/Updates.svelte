@@ -45,7 +45,7 @@
       actionInFlight === "check_application_update" ||
       actionInFlight === "download_application_update",
   );
-  const linux = $derived(status?.platform === "linux-x86_64-deb");
+  const linux = $derived(status?.platform.startsWith("linux-") ?? false);
 
   function poll(request: number, delay: number) {
     clearTimeout(timer);
@@ -128,7 +128,7 @@
       {/if}
       {#if !status.canInstall}<p>
           Downloads and installation are available in released macOS apps and
-          Ubuntu DEB packages.
+          Linux DEB and RPM packages.
         </p>{/if}
       {#if status.phase === "checking"}<p role="status">
           Checking for updates…

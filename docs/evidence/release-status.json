@@ -1,173 +1,56 @@
 {
   "schemaVersion": 6,
   "date": "2026-11-22",
-  "version": "0.3.0",
-  "status": "Unpublished release candidate. Local macOS ARM64 tests, native production UI and universal ad-hoc packages checked; hosted CI, advisory and remaining platform qualifications pending.",
+  "version": "0.3.1",
+  "status": "Release qualification snapshot. Publication and successful hosted checks are linked from the GitHub release.",
   "changes": [
-    "Run Shell and SQLite blocks inline with native confirmation, results beneath the block, and runnable Guide examples.",
-    "Add Reading Focus, a responsive Library, and easier access to reading and editing controls in narrow windows.",
-    "Improve Arabic and mixed-direction typography with separate interface and document fonts.",
-    "Show Markdown in the folder tree, hide unavailable recent files and bookmarks, and clear recent history while keeping bookmarks.",
-    "Add tab close actions, move manual updates to Settings About, and refresh the indigo branding.",
-    "Reclaim document space with a shared macOS title/tab row, one contextual document toolbar, on-demand Format/More controls and full-height side-by-side Split at narrow window sizes."
+    "Add Linux x86_64 RPM builds with checked launcher, resources, executable and dependencies.",
+    "Select DEB or RPM in the installer and preserve the installed package format for signed manual updates.",
+    "Describe Linux support in the README with separate Debian/Ubuntu and Fedora installation instructions."
   ],
   "source": {
-    "integrationCommit": "b86b834b29db2c10ac2d3bbd739b5d3b96a0ae45",
-    "includedPullRequests": [33, 34, 35, 36, 37, 39, 40, 41, 42, 43]
+    "baseRelease": "v0.3.0",
+    "baseCommit": "e9c0da37a6c219a0ba3a0961941e89580d1bb466"
   },
   "checks": {
-    "hostedCI": {
-      "status": "pending"
-    },
-    "local": {
-      "sourceCommit": "cbdb28b507405075c1a44dddb78ef59fefe51582",
-      "rustTests": 173,
-      "rustClippy": "pass",
-      "scope": "Linux, integrated source before the version bump."
-    },
-    "macOS": {
-      "date": "2026-11-22",
-      "baseCommit": "1061a2c9f1a2963553088545e6103498dceec12c",
-      "sourceSha256": {
-        "src/Preferences.svelte": "dd52c1dbe8b1f32f81f943c3dba5f4f0d821675ed2469f847fe527e5d2832412",
-        "src-tauri/src/app.rs": "bf002b882a4c9483829deae44541c6142b85e552738c3853fabda2f96c8abc7d",
-        "tests/e2e/smoke.e2e.mjs": "521160c9e684f79caaf173c63acdac7078448960f3d2a92626fe0cc87cadc378"
-      },
-      "host": {
-        "macOS": "27.2",
-        "build": "26B123",
-        "architecture": "arm64"
-      },
-      "toolchain": {
-        "node": "26.13.1",
-        "pnpm": "12.18.0",
-        "rust": "1.99.1"
-      },
+    "localMacOS": {
       "frontendTests": 846,
-      "toolingTests": 59,
-      "rustTests": 164,
-      "rustIgnored": 6,
-      "powerTestsAfterDialogFix": 19,
-      "optInCrossVolumeAndConverters": "pass",
-      "desktopTests": {
-        "passed": 83,
-        "skipped": 1,
-        "skip": "Linux-only Trash",
-        "webView": "WKWebView",
-        "binarySha256": "e5ee974200df031266b1e849eb72801c94c1b7722152c3d287902cfb4a2c4740",
-        "scope": "Universal debug app with Preferences fix. Run before the final native sheet-parent change; e2e substitutes selections/consent and never exercises native alert presentation."
-      },
-      "nativeProductionUI": {
-        "binarySha256": "b576b95786210f28622298038c3a408daf1e1e4edd848769e77c328f86fd5dd8",
-        "shellCancelAndRun": "pass; parented sheet; literal percent, angle brackets, ampersand and Arabic; exit 0; exact output",
-        "sqlCancelAndRun": "pass; parented sheet; Arabic and 42 returned",
-        "nativeOpenUnicodePath": "pass",
-        "nativeSaveAndUndoAcrossSave": "pass; original bytes restored",
-        "nativeSaveAsUnicodePath": "pass; independent byte-identical copy",
-        "rightClickCloseOtherTabs": "pass",
-        "readingFocusShortcutAndEscape": "pass",
-        "settingsShortcutAndAbout": "pass; version 0.3.0; explicit Check for updates button",
-        "fixtureBytes": 181,
-        "fixtureSha256": "b45dcd6543ef2e67ec75ba88b8525b4b8311c446dad6d76911c36b956a5c057b"
-      },
-      "typecheckLintFormattingAndClippy": "pass",
-      "releaseGate": "pass",
-      "findingsFixed": [
-        "Release macOS local-action confirmations now use an AppKit sheet owned by the main window, avoiding the invisible unparented CFUserNotification wait reproduced in the original production app.",
-        "Preferences removes font suggestion DOM when closed: 459 font families previously retained 1378 hidden options; Source nodes fell from 1908 to 527/529, reader nodes from 1721 to 340/341, and Library nodes from 2622 to 1241.",
-        "Native tests clean up navigation tabs, compare canonical /var paths, await close-operation reservations, and await Split editor and theme readiness. Added context/overflow close-menu regression coverage."
+      "toolingTests": 64,
+      "typecheckLintFormatting": "pass",
+      "clippy": "pass",
+      "nativeTests": 165,
+      "nativeIgnored": 6
+    },
+    "hostedCI": {
+      "status": "required before publication",
+      "platforms": [
+        "macOS universal app and ARM64 runtime",
+        "Ubuntu 24.04 DEB and native X11/Wayland",
+        "RPM extraction and Fedora 44 dependency installation"
       ],
-      "localReport": "artifacts/macos-0.3.0-validation.json",
-      "rawDesktopLog": "artifacts/macos-e2e-verified.log",
-      "scope": "Initial macOS qualification before the compact workspace redesign; individual executable hashes retained. See workspaceRedesign for final UI source and package verification.",
-      "workspaceRedesign": {
-        "date": "2026-11-22",
-        "baseCommit": "1061a2c9f1a2963553088545e6103498dceec12c",
-        "sourceSha256": {
-          "src/App.svelte": "64cc1b61aa165acdf681295a165e6692252630344537f575b8f77c5d8930648a",
-          "src/DocumentPane.svelte": "aa4eef8219dd0443e6199162ba0759a62135a28e61a93a6f3aec9b807206966b",
-          "src/Preferences.svelte": "dd52c1dbe8b1f32f81f943c3dba5f4f0d821675ed2469f847fe527e5d2832412",
-          "src/TabBar.svelte": "1355d5285e8ffdcbfd7dfae2c7a0ab9dd6ee7184f9bb4d180f9bc43b9cd5e617",
-          "src/reader/Reader.svelte": "aabb97ee13b993ec0b927fa2588d5fa6c0297670874cf0face1c9159f1ed079d",
-          "src/ui/dock.ts": "c7083590983b1787c54ede02a7954ce32f7d76ea632188217968b439efdaed87",
-          "src/ui/Icon.svelte": "d36a1b082eca2ac3a59012f8a010820c6fe1a2385407d664ffbfe1b9e3fa08b0",
-          "src/styles.css": "ab8d7a7cd4d8bc13dd4931171f2c4e317598388955d82cfb864fe0e9ef5faaff",
-          "src-tauri/tauri.conf.json": "7f56a8abc127616b5e6faff6987cd1e19609530abd5e16cb40c8538e5224da5a",
-          "src-tauri/src/app.rs": "bf002b882a4c9483829deae44541c6142b85e552738c3853fabda2f96c8abc7d",
-          "tests/e2e/smoke.e2e.mjs": "3d9aca8add5ac4c0e7e1daee27c378b053e61b8b14f8fd68231d7cfc3bf216f1",
-          "tests/fixtures/specimen.md": "65241b615207c80ffe014abfba7bf4b8ce479be7d4e9b111f508ca42752d5464"
-        },
-        "scope": "Compact workspace source on macOS ARM64. Desktop automation uses the universal debug app; native UI review uses the normal production app copied from the verified DMG.",
-        "frontendTests": 846,
-        "toolingTests": 59,
-        "typecheckLintFormatting": "pass",
-        "desktopTests": {
-          "passed": 84,
-          "skipped": 1,
-          "skip": "Linux-only Trash",
-          "webView": "WKWebView",
-          "binarySha256": "a58eee23f3e1c1d1b5089074a1ba71f0543d8b1bc59f5cab9cd94dea357c7579"
-        },
-        "layout": {
-          "samples": 9,
-          "modes": ["Read", "Source", "Split"],
-          "requestedWindowSizes": [
-            [1080, 760],
-            [640, 480],
-            [1280, 800]
-          ],
-          "actualLargeViewport": [1280, 781],
-          "headerPixels": 44,
-          "documentToolbarPixels": 41,
-          "contentTopPixels": 85,
-          "visibleControlsWithinWindow": true,
-          "horizontalOverflow": false,
-          "sourceAndPreviewSideBySide": true
-        },
-        "nativeProductionUI": {
-          "binarySha256": "af0b6b6ab5f7afd7bd471ed8df16973276d9997c246d3065a7623b5075ba9c9c",
-          "compactTitleBarReadSourceSplit": "pass",
-          "formatPopoverAndEscape": "pass",
-          "secondaryActionsInMore": "pass",
-          "nativeOpenUnicodePath": "pass",
-          "shellConfirmationAndRun": "pass; parented sheet; literal percent, angle brackets, ampersand and Arabic; exit 0; exact output",
-          "sqlConfirmationAndCancel": "pass; parented sheet; cancellation returns cleanly",
-          "leftOpen": "Guide in Read mode"
-        },
-        "releaseGate": "pass",
-        "rawCheckLog": "artifacts/compact-check.log",
-        "rawDesktopLog": "artifacts/compact-e2e-verified.log",
-        "rawBuildLog": "artifacts/compact-production-build.log",
-        "packageReport": "artifacts/compact-package.json",
-        "localReport": "artifacts/compact-workspace-validation.json"
-      }
+      "advisories": "Production and full JavaScript audit; Rust audit including unsound and unmaintained warnings"
     }
   },
   "packages": {
     "macOS": {
-      "dmg": "src-tauri/target/universal-apple-darwin/release/bundle/dmg/Marktub_0.3.0_universal.dmg",
-      "dmgSha256": "8e6e1598864f95b0fb5539bd0779192642fc573d874c624e89914e0163c29588",
-      "dmgBytes": 31035953,
-      "binarySha256": "af0b6b6ab5f7afd7bd471ed8df16973276d9997c246d3065a7623b5075ba9c9c",
-      "binaryBytes": 53609760,
-      "bundleBytes": 55078524,
-      "architectures": ["x86_64", "arm64"],
-      "platform": "MACOS",
+      "formats": ["universal DMG", "signed application archive"],
       "minimumSystemVersion": "13.0",
-      "resourcesByteIdentical": true,
-      "strictAdHocSignature": "pass",
-      "scope": "Local build and disposable install copied from its DMG; native ARM64 UI checked. Universal slices validate as desktop MACOS. No Intel runtime or public download/Gatekeeper claim. Includes the compact workspace redesign; native Read/Source/Split, Format/More and confirmation sheets checked on this package."
+      "signing": "ad-hoc; not notarized"
+    },
+    "Linux": {
+      "architecture": "x86_64",
+      "formats": ["DEB", "RPM"],
+      "buildBaseline": "Ubuntu 24.04; GTK 3, WebKitGTK 4.1 and glibc 2.39 or newer",
+      "rpmRuntimeScope": "Fedora 44 installation, package verification and native library resolution; no Fedora physical desktop qualification"
     }
-  },
-  "security": {
-    "status": "pending versioned advisory and package checks"
   },
   "manualUpdates": {
     "policy": "No startup checks, automatic downloads, installation or restart; each step requires an explicit action.",
     "channels": {
       "macOS": "Pinned, version-bound signature; universal app archive; explicit install and restart.",
-      "Linux": "Pinned, version-bound signature; amd64 DEB; OS installer approval and explicit version-checked restart."
+      "Linux": "Pinned, version-bound signatures; matching DEB or RPM; OS installer approval and explicit version-checked restart."
     },
+    "compatibility": "latest.json retains exactly the original macOS and DEB platforms for 0.3.0 clients; RPM installations use latest-rpm.json.",
     "installedUpgradeQualification": "Actual privileged DEB approval/restart and macOS replacement/restart require a controlled installed-release upgrade. Test fixtures never update this workstation."
   },
   "remainingQualifications": [
@@ -177,10 +60,12 @@
     "Sustained large Source, multitab, Git/Review resource distributions and compositor/input-to-paint/DOM/IPC measurements",
     "Broader filesystem/Git/storage/crash faults, converters/fonts/layout and tool-version combinations",
     "Downloaded macOS opening/Gatekeeper and clean-machine channel verification",
-    "Actual installed-release update approval/replacement and restart on each supported OS; automated signature, cancellation and version-bound checks do not certify privileged OS installation."
+    "Actual installed-release update approval/replacement and restart on each supported OS; automated signature, cancellation and version-bound checks do not certify privileged OS installation.",
+    "Native Fedora desktop input and an actual installed RPM approval/upgrade/restart sequence; container dependency checks do not certify these."
   ],
   "evidencePolicy": "Results apply only to their recorded executable, source, host and scope. Raw local traces and failed runs remain in ignored artifacts; maintained tests, provenance and legal notices remain in source. No ignored advisory, release evaluator or physical-input inference.",
   "historicalEvidence": {
-    "previousRelease": "https://github.com/MohamedElashri/marktub/blob/v0.2.1/docs/evidence/release-status.json"
+    "previousRelease": "https://github.com/MohamedElashri/marktub/blob/v0.3.0/docs/evidence/release-status.json",
+    "previousReleaseChecks": "https://github.com/MohamedElashri/marktub/actions/runs/44973198290"
   }
 }

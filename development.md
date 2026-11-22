@@ -53,7 +53,7 @@ Use the command for your host:
 
 ```sh
 python3 scripts/build-macos.py       # universal macOS app and DMG
-pnpm tauri build --bundles deb       # Ubuntu amd64
+pnpm tauri build --bundles deb,rpm   # Linux x86_64
 pnpm check:release
 ```
 
@@ -63,18 +63,26 @@ macOS needs both desktop Rust targets:
 normally after e2e testing before packaging. Build-generated attribution belongs
 under `artifacts/`; keep required upstream license texts in source.
 
+Linux CI checks both package formats, launches the installed DEB on Ubuntu, and
+installs the RPM in a disposable Fedora 44 container to verify dependencies and
+runtime library resolution. Normalize the RPM filename with
+`python3 scripts/prepare-rpm.py --version VERSION` after a fresh build.
+
 Update packages are signed in CI after package checks, using the dedicated Actions
 secret and the public key pinned in source. macOS uses the same universal app.
-For a release, download both `update-*.json` manifests and their signed packages
+For a release, download all three `update-*.json` manifests and their signed packages
 from the same successful CI run, then combine them with plain-text release notes:
 
 ```sh
-python3 scripts/update-manifest.py combine update-*.json --notes release-notes.txt --output latest.json
+python3 scripts/update-manifest.py combine update-*.json --notes release-notes.txt --output latest.json --rpm-output latest-rpm.json
 ```
 
-Upload `latest.json` and the exact versioned packages alongside the normal release
+Upload both `latest.json` and `latest-rpm.json` and the exact versioned packages alongside the normal release
 assets. Never commit the private signing key or put it in build logs. The initial
 version with update support must be installed using the existing installer.
+The original two-platform feed remains unchanged for 0.3.0 clients; installed
+RPMs use the separate RPM feed. Run Installation checks manually after publishing
+to verify public downloads on macOS, Debian/Ubuntu and Fedora.
 
 Run `pnpm check:repository` before `pnpm source:archive`. Scoped release validation
 and known limits are recorded in [release-status.json](docs/evidence/release-status.json).

@@ -1,4 +1,4 @@
-"""Inspect a locally built deb without installing it or changing MIME defaults.
+"""Inspect a locally built DEB or RPM without installing it or changing MIME defaults.
 
 This verifies package contents, not clean-machine launch or physical desktop input.
 """
@@ -19,17 +19,17 @@ def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def verify_executable(packaged, unbundled):
+def verify_executable(packaged, unbundled, kind="deb"):
     # The Tauri bundler changes this one fixed-width placeholder in its copy.
     # Accept no other byte changes, and never accept an unmarked deb executable.
     unknown = b"__TAURI_BUNDLE_TYPE_VAR_UNK"
-    deb = b"__TAURI_BUNDLE_TYPE_VAR_DEB"
-    assert packaged.count(deb) == 1, "Missing or ambiguous Debian bundle marker"
+    marker = {"deb": b"__TAURI_BUNDLE_TYPE_VAR_DEB", "rpm": b"__TAURI_BUNDLE_TYPE_VAR_RPM"}[kind]
+    assert packaged.count(marker) == 1, "Missing or ambiguous package bundle marker"
     if packaged == unbundled:
         return "identical"
     assert unbundled.count(unknown) == 1, "Missing or ambiguous original bundle marker"
-    assert packaged == unbundled.replace(unknown, deb, 1), "Unexpected executable changes beyond the fixed Tauri bundle marker"
-    return "only the fixed Tauri UNK-to-DEB marker; every other byte identical"
+    assert packaged == unbundled.replace(unknown, marker, 1), "Unexpected executable changes beyond the fixed Tauri bundle marker"
+    return f"only the fixed Tauri UNK-to-{kind.upper()} marker; every other byte identical"
 
 
 def verify_icons(root, desktop, source_icons):
@@ -51,23 +51,35 @@ def verify_icons(root, desktop, source_icons):
     return icons
 
 
-def inspect(package, binary):
-    fields = {field: run("dpkg-deb", "--field", str(package), field)
-              for field in ("Package", "Version", "Architecture", "Depends")}
+def inspect(package, binary, kind="deb"):
+    if kind == "deb":
+        fields = {field: run("dpkg-deb", "--field", str(package), field)
+                  for field in ("Package", "Version", "Architecture", "Depends")}
+    else:
+        fields = {field: run("rpm", "-qp", "--queryformat", tag, str(package))
+                  for field, tag in [("Package", "%{NAME}"), ("Version", "%{VERSION}"), ("Architecture", "%{ARCH}"), ("Release", "%{RELEASE}")]}
+        fields["Depends"] = run("rpm", "-qp", "--requires", str(package))
+        assert fields["Release"] == "1", fields
     assert fields["Package"] == "marktub", fields
     assert fields["Version"] == json.loads(Path("package.json").read_text())["version"], "Debian package version differs from the application manifest"
-    assert fields["Architecture"] == "amd64", fields
-    dependencies = [entry.strip().split()[0] for entry in fields["Depends"].split(",")]
-    assert len(dependencies) == len(set(dependencies)), "Duplicate Debian runtime dependencies"
-    for dependency in ("libwebkit2gtk-4.1-0", "libgtk-3-"):
+    assert fields["Architecture"] == ("amd64" if kind == "deb" else "x86_64"), fields
+    dependencies = fields["Depends"].split(",") if kind == "deb" else fields["Depends"].splitlines()
+    dependencies = [entry.strip() for entry in dependencies]
+    assert len(dependencies) == len(set(dependencies)), "Duplicate runtime dependencies"
+    required = ("libwebkit2gtk-4.1-0", "libgtk-3-") if kind == "deb" else ("libwebkit2gtk-4.1.so.0", "libgtk-3.so.0")
+    for dependency in required:
         assert dependency in fields["Depends"], fields
-    with tempfile.TemporaryDirectory(prefix="marktub-deb-") as directory:
+    with tempfile.TemporaryDirectory(prefix=f"marktub-{kind}-") as directory:
         root = Path(directory)
-        subprocess.run(["dpkg-deb", "--extract", str(package), directory], check=True)
+        if kind == "deb":
+            subprocess.run(["dpkg-deb", "--extract", str(package), directory], check=True)
+        else:
+            payload = subprocess.run(["rpm2cpio", str(package)], capture_output=True, check=True)
+            subprocess.run(["cpio", "--extract", "--make-directories", "--no-absolute-filenames"], input=payload.stdout, cwd=root, check=True, stdout=subprocess.DEVNULL)
         executable = root / "usr/bin/marktub"
         assert executable.is_file() and executable.stat().st_mode & 0o111
         bundled = executable.read_bytes()
-        marker_patch = verify_executable(bundled, binary.read_bytes())
+        marker_patch = verify_executable(bundled, binary.read_bytes(), kind)
         for marker in (b"e2e_fixture", b"allow-e2e-fixture", b"WDIO Plugin", b"wdioTauri", b"plugin:wdio|", b"MARKTUB_TEST_"):
             assert marker not in bundled, "Test hook in packaged executable"
         header = run("readelf", "--file-header", str(executable))
@@ -91,13 +103,13 @@ def inspect(package, binary):
         icons = verify_icons(root, text, [Path("src-tauri") / name for name in config["bundle"].get("icon", []) if name.endswith(".png")])
         resources = {}
         for name, source in [("Marktub Guide.md", Path("tests/fixtures/specimen.md")), ("marktub-example.png", Path("src-tauri/icons/256x256.png")), ("licenses.txt", Path("artifacts/licenses/licenses.txt"))]:
-            candidates = list((root / "usr/lib").rglob(name))
+            candidates = [path for library in (root / "usr").glob("lib*") for path in library.rglob(name)]
             assert len(candidates) == 1, (name, candidates)
             assert candidates[0].is_file() and not candidates[0].is_symlink()
             assert candidates[0].read_bytes() == source.read_bytes(), f"Bundled {name} differs"
             resources[name] = digest(source)
-        return {"scope": "locally built deb extraction, executable/resources/desktop/dependencies; not install or GUI certification",
-                "package": fields, "debSha256": digest(package), "debBytes": package.stat().st_size,
+        return {"scope": f"locally built {kind} extraction, executable/resources/desktop/dependencies; not install or GUI certification",
+                "package": fields, f"{kind}Sha256": digest(package), f"{kind}Bytes": package.stat().st_size,
                 "binarySha256": digest(executable), "binaryBytes": executable.stat().st_size,
                 "unbundledBinarySha256": digest(binary), "bundleMarkerPatch": marker_patch,
                 "desktopFile": desktop.name, "iconsSha256": icons, "resourcesSha256": resources,
@@ -107,11 +119,13 @@ def inspect(package, binary):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--deb", type=Path, required=True)
+    packages = parser.add_mutually_exclusive_group(required=True)
+    packages.add_argument("--deb", type=Path)
+    packages.add_argument("--rpm", type=Path)
     parser.add_argument("--binary", type=Path, default=Path("src-tauri/target/release/marktub"))
     parser.add_argument("--output", type=Path, default=Path("artifacts/linux-package.json"))
     args = parser.parse_args()
-    result = inspect(args.deb.resolve(), args.binary.resolve())
+    result = inspect((args.deb or args.rpm).resolve(), args.binary.resolve(), "deb" if args.deb else "rpm")
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, indent=2) + "\n")
     print(json.dumps({key: value for key, value in result.items() if key != "nativeLibraries"}, indent=2))
