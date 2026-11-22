@@ -6991,7 +6991,7 @@ describe("Arabic editing layout", () => {
           const measured = await sample(
             async (nodes, letters, marks) => {
               const canvas = document.createElement("canvas");
-              canvas.width = 150;
+              canvas.width = 240;
               canvas.height = 175;
               const ctx = canvas.getContext("2d", { willReadFrequently: true });
               ctx.direction = "rtl";
@@ -7036,6 +7036,7 @@ describe("Arabic editing layout", () => {
                     letter,
                     mark,
                     retained: shared / bare.ink.size,
+                    added: placed.ink.size - shared,
                     above: bare.top - placed.top,
                     below: placed.bottom - bare.bottom,
                   });
@@ -7047,9 +7048,16 @@ describe("Arabic editing layout", () => {
             marks,
           );
           const misplaced = measured.filter(
-            ({ mark, retained, above, below }) =>
-              retained < 0.8 ||
-              ("ٍِ".includes(mark) ? below <= 0 : above <= 0 || below > 2),
+            ({ letter, mark, retained, added, above, below }) => {
+              if (retained < 0.8 || added === 0) return true;
+              // Other letters and descenders can enclose a correctly placed
+              // mark in the overall ink bounds. Use simple bases to verify
+              // the side independently of a neighboring letter's height.
+              const simpleBase = letter === "ب" || letter === "د";
+              return "ٍِ".includes(mark)
+                ? simpleBase && below <= 0
+                : below > 2 || (simpleBase && above <= 0);
+            },
           );
           expect({ mode, surface, misplaced }).toEqual({
             mode,
