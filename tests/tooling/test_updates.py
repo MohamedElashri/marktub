@@ -39,10 +39,19 @@ class UpdatePackages(unittest.TestCase):
             notes = self.root / "notes.txt"
             notes.write_text("Manual application updates.")
             combined = self.root / "latest.json"
-            updates.combine(paths, notes, combined)
+            rpm_combined = self.root / "latest-rpm.json"
+            updates.combine(paths, notes, combined, rpm_combined)
             manifest = json.loads(combined.read_text())
-            self.assertEqual(set(manifest["platforms"]), set(updates.PLATFORMS))
+            self.assertEqual(set(manifest["platforms"]), updates.LEGACY_PLATFORMS)
+            self.assertEqual(set(json.loads(rpm_combined.read_text())["platforms"]), {"linux-x86_64-rpm"})
             self.assertEqual(manifest["notes"], notes.read_text())
+            # 0.3.0 clients require exactly two platform keys in latest.json.
+            updates.combine(paths[:2], notes, combined)
+            self.assertEqual(set(json.loads(combined.read_text())["platforms"]), updates.LEGACY_PLATFORMS)
+            with self.assertRaises(ValueError):
+                updates.combine(paths, notes, combined)
+            with self.assertRaises(ValueError):
+                updates.combine(paths[:2], notes, combined, rpm_combined)
             with self.assertRaises(ValueError):
                 updates.combine(paths[:1], notes, combined)
             with self.assertRaises(ValueError):

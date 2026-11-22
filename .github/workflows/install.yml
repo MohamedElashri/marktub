@@ -55,3 +55,30 @@ jobs:
           }
           export -f curl
           /bin/bash scripts/install.sh --download-only --directory "$RUNNER_TEMP/marktub-download"
+  rpm-download:
+    name: Published RPM download on Fedora
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    container: fedora:44
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Download and verify the latest RPM
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          dnf install -y coreutils grep gawk
+          command -v curl >/dev/null || dnf install -y curl
+          curl() {
+            local address=${!#}
+            if [[ "$address" == 'https://api.github.com/repos/MohamedElashri/marktub/releases/latest' ]]; then
+              command curl --header "Authorization: Bearer $GH_TOKEN" "$@"
+            else
+              command curl "$@"
+            fi
+          }
+          export -f curl
+          bash scripts/install.sh --download-only --directory /tmp/marktub-download

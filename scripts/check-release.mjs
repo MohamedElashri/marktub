@@ -13,6 +13,7 @@ assert.deepEqual(config.app.security.capabilities, ["main"]);
 assert.notEqual(config.app.withGlobalTauri, true);
 assert.equal(config.app.windows.length, 1, "one normal WebView window");
 assert.equal(config.bundle.linux.deb.desktopTemplate, "marktub.desktop");
+assert.equal(config.bundle.linux.rpm.desktopTemplate, "marktub.desktop");
 const desktop = readFileSync("src-tauri/marktub.desktop", "utf8");
 assert(
   desktop.includes("Exec={{exec}} %F"),

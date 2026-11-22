@@ -13,6 +13,8 @@ use tauri::{AppHandle, Manager};
 use tauri_plugin_updater::{Update, UpdaterExt};
 
 const FEED: &str = "https://github.com/MohamedElashri/marktub/releases/latest/download/latest.json";
+const RPM_FEED: &str =
+    "https://github.com/MohamedElashri/marktub/releases/latest/download/latest-rpm.json";
 const KEY: &str = include_str!("../update-public-key.txt");
 const MANIFEST_LIMIT: usize = 32 * 1024;
 const PACKAGE_LIMIT: usize = 128 * 1024 * 1024;
@@ -34,8 +36,17 @@ fn err(message: &str) -> FileError {
 fn target() -> &'static str {
     if cfg!(target_os = "macos") {
         "darwin-universal"
+    } else if tauri::utils::platform::bundle_type() == Some(tauri::utils::config::BundleType::Rpm) {
+        "linux-x86_64-rpm"
     } else {
         "linux-x86_64-deb"
+    }
+}
+fn feed() -> &'static str {
+    if target() == "linux-x86_64-rpm" {
+        RPM_FEED
+    } else {
+        FEED
     }
 }
 fn supported() -> bool {
@@ -44,7 +55,7 @@ fn supported() -> bool {
     return bundle_type() == Some(BundleType::App);
     #[cfg(target_os = "linux")]
     return cfg!(target_arch = "x86_64")
-        && bundle_type() == Some(BundleType::Deb)
+        && matches!(bundle_type(), Some(BundleType::Deb | BundleType::Rpm))
         && tauri::utils::platform::current_exe().ok().as_deref()
             == Some(std::path::Path::new("/usr/bin/marktub"));
     #[cfg(not(any(target_os = "macos", target_os = "linux")))]
@@ -125,6 +136,9 @@ struct Package {
     signature: String,
 }
 fn validate(value: &serde_json::Value) -> Result<Version, FileError> {
+    validate_for(value, target() == "linux-x86_64-rpm")
+}
+fn validate_for(value: &serde_json::Value, rpm: bool) -> Result<Version, FileError> {
     let m: Manifest = serde_json::from_value(value.clone())
         .map_err(|_| err("The update manifest is invalid."))?;
     let version = Version::parse(&m.version).map_err(|_| err("Invalid update version."))?;
@@ -133,17 +147,19 @@ fn validate(value: &serde_json::Value) -> Result<Version, FileError> {
         || !version.build.is_empty()
         || m.notes.len() > 4096
         || m.pub_date.as_ref().is_some_and(|s| s.len() > 64)
-        || m.platforms.len() != 2
+        || m.platforms.len() != if rpm { 1 } else { 2 }
     {
         return Err(err("Invalid stable update manifest."));
     }
-    for (platform, suffix) in [
+    let legacy = [
         ("darwin-universal", "universal.app.tar.gz"),
         ("linux-x86_64-deb", "amd64.deb"),
-    ] {
+    ];
+    let rpm_packages = [("linux-x86_64-rpm", "x86_64.rpm")];
+    for (platform, suffix) in if rpm { &rpm_packages[..] } else { &legacy[..] } {
         let p = m
             .platforms
-            .get(platform)
+            .get(*platform)
             .ok_or_else(|| err("An update package is missing."))?;
         let expected = format!(
             "https://github.com/MohamedElashri/marktub/releases/download/v{version}/Marktub_{version}_{suffix}"
@@ -285,7 +301,7 @@ pub async fn check_application_update(app: AppHandle) -> Result<(), FileError> {
             let bytes = fetch(
                 &app,
                 generation,
-                Url::parse(FEED).unwrap(),
+                Url::parse(feed()).unwrap(),
                 MANIFEST_LIMIT,
                 false,
             )
@@ -298,7 +314,7 @@ pub async fn check_application_update(app: AppHandle) -> Result<(), FileError> {
                 let update = app
                     .updater_builder()
                     .target(target())
-                    .endpoints(vec![Url::parse(FEED).unwrap()])
+                    .endpoints(vec![Url::parse(feed()).unwrap()])
                     .map_err(|_| err("Update configuration unavailable."))?
                     .build()
                     .map_err(|_| {
@@ -483,7 +499,8 @@ pub async fn open_application_installer(app: AppHandle) -> Result<(), FileError>
         candidate.update.verify(bytes).map_err(|_| err("Update signature verification failed."))?;
         let dir = app.path().download_dir().map_err(|_| err("Downloads folder unavailable."))?.join(format!("Marktub-update-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir(&dir)?;
-        let path = dir.join(format!("Marktub_{}_amd64.deb", candidate.update.version));
+        let suffix = if target() == "linux-x86_64-rpm" { "x86_64.rpm" } else { "amd64.deb" };
+        let path = dir.join(format!("Marktub_{}_{suffix}", candidate.update.version));
         let mut file = std::fs::OpenOptions::new().write(true).create_new(true).mode(0o644).open(&path)?;
         file.write_all(bytes)?; file.sync_all()?; drop(file);
         // Hand off an exclusively created, signed package. The OS installer owns
@@ -513,8 +530,20 @@ fn installed(version: &str) -> Result<(), FileError> {
     if !metadata.is_file() || metadata.uid() != 0 || metadata.mode() & 0o022 != 0 {
         return Err(err("The installed executable failed its ownership check."));
     }
-    let mut child = Command::new("/usr/bin/dpkg-query")
-        .args(["-W", "-f=${Version}", "--", "marktub"])
+    let rpm = target() == "linux-x86_64-rpm";
+    let (program, args): (&str, &[&str]) = if rpm {
+        (
+            "/usr/bin/rpm",
+            &["-q", "--queryformat", "%{VERSION}", "--", "marktub"],
+        )
+    } else {
+        (
+            "/usr/bin/dpkg-query",
+            &["-W", "-f=${Version}", "--", "marktub"],
+        )
+    };
+    let mut child = Command::new(program)
+        .args(args)
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .spawn()?;
@@ -574,6 +603,26 @@ mod tests {
         m = manifest();
         m["platforms"]["linux-x86_64-deb"]["signature"] = "".into();
         assert!(validate(&m).is_err());
+    }
+    #[test]
+    fn rpm_feed_is_separate_and_cannot_switch_package_formats() {
+        let rpm = serde_json::json!({"version":"9.0.0", "notes":"RPM", "platforms": {
+            "linux-x86_64-rpm":{"url":"https://github.com/MohamedElashri/marktub/releases/download/v9.0.0/Marktub_9.0.0_x86_64.rpm","signature":"signed"}}});
+        assert_eq!(validate_for(&rpm, true).unwrap(), Version::new(9, 0, 0));
+        assert!(validate_for(&rpm, false).is_err());
+        assert!(validate_for(&manifest(), true).is_err());
+        let mut mixed = manifest();
+        mixed["platforms"]["linux-x86_64-rpm"] = rpm["platforms"]["linux-x86_64-rpm"].clone();
+        assert!(validate_for(&mixed, false).is_err());
+        assert!(validate_for(&mixed, true).is_err());
+        for url in [
+            "https://evil.example/package.rpm",
+            "https://github.com/MohamedElashri/marktub/releases/download/v9.0.0/Marktub_9.0.0_amd64.deb",
+        ] {
+            let mut invalid = rpm.clone();
+            invalid["platforms"]["linux-x86_64-rpm"]["url"] = url.into();
+            assert!(validate_for(&invalid, true).is_err());
+        }
     }
     #[test]
     fn redirects_are_https_and_closed() {

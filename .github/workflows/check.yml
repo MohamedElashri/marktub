@@ -51,7 +51,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential libxdo-dev libssl-dev librsvg2-dev libayatana-appindicator3-dev patchelf xvfb openbox weston dbus-x11 desktop-file-utils texlive-xetex fonts-noto-core poppler-utils python3-gi gir1.2-atspi-2.0 at-spi2-core evince
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential libxdo-dev libssl-dev librsvg2-dev libayatana-appindicator3-dev patchelf xvfb openbox weston dbus-x11 desktop-file-utils texlive-xetex fonts-noto-core poppler-utils python3-gi gir1.2-atspi-2.0 at-spi2-core evince rpm cpio
       - name: Universal desktop macOS targets and SDK
         if: runner.os == 'macOS'
         run: |
@@ -91,9 +91,12 @@ jobs:
       - name: Production macOS bundle
         if: runner.os == 'macOS'
         run: python3 scripts/build-macos.py
-      - name: Production Linux package
+      - name: Production Linux packages
         if: runner.os == 'Linux'
-        run: pnpm tauri build --bundles deb
+        run: |
+          pnpm tauri build --bundles deb,rpm
+          version=$(node -p 'require("./package.json").version')
+          python3 scripts/prepare-rpm.py --version "$version"
       - run: pnpm check:release
       - name: Verify and copy the local macOS DMG
         if: runner.os == 'macOS'
@@ -136,6 +139,13 @@ jobs:
         run: |
           mkdir -p artifacts
           tar -czf artifacts/Marktub.app.tar.gz -C src-tauri/target/universal-apple-darwin/release/bundle/macos Marktub.app
+      - name: Verify RPM contents and Fedora dependency installation
+        if: runner.os == 'Linux'
+        run: |
+          version=$(node -p 'require("./package.json").version')
+          package="src-tauri/target/release/bundle/rpm/Marktub_${version}_x86_64.rpm"
+          python3 scripts/check-linux-package.py --rpm "$package" --output artifacts/linux-rpm-package.json
+          docker run --rm -v "$PWD:/workspace:ro" -w /workspace fedora:44 bash scripts/check-fedora-rpm.sh "$package" "$version"
       - name: Sign checked update packages
         if: github.event_name != 'pull_request'
         env:
@@ -153,6 +163,9 @@ jobs:
             package="src-tauri/target/release/bundle/deb/Marktub_${version}_amd64.deb"
           fi
           python3 scripts/update-manifest.py sign --platform "$platform" --package "$package" --output "artifacts/update-${platform}.json"
+          if [ "$RUNNER_OS" = Linux ]; then
+            python3 scripts/update-manifest.py sign --platform linux-x86_64-rpm --package "src-tauri/target/release/bundle/rpm/Marktub_${version}_x86_64.rpm" --output artifacts/update-linux-x86_64-rpm.json
+          fi
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
         with:
@@ -168,6 +181,8 @@ jobs:
             artifacts/*.sig
             src-tauri/target/release/bundle/deb/*.sig
             src-tauri/target/release/bundle/deb/*.deb
+            src-tauri/target/release/bundle/rpm/*.rpm
+            src-tauri/target/release/bundle/rpm/*.sig
             src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
           if-no-files-found: warn
           retention-days: 7

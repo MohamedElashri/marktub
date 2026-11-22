@@ -8,7 +8,8 @@ import re
 import subprocess
 import sys
 
-PLATFORMS = {"darwin-universal": "universal.app.tar.gz", "linux-x86_64-deb": "amd64.deb"}
+PLATFORMS = {"darwin-universal": "universal.app.tar.gz", "linux-x86_64-deb": "amd64.deb", "linux-x86_64-rpm": "x86_64.rpm"}
+LEGACY_PLATFORMS = {"darwin-universal", "linux-x86_64-deb"}
 PUBLIC_KEY = Path("src-tauri/update-public-key.txt")
 ORIGIN = "https://github.com/MohamedElashri/marktub/releases/download"
 
@@ -57,16 +58,22 @@ def sign(platform, package, output):
     output.write_text(json.dumps(manifest, indent=2) + "\n")
 
 
-def combine(inputs, notes, output):
+def combine(inputs, notes, output, rpm_output=None):
     merged = {"version": version(), "notes": notes.read_text().strip(), "platforms": {}}
     for source in inputs:
         manifest = validate(json.loads(source.read_text()))
         if manifest["version"] != merged["version"] or set(merged["platforms"]) & set(manifest["platforms"]):
             raise ValueError("Mixed versions or duplicate update platforms")
         merged["platforms"].update(manifest["platforms"])
-    if set(merged["platforms"]) != set(PLATFORMS):
-        raise ValueError("Both checked desktop platforms are required")
-    output.write_text(json.dumps(validate(merged), indent=2) + "\n")
+    expected = set(PLATFORMS) if rpm_output else LEGACY_PLATFORMS
+    if set(merged["platforms"]) != expected:
+        raise ValueError("All checked packages and an RPM output are required for an RPM release")
+    # 0.3.0 clients accept exactly these two platform keys. Keep their feed stable.
+    legacy = {**merged, "platforms": {key: value for key, value in merged["platforms"].items() if key in LEGACY_PLATFORMS}}
+    output.write_text(json.dumps(validate(legacy), indent=2) + "\n")
+    if rpm_output:
+        rpm = {**merged, "platforms": {"linux-x86_64-rpm": merged["platforms"]["linux-x86_64-rpm"]}}
+        rpm_output.write_text(json.dumps(validate(rpm), indent=2) + "\n")
 
 
 def main():
@@ -80,12 +87,13 @@ def main():
     merger.add_argument("inputs", nargs="+", type=Path)
     merger.add_argument("--notes", type=Path, required=True)
     merger.add_argument("--output", type=Path, required=True)
+    merger.add_argument("--rpm-output", type=Path)
     args = parser.parse_args()
     try:
         if args.command == "sign":
             sign(args.platform, args.package, args.output)
         else:
-            combine(args.inputs, args.notes, args.output)
+            combine(args.inputs, args.notes, args.output, args.rpm_output)
     except (ValueError, KeyError, OSError):
         print("Update manifest preparation failed. Check package names, versions, signatures and signing configuration.", file=sys.stderr)
         return 1
