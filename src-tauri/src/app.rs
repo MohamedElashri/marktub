@@ -1049,6 +1049,7 @@ async fn choose_image(
     app: tauri::AppHandle,
     id: String,
     link: String,
+    automatic: Option<bool>,
 ) -> Result<Option<crate::reader_assets::Image>, FileError> {
     tauri::async_runtime::spawn_blocking(move || {
         app.state::<Documents>().byte_length(&id)?;
@@ -1056,21 +1057,20 @@ async fn choose_image(
             return Err(FileError::new("image", "Image hint is too long."));
         }
         let scoped = app.state::<Documents>().scoped(&id)?;
-        let resources = app
-            .path()
-            .resource_dir()
-            .map_err(|_| FileError::new("resource", "Example resources unavailable."))?;
-        if let Some(image) =
-            crate::reader_assets::example_image(scoped.canonical_path(), &resources, &link)?
+        if let Ok(resources) = app.path().resource_dir()
+            && let Some(image) =
+                crate::reader_assets::example_image(scoped.canonical_path(), &resources, &link)?
         {
             return Ok(Some(image));
         }
-        if let Some(scoped) = library(&app)
+        let linked = library(&app)
             .lock()
             .map_err(|_| FileError::new("state", "Library unavailable."))?
-            .resolve_link(scoped.canonical_path(), &link)?
-        {
-            return crate::reader_assets::image_scoped(scoped).map(Some);
+            .resolve_link(scoped.canonical_path(), &link);
+        match linked.and_then(|file| file.map(crate::reader_assets::image_scoped).transpose()) {
+            Ok(Some(image)) => return Ok(Some(image)),
+            result if automatic == Some(true) => return result,
+            _ => {}
         }
         #[cfg(feature = "e2e")]
         if let Some(path) = app.state::<crate::test_support::Fixtures>().take_image() {

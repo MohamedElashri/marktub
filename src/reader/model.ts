@@ -49,6 +49,7 @@ export interface Rich {
 }
 export interface Page {
   html: string;
+  metadataKey?: string;
   rich: Rich[];
   provisional: boolean;
   fallback?: string;

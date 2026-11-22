@@ -141,10 +141,10 @@ export const resetSettings = () => invoke<void>("reset_settings");
 
 export const openDocumentLink = (id: string, link: string) =>
   invoke<Descriptor | null>("open_document_link", { id, link });
-export const chooseImage = (id: string, link: string) =>
+export const chooseImage = (id: string, link: string, automatic = false) =>
   invoke<{ dataUrl: string; width: number; height: number } | null>(
     "choose_image",
-    { id, link },
+    { id, link, automatic },
   );
 export const rememberDocument = (id: string) =>
   invoke<string>("library_remember_document", { id });

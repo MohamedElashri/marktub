@@ -1039,7 +1039,7 @@ describe("Reader and local renderers", () => {
   it("keeps malicious renderers and document HTML inert in the actual WebView", async () => {
     await fixture(
       "seed",
-      "# Hostile input\n\n<script>window.__MARKTUB_PWN__=true</script>\n\n![remote](https://attacker.invalid/image.png)\n\n```mermaid\n%%{init:{securityLevel:loose}}%%\ngraph TD; A-->B\n```\n\n$$\n\\includegraphics{file:///etc/passwd}\n$$\n\nAfter blocked blocks.\n",
+      "# Hostile input\n\n<script>window.__MARKTUB_PWN__=true</script>\n\n![remote](http://attacker.invalid/image.png)\n\n```mermaid\n%%{init:{securityLevel:loose}}%%\ngraph TD; A-->B\n```\n\n$$\n\\includegraphics{file:///etc/passwd}\n$$\n\nAfter blocked blocks.\n",
     );
     await browser.$("button.open-button").waitForEnabled({ timeout: 20000 });
     await browser.$("button.open-button").click();
@@ -1080,7 +1080,7 @@ describe("Reader and local renderers", () => {
           }
           document.addEventListener("securitypolicyviolation", blocked);
           image = document.createElement("img");
-          image.src = "https://attacker.invalid/csp-probe.png";
+          image.src = "http://attacker.invalid/csp-probe.png";
           document.body.append(image);
         }),
     );
@@ -5770,13 +5770,12 @@ describe("Everyday workflows", () => {
     }
   });
 
-  it("opens the complete built-in feature guide and authorizes only its bundled image", async () => {
+  it("opens the complete built-in feature guide and displays its bundled image automatically", async () => {
     await browser.$('button[aria-label="Open feature guide"]').click();
     await readDocument("A place for unfinished thoughts");
-    const image = pane().$('button[data-image="marktub-example.png"]');
+    const image = pane().$('article img[alt="The Marktub app icon"]');
     await image.waitForExist({ timeout: 60000 });
     await image.scrollIntoView();
-    await image.click();
     await browser.waitUntil(async () =>
       browser.tauri.execute(() => {
         const image = document.querySelector(
@@ -8286,5 +8285,75 @@ describe("TeX guide rendering", () => {
     expect(
       state.errors.some((text) => /budget reached|section limit/.test(text)),
     ).toBe(false);
+  });
+});
+
+describe("Library README preview", () => {
+  it("opens a sidebar README, displays local images, and renders embedded HTML when enabled", async () => {
+    const invoke = (command, args) =>
+      browser.tauri.execute(
+        ({ core }, command, args) => core.invoke(command, args),
+        command,
+        args,
+      );
+    const scope = { id: null, scope: "session" };
+    const previous = await invoke("get_settings", scope);
+    await invoke("update_settings", {
+      ...scope,
+      text: "$reader.remote_images=false\n",
+    });
+    let folder;
+    try {
+      const fixture = await invoke("e2e_fixture", { action: "seed", text: "" });
+      folder = dirname(fixture.path);
+      await writeFile(
+        join(folder, "README.md"),
+        "# README preview\n\n![Markdown logo](logo.png)\n\n" +
+          '<details open><summary>More</summary><img src="logo.png" alt="HTML logo" width="48" onerror="run()"></details>\n\n' +
+          "Press <kbd>Enter</kbd>.\n\n![Remote logo](https://example.invalid/logo.svg)\n",
+      );
+      const { copyFile } = await import("node:fs/promises");
+      await copyFile("src-tauri/icons/256x256.png", join(folder, "logo.png"));
+      const addFolder = browser.$("button=Add folder");
+      const openFolder = browser.$("button=Open folder");
+      if (!(await addFolder.isDisplayed())) {
+        if (await openFolder.isDisplayed()) await openFolder.click();
+        else {
+          await browser.$("button=Library").click();
+          await addFolder.click();
+        }
+      } else await addFolder.click();
+      const entry = browser.$('.tree-file[aria-label="Open README.md"]');
+      await entry.waitForEnabled({ timeout: 20000 });
+      await entry.click();
+      await expectReadingHeading("README preview");
+      const reader = () => browser.$(".document-tab:not([hidden]) article");
+      const markdownImage = reader().$('img[alt="Markdown logo"]');
+      await markdownImage.waitForExist();
+      await browser.waitUntil(
+        async () => (await markdownImage.getProperty("naturalWidth")) === 256,
+      );
+      await expect(reader().$("details")).not.toExist();
+      await expect(
+        reader().$('button[data-image="https://example.invalid/logo.svg"]'),
+      ).toExist();
+      await invoke("update_settings", {
+        ...scope,
+        text: "$reader.render_html=true\n$reader.remote_images=false\n",
+      });
+      await expect(reader().$("details summary")).toHaveText("More");
+      await expect(reader().$("kbd")).toHaveText("Enter");
+      const htmlImage = reader().$('img[alt="HTML logo"]');
+      await htmlImage.waitForExist();
+      expect(await htmlImage.getAttribute("width")).toBe("48");
+      expect(await htmlImage.getAttribute("onerror")).toBeNull();
+    } finally {
+      await invoke("update_settings", { ...scope, text: previous.text });
+      const roots = (await invoke("library_state", {})).roots;
+      const root = roots.find(
+        ({ name }) => folder && name === folder.split("/").at(-1),
+      );
+      if (root) await invoke("library_remove_root", { id: root.id });
+    }
   });
 });

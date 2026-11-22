@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { ReaderClient } from "./client";
-import { sanitizeReader } from "./safe";
+import { readerImage, sanitizeReader } from "./safe";
 import { renderRich } from "../renderers/rich";
 import { appearance, type Values } from "../preferences";
 import typography from "./typography.css?raw";
@@ -37,7 +37,7 @@ export async function exportStandalone(
     const page = await client.page(i);
     checkCurrent();
     const host = document.createElement("div");
-    host.innerHTML = sanitizeReader(page.html);
+    host.innerHTML = sanitizeReader(page.html, page.metadataKey);
     for (const fence of host.querySelectorAll("[data-run-kind]")) {
       fence.removeAttribute("data-run-kind");
       fence.removeAttribute("data-run-source");
@@ -64,13 +64,7 @@ export async function exportStandalone(
     )) {
       const source = client.approvedImages.get(image.dataset.image ?? "");
       if (source) {
-        const img = document.createElement("img");
-        img.src = source;
-        img.alt = image.textContent ?? "Image";
-        img.style.maxWidth = "100%";
-        if (image.dataset.width) img.width = Number(image.dataset.width);
-        if (image.dataset.height) img.height = Number(image.dataset.height);
-        image.replaceWith(img);
+        image.replaceWith(readerImage(image, source));
       } else {
         const text = document.createElement("p");
         text.textContent = `Image not embedded (permission required): ${image.textContent}`;

@@ -3,7 +3,15 @@ import { grammar, emptyContext, noteId } from "./grammar";
 import type { Environment } from "./grammar";
 import type { Index, Read, Section, Heading, Context } from "./model";
 import { appendMath, emptyMathPlan, mathExpressions } from "./math-context";
-const md = grammar();
+const grammarMarkdown = grammar();
+const htmlMarkdown = grammar(true);
+type RenderEnvironment = Environment & { fragments: string[] };
+for (const kind of ["html_block", "html_inline"] as const) {
+  htmlMarkdown.renderer.rules[kind] = (tokens, i, _options, env) => {
+    const { fragments } = env as RenderEnvironment;
+    return `<!--marktub-html-${fragments.push(tokens[i].content) - 1}-->`;
+  };
+}
 const encoder = new TextEncoder();
 export const MAX_BLOCK = 256 * 1024;
 export const SECTION_TARGET = 4096;
@@ -53,7 +61,9 @@ export async function buildIndex(
   read: Read,
   publish: (index: Index) => void,
   cancelled = () => false,
+  allowHtml = false,
 ): Promise<Index> {
+  const md = allowHtml ? htmlMarkdown : grammarMarkdown;
   const index: Index = {
     sections: [],
     headings: [],
@@ -371,11 +381,14 @@ export function renderText(
   headings: Heading[] = [],
   beginning = true,
   sourceMap = false,
+  allowHtml = false,
 ) {
-  const env: Environment = {
+  const md = allowHtml ? htmlMarkdown : grammarMarkdown;
+  const env: RenderEnvironment = {
     ...structuredClone(context),
     rich: [],
     beginning,
+    fragments: [],
     heading: () => headings.shift()?.id ?? "",
   };
   const normalized = normalize(text, beginning);
@@ -400,7 +413,27 @@ export function renderText(
     token.attrSet("data-run-source", JSON.stringify(code));
   }
   const html = md.renderer.render(tokens, md.options, env);
-  return { html, rich: env.rich ?? [] };
+  if (!env.fragments.length) return { html, rich: env.rich ?? [] };
+
+  // Only renderer-generated elements may carry source positions, run
+  // controls, and rich placeholders. Mark those attributes before adding
+  // the document HTML, then restore them after sanitizing the page.
+  const key = [...crypto.getRandomValues(new Uint8Array(16))]
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+  const marked = html.replace(/<[a-z][\w-]*(?:"[^"]*"|[^">])*>/gi, (tag) =>
+    tag.replace(/"[^"]*"| (class|data-[a-z-]+)=/g, (match, name) =>
+      name ? ` data-${key}-${name}=` : match,
+    ),
+  );
+  return {
+    html: marked.replace(
+      /<!--marktub-html-(\d+)-->/g,
+      (_, index) => env.fragments[Number(index)],
+    ),
+    rich: env.rich ?? [],
+    metadataKey: key,
+  };
 }
 export { lines };
 

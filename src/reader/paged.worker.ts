@@ -5,6 +5,7 @@ import type { Index, Page, Read } from "./model";
 let epoch = 0,
   index: Index | undefined;
 let search = 0;
+let allowHtml = false;
 const awaiting = new Map<
   number,
   {
@@ -49,6 +50,7 @@ self.onmessage = async ({ data }) => {
     const current = ++epoch;
     search++;
     index = undefined;
+    allowHtml = data.allowHtml === true;
     let sent = 0,
       headings = 0;
     try {
@@ -72,6 +74,7 @@ self.onmessage = async ({ data }) => {
           headings = next.headings.length;
         },
         () => epoch !== current,
+        allowHtml,
       );
     } catch (error) {
       self.postMessage({ type: "error", error: String(error) });
@@ -98,6 +101,7 @@ self.onmessage = async ({ data }) => {
             ),
             section.start === 0,
             !section.note,
+            allowHtml,
           );
       const result: Page = {
         ...rendered,

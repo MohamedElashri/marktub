@@ -440,6 +440,7 @@
   let comparison = $state<Comparison | null>(null),
     compareLocal = $state("");
   let settings = $state<SettingsResult | null>(null);
+  let settingsDocument = $state<string | null>(null);
   let settingsRequest = 0;
   let readerEpoch = $state(0);
   let readerPending = $state<"" | "loading" | "failed">("");
@@ -481,6 +482,15 @@
   const displayed = $derived(previewSettings ?? settings?.resolved ?? {});
   const presentation = $derived(
     appearance(displayed, $osDark, $arabicCompatibility),
+  );
+  const settingsCurrent = $derived(
+    !!document && document.id === settingsDocument,
+  );
+  const renderHtml = $derived(
+    settingsCurrent && value("reader.render_html", false) === true,
+  );
+  const remoteImages = $derived(
+    settingsCurrent && value("reader.remote_images", true) === true,
   );
   $effect.pre(() => {
     const css = presentation;
@@ -818,9 +828,11 @@
   }
   async function loadSettings() {
     const request = ++settingsRequest;
+    const owner = document?.id ?? null;
     const next = await bridge.getSettings(realDocument(), "global");
-    if (request === settingsRequest) {
+    if (request === settingsRequest && owner === (document?.id ?? null)) {
       settings = next;
+      settingsDocument = owner;
       if (next.diagnostics.length)
         message =
           "Preferences use safe defaults: " +
@@ -1723,7 +1735,7 @@
               : "Working preview unavailable. Your edits are kept; choose Read again to retry."}
           </p>
         {:else if (mode === "read" || mode === "split") && active}
-          {#key readerEpoch}{#if ReaderComponent}<ReaderComponent
+          {#key `${readerEpoch}:${renderHtml}:${remoteImages}`}{#if ReaderComponent}<ReaderComponent
                 bind:this={reader}
                 read={currentRead}
                 toolbarTarget={readerToolbarTarget}
@@ -1740,6 +1752,8 @@
                 onsource={previewAnchor}
                 operationBusy={busy}
                 presentation={displayed}
+                allowHtml={renderHtml}
+                {remoteImages}
                 dark={$osDark}
                 start={readerStart}
                 anchorId={readerAnchor}
@@ -1776,13 +1790,15 @@
                 }}
                 onlink={(link) => void open(false, link)}
                 onnote={(target) => void showLinks(target)}
-                onimage={async (link) => {
+                onimage={async (link, automatic) => {
                   const id = realDocument();
-                  if (!id)
+                  if (!id) {
+                    if (automatic) return null;
                     throw Error(
                       "Choose a saved document before authorizing image files.",
                     );
-                  return bridge.chooseImage(id, link);
+                  }
+                  return bridge.chooseImage(id, link, automatic);
                 }}
                 onerror={(error) => (message = error)}
                 onrun={runFence}
