@@ -88,17 +88,16 @@
       "Drag the library divider to resize it, or enter a width here. Global or session-only.",
     "reader.font": "Noto Naskh Arabic, Noto Sans Arabic and Amiri are bundled.",
     "reader.heading_font":
-      "Choose a heading font, or Same as body to follow the reading font.",
-    "reader.font_size": "Text size in Read and the Split preview.",
+      "Applies to Arabic headings in the editor too. Same as body uses the reading font.",
+    "reader.font_size":
+      "Text size in Read, the Split preview, and Arabic prose while editing.",
     "reader.width":
       "Maximum text width; narrower columns keep long lines comfortable.",
     "reader.line_height": "Space between lines of document text.",
     "editor.font":
-      "System Mono and Cousine use bundled Amiri for Arabic prose in all editing views.",
-    "editor.font_size":
-      "Text size in Source, Split, and Arabic prose in Visual.",
-    "editor.line_height":
-      "Line spacing in Source, Split, and Arabic prose in Visual.",
+      "Arabic prose follows the Reading font, size, and line height.",
+    "editor.font_size": "Text size for ordinary source lines and code.",
+    "editor.line_height": "Line spacing for ordinary source lines and code.",
     "editor.tab_width":
       "The visual width of a tab character. Existing file bytes are preserved.",
     "editor.wrap":

@@ -1835,7 +1835,6 @@ textarea {
   padding: 24px;
 }
 .editor-host .cm-arabic-prose {
-  font-family: var(--source-arabic-font, inherit);
   /* WebKitGTK can shift whole Arabic words when it paints preserved spaces. */
   white-space: nowrap;
 }
@@ -1852,8 +1851,15 @@ textarea {
   white-space: inherit;
 }
 .editor-host .cm-arabic-prose:not(.cm-live-heading) {
-  font-size: var(--source-size, 16px);
-  line-height: var(--source-line-height, 1.8);
+  font-family: var(--reader-font);
+  font-size: var(--reader-size);
+  line-height: var(--reader-line-height);
+}
+.editor-host .cm-arabic-prose.cm-arabic-heading {
+  font-family: var(--reader-heading-font);
+}
+.editor-host .cm-source-code {
+  font-family: var(--source-font, monospace);
 }
 .cm-author-strong {
   font-weight: 700;
