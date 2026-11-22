@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, tick } from "svelte";
   import Icon from "./ui/Icon.svelte";
+  import { dock } from "./ui/dock";
   import BusyStatus from "./ui/BusyStatus.svelte";
   import { shortcutLabel } from "./commands";
   import { appearance, osDark, type Values } from "./preferences";
@@ -57,6 +58,11 @@
       location: string | null,
     ) => void;
   } = $props();
+  let readerToolbarTarget = $state<HTMLDivElement>();
+  let authorToolbarTarget = $state<HTMLDivElement>();
+  let documentMenuTarget = $state<HTMLDivElement>();
+  let formattingOpen = $state(false);
+  let formattingElement = $state<HTMLDetailsElement>();
   let actionsOpen = $state(false);
   let actionsElement: HTMLDetailsElement;
   async function documentAction(
@@ -75,7 +81,10 @@
     }
   }
   $effect(() => {
-    if (!active) actionsOpen = false;
+    if (!active) {
+      actionsOpen = false;
+    }
+    if (!active || mode === "read" || writingFocus) formattingOpen = false;
   });
   $effect(() => {
     onstate(
@@ -1263,13 +1272,7 @@
   data-code-style={String(value("code.style", "classic"))}
 >
   <header class="toolbar" class:document-toolbar={!!document}>
-    {#if document}
-      <div class="document-title" title={document.name}>
-        <Icon name="file" /><span class="document-name" dir="auto"
-          >{document.name}</span
-        >
-      </div>
-    {:else}
+    {#if !document}
       <span class="wordmark"
         >Marktub<span class="wordmark-dot" aria-hidden="true"></span></span
       >
@@ -1294,19 +1297,17 @@
           disabled={busy}>Visual</button
         >
       </div>{/if}
-    {#if session}<button
+    {#if session && mode !== "read"}<div
+        class="author-toolbar-slot"
+        bind:this={authorToolbarTarget}
+      ></div>{/if}
+    <div class="reader-toolbar-slot" bind:this={readerToolbarTarget}></div>
+    {#if session && (mode !== "read" || dirty || session.needsSaveAs)}<button
         class="save-button"
         class:primary={dirty}
         onclick={() => save()}
         disabled={busy}>Save</button
       >{/if}
-    {#if session && !session.range && (mode === "source" || mode === "visual")}
-      <button
-        onclick={runFenceAtCaret}
-        disabled={busy || inlinePending || !!powerPanel?.inlineRunning()}
-        >Run block</button
-      >
-    {/if}
     <button
       class="open-button"
       onclick={() => open()}
@@ -1315,7 +1316,8 @@
         ? `Open file (${openShortcut.visual})`
         : "Open file"}
     >
-      <Icon name="folder" />Open file{#if !document}
+      <Icon name="folder" /><span class:sr-only={!!document}>Open file</span
+      >{#if !document}
         <kbd aria-label={openShortcut.spoken}>{openShortcut.visual}</kbd
         >{/if}</button
     >
@@ -1325,7 +1327,28 @@
       bind:open={actionsOpen}
     >
       <summary aria-label="More document actions">More</summary>
-      <div class="document-actions-list">
+      <div class="document-actions-list" bind:this={documentMenuTarget}>
+        {#if document?.bundledGuide}
+          <button
+            disabled={busy}
+            onclick={() => documentAction(() => revealGuideExample("shell"))}
+            >Shell example</button
+          >
+          <button
+            disabled={busy}
+            onclick={() => documentAction(() => revealGuideExample("sqlite"))}
+            >SQLite example</button
+          >
+        {/if}
+
+        {#if session && !session.range && (mode === "source" || mode === "visual")}
+          <button
+            onclick={() => documentAction(runFenceAtCaret, true)}
+            disabled={busy || inlinePending || !!powerPanel?.inlineRunning()}
+            >Run block</button
+          >
+        {/if}
+
         {#if session}<button
             onclick={() => documentAction(() => save(true), true)}
             disabled={busy}>Save As</button
@@ -1353,11 +1376,10 @@
           disabled={busy}>Settings</button
         >
         <button
-          onclick={() =>
-            documentAction(() => {
-              showSavedBackups = !showSavedBackups;
-              void refreshRecoveries();
-            })}
+          onclick={() => {
+            showSavedBackups = !showSavedBackups;
+            void refreshRecoveries();
+          }}
           disabled={busy}
           >{showSavedBackups
             ? "Hide saved backups"
@@ -1366,16 +1388,6 @@
       </div>
     </details>
   </header>
-  {#if document?.bundledGuide}
-    <nav class="guide-examples" aria-label="Guide examples">
-      <button disabled={busy} onclick={() => revealGuideExample("shell")}
-        >Shell example</button
-      >
-      <button disabled={busy} onclick={() => revealGuideExample("sqlite")}
-        >SQLite example</button
-      >
-    </nav>
-  {/if}
   <BusyStatus
     active={busy}
     label={editorUndoing ? "Applying undo / redo…" : operation}
@@ -1441,6 +1453,7 @@
     </div>{/if}
   {#if recoveries.length || showSavedBackups}<details
       class="recovery-list"
+      use:dock={document ? documentMenuTarget : undefined}
       aria-label="Unsaved recovery records"
       open={!document || showSavedBackups}
     >
@@ -1451,7 +1464,7 @@
             >{recovery.name} · {recovery.clean ? "saved backup" : "unsaved"} · revision
             {recovery.revision}</span
           ><button
-            onclick={() => restore(recovery.id)}
+            onclick={() => documentAction(() => restore(recovery.id), true)}
             disabled={busy || recovery.damaged}>Restore</button
           ><button onclick={() => discard(recovery.id)} disabled={busy}
             >Discard recovery</button
@@ -1514,70 +1527,110 @@
             class:hidden={mode === "read"}
             class="source-surface"
           >
-            <div class="source-toolbar">
-              <span
-                >{session.needsSaveAs
-                  ? "Choose a new destination with Save As."
-                  : "Changes stay local until you save."}</span
-              ><button
-                class="icon-button"
-                aria-label="Undo"
-                title="Undo"
-                onclick={() => editor?.undo()}
-                disabled={busy}
-                ><Icon name="undo" /><span class="sr-only">Undo</span></button
-              ><button
-                class="icon-button"
-                aria-label="Redo"
-                title="Redo"
-                onclick={() => editor?.undo(true)}
-                disabled={busy}
-                ><Icon name="redo" /><span class="sr-only">Redo</span></button
-              ><label
-                ><input type="checkbox" bind:checked={visual} /> Live heading/list
-                formatting</label
+            {#if writingFocus}<div class="writing-focus-controls">
+                <button onclick={() => (writingFocus = false)}
+                  ><Icon name="focus" />Exit writing focus</button
+                >
+              </div>{/if}
+            <div
+              class="author-tools"
+              use:dock={mode === "read" || writingFocus
+                ? undefined
+                : authorToolbarTarget}
+            >
+              <details
+                class="formatting-tools"
+                bind:this={formattingElement}
+                bind:open={formattingOpen}
+                onfocusout={(event) => {
+                  if (
+                    event.relatedTarget instanceof Node &&
+                    !formattingElement?.contains(event.relatedTarget)
+                  )
+                    formattingOpen = false;
+                }}
               >
-            </div>
-            <div class="author-controls">
-              <button
-                class="icon-button"
-                aria-label="Find / replace"
-                title="Find / replace"
-                onclick={() => editor?.action("find")}
-                ><Icon name="find" /><span class="sr-only">Find / replace</span
-                ></button
-              ><button
-                class="focus-toggle icon-button"
-                aria-label={writingFocus
-                  ? "Exit writing focus"
-                  : "Writing focus"}
-                title={writingFocus ? "Exit writing focus" : "Writing focus"}
-                aria-pressed={writingFocus}
-                onclick={() => (writingFocus = !writingFocus)}
-                ><Icon name="focus" /><span class="sr-only"
-                  >{writingFocus ? "Exit writing focus" : "Writing focus"}</span
-                ></button
-              ><label
-                ><input
-                  type="checkbox"
-                  bind:checked={spellcheck}
-                />Spellcheck</label
-              ><label
-                ><input type="checkbox" bind:checked={numbers} />Line numbers</label
-              >{#each [["fold", "Fold"], ["unfold", "Unfold"], ["bold", "Bold"], ["italic", "Italic"], ["code", "Code"], ["link", "Link"], ["heading1", "Heading"], ["list", "List"], ["ordered", "Numbered"], ["task", "Task"], ["quote", "Quote"], ["table", "Table"], ["image", "Image"], ["math", "Math"], ["mermaid", "Diagram"]] as [id, label] (id)}<button
-                  class="icon-button"
-                  class:tool-group-start={[
-                    "bold",
-                    "heading1",
-                    "table",
-                  ].includes(id)}
-                  aria-label={label}
-                  title={label}
-                  onclick={() => editor?.action(id)}
-                  disabled={busy}
-                  ><Icon name={id} /><span class="sr-only">{label}</span
-                  ></button
-                >{/each}
+                <summary
+                  title="Formatting and editor options"
+                  aria-label="Formatting and editor options"
+                  ><Icon name="type" /><span>Format</span></summary
+                >
+                <div class="formatting-menu">
+                  <div class="source-toolbar">
+                    <span
+                      >{session.needsSaveAs
+                        ? "Choose a new destination with Save As."
+                        : "Changes stay local until you save."}</span
+                    ><button
+                      class="icon-button"
+                      aria-label="Undo"
+                      title="Undo"
+                      onclick={() => editor?.undo()}
+                      disabled={busy}
+                      ><Icon name="undo" /><span class="sr-only">Undo</span
+                      ></button
+                    ><button
+                      class="icon-button"
+                      aria-label="Redo"
+                      title="Redo"
+                      onclick={() => editor?.undo(true)}
+                      disabled={busy}
+                      ><Icon name="redo" /><span class="sr-only">Redo</span
+                      ></button
+                    ><label
+                      ><input type="checkbox" bind:checked={visual} /> Live heading/list
+                      formatting</label
+                    >
+                  </div>
+                  <div class="author-controls">
+                    <button
+                      class="icon-button"
+                      aria-label="Find / replace"
+                      title="Find / replace"
+                      onclick={() => editor?.action("find")}
+                      ><Icon name="find" /><span class="sr-only"
+                        >Find / replace</span
+                      ></button
+                    ><button
+                      class="focus-toggle icon-button"
+                      aria-label={writingFocus
+                        ? "Exit writing focus"
+                        : "Writing focus"}
+                      title={writingFocus
+                        ? "Exit writing focus"
+                        : "Writing focus"}
+                      aria-pressed={writingFocus}
+                      onclick={() => (writingFocus = !writingFocus)}
+                      ><Icon name="focus" /><span class="sr-only"
+                        >{writingFocus
+                          ? "Exit writing focus"
+                          : "Writing focus"}</span
+                      ></button
+                    ><label
+                      ><input
+                        type="checkbox"
+                        bind:checked={spellcheck}
+                      />Spellcheck</label
+                    ><label
+                      ><input type="checkbox" bind:checked={numbers} />Line
+                      numbers</label
+                    >{#each [["fold", "Fold"], ["unfold", "Unfold"], ["bold", "Bold"], ["italic", "Italic"], ["code", "Code"], ["link", "Link"], ["heading1", "Heading"], ["list", "List"], ["ordered", "Numbered"], ["task", "Task"], ["quote", "Quote"], ["table", "Table"], ["image", "Image"], ["math", "Math"], ["mermaid", "Diagram"]] as [id, label] (id)}<button
+                        class="icon-button"
+                        class:tool-group-start={[
+                          "bold",
+                          "heading1",
+                          "table",
+                        ].includes(id)}
+                        aria-label={label}
+                        title={label}
+                        onclick={() => editor?.action(id)}
+                        disabled={busy}
+                        ><Icon name={id} /><span class="sr-only">{label}</span
+                        ></button
+                      >{/each}
+                  </div>
+                </div>
+              </details>
             </div>
             {#if session.range}<div
                 class="range-controls"
@@ -1663,6 +1716,7 @@
           {#key readerEpoch}{#if ReaderComponent}<ReaderComponent
                 bind:this={reader}
                 read={currentRead}
+                toolbarTarget={readerToolbarTarget}
                 embedded={mode === "split"}
                 focused={focusedReading}
                 ontogglefocus={() => setReadingFocus(!readingFocus)}
@@ -1767,14 +1821,25 @@
       window.document.querySelector("dialog[open]")
     )
       return;
-    if (actionsOpen && event.key === "Escape") {
+    if (formattingOpen && event.key === "Escape") {
+      event.preventDefault();
+      formattingOpen = false;
+      formattingElement?.querySelector("summary")?.focus();
+    } else if (actionsOpen && event.key === "Escape") {
       event.preventDefault();
       actionsOpen = false;
       actionsElement?.querySelector("summary")?.focus();
     } else if (focusedReading && event.key === "Escape") {
       event.preventDefault();
       void setReadingFocus(false);
+    } else if (writingFocus && event.key === "Escape") {
+      event.preventDefault();
+      writingFocus = false;
     }
+  }}
+  onpointerdown={(event) => {
+    if (formattingOpen && !formattingElement?.contains(event.target as Node))
+      formattingOpen = false;
   }}
 />
 <dialog

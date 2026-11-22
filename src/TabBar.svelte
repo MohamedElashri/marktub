@@ -185,13 +185,14 @@
   onresize={() => (context = null)}
 />
 
-<nav class="tabbar" aria-label="Open documents">
+<nav class="tabbar" aria-label="Open documents" data-tauri-drag-region>
   <div
     class="tabs"
     style={`width:${tabs.length * 200}px`}
     bind:this={strip}
     role="tablist"
     aria-label="Document tabs"
+    data-tauri-drag-region
   >
     {#each tabs as tab, index (tab.key)}
       <div

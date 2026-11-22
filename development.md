@@ -34,6 +34,15 @@ Development file filters treat repeated `+(...)` and `*(...)` globs as literals;
 use braces or `@(...)` alternatives instead. Reviewed local backports and raw
 upstream advisory findings are checked in CI.
 
+Before a macOS release, also launch the normal app copied from the DMG. Open a
+saved note with Shell and SQL fences, cancel each native run confirmation, then
+repeat and run each block. Confirm that the dialog appears as a sheet on the
+Marktub window, displays the exact source literally (including `%`, `<` and `&`),
+and returns to usable inline controls after both Cancel and Run. The automated
+e2e suite substitutes native selections and consent; it cannot qualify this
+dialog presentation. Check native Open/Save dialogs and tab right-click actions
+in the same normal app.
+
 On Linux, `xvfb-run -a dbus-run-session -- python3 scripts/e2e-wayland.py` reuses
 the E2E build under Weston to check actual Wayland focus and rendering. It needs
 Weston and Xvfb; it does not certify physical input or a particular desktop shell.

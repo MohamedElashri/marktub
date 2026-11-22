@@ -2,6 +2,7 @@
   import { mount, onMount, tick, unmount } from "svelte";
   import InlineFence from "../power/InlineFence.svelte";
   import Icon from "../ui/Icon.svelte";
+  import { dock } from "../ui/dock";
   import type { Database } from "../power/bridge";
   import type { Fence, InlineRun } from "../power/fence";
   import { ReaderClient } from "./client";
@@ -21,6 +22,7 @@
   let {
     read,
     embedded = false,
+    toolbarTarget,
     focused = false,
     ontogglefocus = () => {},
     onedit,
@@ -52,6 +54,7 @@
   }: {
     read: Read;
     embedded?: boolean;
+    toolbarTarget?: HTMLElement;
     focused?: boolean;
     ontogglefocus?: () => void;
     ondisplay?: () => void;
@@ -1207,21 +1210,32 @@
       </button>
     </div>
   {:else}
-    <div class="reader-controls" role="group" aria-label="Reading controls">
+    <div
+      class="reader-controls"
+      class:docked={!!toolbarTarget}
+      use:dock={toolbarTarget}
+      role="group"
+      aria-label="Reading controls"
+    >
       <button
         class="reader-control outline-toggle"
         aria-expanded={outline}
+        title="Outline & find"
         onclick={() => setOutline(!outline)}
       >
-        <Icon name="list" />Outline &amp; find
+        <Icon name="list" /><span class="reader-control-label"
+          >Outline &amp; find</span
+        >
       </button>
       <details
         class="reader-options"
         bind:open={optionsOpen}
         bind:this={optionsElement}
       >
-        <summary class="reader-control"
-          ><Icon name="type" />Reading options</summary
+        <summary class="reader-control" title="Reading options"
+          ><Icon name="type" /><span class="reader-control-label"
+            >Reading options</span
+          ></summary
         >
         <div class="reading-options-menu">
           <label
@@ -1276,16 +1290,22 @@
         class="reader-control"
         onclick={exportHtml}
         disabled={!complete || !contextReady || exporting || operationBusy}
+        title={exporting ? "Exporting…" : "Export HTML"}
       >
-        {exporting ? "Exporting…" : "Export HTML"}
+        <Icon name="export" /><span class="reader-control-label"
+          >{exporting ? "Exporting…" : "Export HTML"}</span
+        >
       </button>
       {#if !embedded}
         <button
           class="reader-control"
           bind:this={focusToggle}
           onclick={ontogglefocus}
+          title="Focus reading"
         >
-          <Icon name="focus" />Focus reading
+          <Icon name="focus" /><span class="reader-control-label"
+            >Focus reading</span
+          >
         </button>
       {/if}
       {#if onedit}<button

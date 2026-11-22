@@ -1923,14 +1923,6 @@ textarea {
   border-color: var(--line);
 }
 @media (max-width: 700px) {
-  .author-layout.split {
-    grid-template-columns: minmax(0, 1fr) !important;
-    grid-template-rows: minmax(200px, 1fr) 8px minmax(200px, 1fr);
-    overflow: auto;
-  }
-  .split-divider {
-    cursor: row-resize;
-  }
   .author-controls {
     padding-inline: 6px;
   }
@@ -3200,4 +3192,270 @@ textarea {
 }
 .riwaq-typography {
   margin-block: 14px;
+}
+
+/* Document-first workspace: one tab row, one context toolbar. */
+.workbench-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  padding: 4px 8px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  position: relative;
+  z-index: 12;
+}
+.macos .workbench-header {
+  padding-inline-start: 80px;
+}
+.workbench-header .workspace-actions {
+  display: contents;
+}
+.workbench-header .workspace-actions button {
+  position: relative;
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
+  padding: 6px;
+  border: 0;
+  flex: none;
+  gap: 0;
+}
+.workspace-label,
+.workbench-header .quick-open-button > span,
+.workbench-header .workspace-tools button > span,
+.docked .reader-control-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.workbench-header .quick-open-button kbd {
+  display: none;
+}
+.workbench-header .history-actions {
+  gap: 0;
+}
+.workbench-header .history-actions button {
+  width: 24px;
+  min-width: 24px;
+  font-size: 18px;
+  padding: 0;
+}
+.workbench-header .workspace-tools {
+  order: 2;
+  margin: 0;
+  gap: 0;
+}
+.workbench-header .tabbar {
+  order: 1;
+  flex: 1;
+  min-width: 0;
+  min-height: 34px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.workbench-header .tab {
+  flex-basis: 180px;
+}
+.workbench-header .tab button[role="tab"] {
+  padding: 6px 9px;
+}
+.workbench .toolbar {
+  min-height: 40px;
+  padding: 4px 10px;
+  gap: 4px;
+  flex-wrap: nowrap;
+}
+.workbench .toolbar.document-toolbar {
+  position: relative;
+  z-index: 8;
+}
+.document-toolbar .mode-switch {
+  margin: 0;
+  padding: 1px;
+}
+.document-toolbar .mode-switch button {
+  padding: 5px 7px;
+}
+.document-toolbar .save-button {
+  padding: 5px 8px;
+}
+.document-toolbar .open-button {
+  width: 28px;
+  height: 28px;
+  padding: 5px;
+  flex: none;
+}
+.document-toolbar .document-actions {
+  margin: 0;
+}
+.document-toolbar .document-actions summary {
+  padding: 5px 8px;
+  border-color: transparent;
+}
+.document-toolbar .document-actions summary::after {
+  margin-inline-start: 5px;
+}
+.author-toolbar-slot,
+.reader-toolbar-slot {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+.author-toolbar-slot,
+.author-toolbar-slot:empty + .reader-toolbar-slot {
+  margin-inline-start: auto;
+}
+.author-toolbar-slot:empty,
+.reader-toolbar-slot:empty {
+  display: none;
+}
+.reader-controls.docked {
+  min-height: 0;
+  padding: 0;
+  gap: 1px;
+  flex-wrap: nowrap;
+}
+.reader-controls.docked .reader-control {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 5px;
+  margin: 0;
+  border: 0;
+}
+.docked .reader-options {
+  position: relative;
+}
+.docked .reading-options-menu {
+  inset-inline-end: 0;
+  width: 260px;
+  max-width: calc(100vw - 24px);
+  z-index: 25;
+}
+.formatting-tools summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 7px;
+  border-radius: 5px;
+  cursor: pointer;
+  list-style: none;
+}
+.formatting-tools summary::-webkit-details-marker {
+  display: none;
+}
+.formatting-tools[open] summary {
+  color: var(--accent);
+  background: var(--surface);
+}
+.formatting-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 8px;
+  z-index: 25;
+  width: min(380px, calc(100vw - 24px));
+  max-height: 65vh;
+  overflow: auto;
+  padding: 8px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px #0002;
+}
+.formatting-menu .source-toolbar {
+  padding: 4px;
+  min-height: 0;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.formatting-menu .source-toolbar > span {
+  flex-basis: 100%;
+  font-size: 12px;
+}
+.formatting-menu .author-controls {
+  padding: 6px 4px;
+  min-height: 0;
+  border: 0;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.formatting-menu .author-controls > label {
+  padding: 4px;
+  font-size: 12px;
+}
+.writing-focus-controls {
+  min-height: 36px;
+  padding: 3px 10px;
+  border-bottom: 1px solid var(--line);
+}
+.writing-focus-controls button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.workbench .statusbar {
+  min-height: 24px;
+  padding: 3px 12px;
+}
+.macos.reading-focus .focus-controls {
+  min-height: 44px;
+  padding-inline-start: 80px;
+}
+@container (max-width: 560px) {
+  .formatting-tools summary > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .document-toolbar .mode-switch button {
+    padding-inline: 5px;
+  }
+  .document-toolbar .document-actions summary {
+    padding-inline: 5px;
+  }
+}
+@media (max-width: 800px) {
+  .workbench-header .history-actions {
+    display: none;
+  }
+}
+.writing-focus .author-tools {
+  display: none;
+}
+.document-actions-list .guide-examples {
+  display: block;
+  padding: 0;
+  min-height: 0;
+  border: 0;
+  background: transparent;
+}
+.document-actions-list .recovery-list {
+  margin: 4px 0;
+  padding: 6px;
+  border: 0;
+  font-size: 12px;
+  max-height: 40vh;
+  overflow: auto;
+}
+.document-actions-list .recovery-list > div {
+  flex-wrap: wrap;
+  padding-block: 6px;
+}
+.document-actions-list .recovery-list > div > span {
+  flex-basis: 100%;
+}
+.document-actions-list .recovery-list button {
+  width: auto;
+  padding: 5px 8px;
 }

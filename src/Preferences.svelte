@@ -694,19 +694,19 @@
       {/if}
     </fieldset>
   </div>
-  <datalist id="installed-fonts"
-    >{#each families as family (family)}<option value={family}
-      ></option>{/each}</datalist
-  >
-  <datalist id="content-fonts"
-    >{#each contentFamilies as family (family)}<option value={family}
-      ></option>{/each}</datalist
-  >
-  <datalist id="heading-fonts"
-    ><option value="Same as body"
-    ></option>{#each contentFamilies as family (family)}<option value={family}
-      ></option>{/each}</datalist
-  >
+  {#if open}<datalist id="installed-fonts"
+      >{#each families as family (family)}<option value={family}
+        ></option>{/each}</datalist
+    >
+    <datalist id="content-fonts"
+      >{#each contentFamilies as family (family)}<option value={family}
+        ></option>{/each}</datalist
+    >
+    <datalist id="heading-fonts"
+      ><option value="Same as body"
+      ></option>{#each contentFamilies as family (family)}<option value={family}
+        ></option>{/each}</datalist
+    >{/if}
   {#if !about}<aside
       class="preferences-specimen"
       style={appearance(effective, $osDark)}

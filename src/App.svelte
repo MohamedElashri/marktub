@@ -734,9 +734,10 @@
   class:has-library={sidebar && !readingFocus}
   class:library-drawer-open={libraryDrawer}
   class:reading-focus={readingFocus}
+  class:macos={navigator.platform.startsWith("Mac")}
   style={`--library-width:${sidebarWidth}px`}
 >
-  <header class="workbench-header">
+  <header class="workbench-header" data-tauri-drag-region>
     <nav class="workspace-actions" aria-label="Workspace">
       <button
         class="library-toggle"
@@ -746,7 +747,9 @@
         title="Show or hide library"
         onclick={() => {
           void runCommand("browser");
-        }}><Icon name="folder" />Library</button
+        }}
+        ><Icon name="folder" /><span class="workspace-label">Library</span
+        ></button
       >
       <button
         disabled={!canCreateNote}
@@ -754,7 +757,8 @@
           ? `New note${newNoteShortcut.visual ? ` · ${newNoteShortcut.visual}` : ""}`
           : "Close a tab before creating another note."}
         onclick={() => runCommand("new_note")}
-        ><Icon name="new-note" />New note</button
+        ><Icon name="new-note" /><span class="workspace-label">New note</span
+        ></button
       >
       <div class="history-actions">
         <button
@@ -770,7 +774,10 @@
           onclick={() => navigate(1)}>›</button
         >
       </div>
-      <button class="quick-open-button" onclick={() => showLibrary(true)}
+      <button
+        class="quick-open-button"
+        title="Quick open"
+        onclick={() => showLibrary(true)}
         ><Icon name="find" /><span>Quick open</span><kbd
           aria-label={shortcutLabel(
             String(currentValues["shortcut.quick_open"]?.value ?? "Mod+P"),
@@ -781,8 +788,13 @@
         ></button
       >
       <div class="workspace-tools">
-        <button onclick={showGit}>Git</button>
-        <button onclick={showPalette}>Commands</button>
+        <button title="Git workbench" onclick={showGit}
+          ><Icon name="git" /><span class="workspace-label">Git</span></button
+        >
+        <button title="Command palette" onclick={showPalette}
+          ><Icon name="commands" /><span class="workspace-label">Commands</span
+          ></button
+        >
         <button
           aria-label="Open feature guide"
           title="Built-in feature guide"
