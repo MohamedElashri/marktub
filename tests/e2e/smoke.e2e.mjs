@@ -3857,6 +3857,253 @@ describe("Export and local jobs", () => {
     );
     await panel().$("button=Close export and jobs").click();
   });
+  it("runs the selected Shell and SQL fences inline and keeps their results with the block", async () => {
+    const { mkdirSync, writeFileSync } = await import("node:fs");
+    const path = await import("node:path");
+    await seed(
+      "# Inline jobs\n\n```sh\nprintf 'first block'\n```\n\n" +
+        "```sh\nprintf 'selected block'\nprintf 'selected stderr' >&2\n```\n\n" +
+        "> ```sh\n> printf nested\n> ```\n\n" +
+        "```sql\nSELECT 'العربية' AS label, 42 AS answer;\n```\n",
+    );
+    const shells = () => pane().$$('[aria-label="Shell code block"]');
+    const sql = () => pane().$('[aria-label="SQL code block"]');
+    await browser.waitUntil(async () => (await shells()).length === 2);
+    const selected = (await shells())[1];
+    await selected.$("button=Run shell").click();
+    await panel().$("h3=Set up Shell").waitForDisplayed();
+    await expect(panel().$('textarea[aria-label="Captured code"]')).toHaveValue(
+      expect.stringContaining("selected block"),
+    );
+    await consent();
+    await panel().$("button=Enable shell").click();
+    await panel().$("button=Trust folder for shell…").waitForEnabled();
+    await choose("root-shell", path.dirname(fixture.path));
+    await consent();
+    await panel().$("button=Trust folder for shell…").click();
+    await tool("shell", "/bin/sh", "Choose shell…");
+    await panel().$("button=Run captured fence…").waitForEnabled();
+    await consent();
+    await panel().$("button=Run captured fence…").click();
+    await panel().waitForDisplayed({ reverse: true });
+    await expect(selected.$('[aria-label="Job stdout"]')).toHaveText(
+      "selected block",
+    );
+    await expect(selected.$('[aria-label="Job stderr"]')).toHaveText(
+      "selected stderr",
+    );
+    const first = (await shells())[0];
+    await expect(first.$('[aria-label="Job stdout"]')).not.toExist();
+    await consent(false);
+    await first.$("button=Run shell").click();
+    await expect(first.$(".inline-result")).toHaveText(
+      expect.stringContaining("Run canceled."),
+    );
+    await expect(panel()).not.toBeDisplayed();
+    await consent();
+    await first.$("button=Run shell").click();
+    await expect(first.$('[aria-label="Job stdout"]')).toHaveText(
+      "first block",
+    );
+    await expect(panel()).not.toBeDisplayed();
+    const otherFolder = path.join(path.dirname(fixture.path), "other-folder");
+    mkdirSync(otherFolder);
+    await choose("root-shell", otherFolder);
+    await consent();
+    await call("power_trust", { kind: "shell" });
+    await first.$("button=Run shell").click();
+    await panel().$("h3=Set up Shell").waitForDisplayed();
+    await expect(panel().$('[role="alert"]')).toHaveText(
+      expect.stringContaining("outside this runner's trusted folder"),
+    );
+    await panel().$("button=Close export and jobs").click();
+    await sql().$("button=Run SQL").click();
+    await panel().$("h3=Set up SQLite").waitForDisplayed();
+    await consent();
+    await panel().$("button=Enable sqlite").click();
+    await panel().$("button=Trust folder for sqlite…").waitForEnabled();
+    await choose("root-sqlite", path.dirname(fixture.path));
+    await consent();
+    await panel().$("button=Trust folder for sqlite…").click();
+    const db = path.join(path.dirname(fixture.path), "inline.sqlite");
+    writeFileSync(db, "", { flag: "wx" });
+    await panel().$("button=Choose SQLite database…").waitForEnabled();
+    await choose("database", db);
+    await panel().$("button=Choose SQLite database…").click();
+    await panel().$("button=Run captured fence…").waitForEnabled();
+    await consent();
+    await panel().$("button=Run captured fence…").click();
+    await panel().waitForDisplayed({ reverse: true });
+    await expect(sql().$("table")).toHaveText(
+      expect.stringContaining("العربية"),
+    );
+    await expect(sql().$("tbody")).toHaveText(expect.stringContaining("42"));
+    await sql().$(".inline-result").scrollIntoView({ block: "end" });
+    await browser.saveScreenshot("artifacts/native-inline-local-results.png");
+    await sql().$("button=Clear output").click();
+    await expect(sql().$("table")).not.toExist();
+    await pane().$(".mode-switch").$("button=Split").click();
+    await pane().$(".cm-content").waitForDisplayed();
+    await sql().$("button=Run SQL").waitForEnabled();
+    await consent();
+    await sql().$("button=Run SQL").click();
+    await expect(sql().$("tbody")).toHaveText(expect.stringContaining("42"));
+    await expect(panel()).not.toBeDisplayed();
+  });
+  async function enableRunner(kind) {
+    const { dirname } = await import("node:path");
+    await consent();
+    await call("power_enable", { kind, on: true });
+    await choose(`root-${kind}`, dirname(fixture.path));
+    await consent();
+    await call("power_trust", { kind });
+  }
+  async function configureShell() {
+    await enableRunner("shell");
+    await choose("tool-shell", "/bin/sh");
+    await consent();
+    await call("power_choose_tool", { role: "shell" });
+  }
+  async function configureSqlite() {
+    const { writeFileSync } = await import("node:fs");
+    const { dirname, join } = await import("node:path");
+    await enableRunner("sqlite");
+    const db = join(dirname(fixture.path), "mixed-text.sqlite");
+    writeFileSync(db, "", { flag: "wx" });
+    await choose("database", db);
+    await call("power_choose_database");
+  }
+  it("runs an indented, tab-prefixed Shell fence from a mixed Arabic document", async () => {
+    await seed(
+      "# العربية (Shell)\r\n\r\n" +
+        "  ~~~sh\r\n\tprintf '%s' 'العربية 123'\r\n  ~~~\r\n",
+    );
+    await configureShell();
+    const shell = () => pane().$('[aria-label="Shell code block"]');
+    await shell().$("button=Run shell").waitForEnabled();
+    await consent();
+    await shell().$("button=Run shell").click();
+    await shell().$(".inline-result").waitForDisplayed();
+    await expect(shell().$(".inline-result")).toHaveText(
+      expect.stringContaining("العربية 123"),
+    );
+    await expect(shell().$('[aria-label="Job stdout"]')).toHaveText(
+      "العربية 123",
+    );
+    await pane().$(".mode-switch").$("button=Split").click();
+    await pane().$(".cm-content").waitForDisplayed();
+    await browser.tauri.execute(() => {
+      const view = document.querySelector(
+        ".document-tab:not([hidden]) .cm-content",
+      ).cmTile.root.view;
+      const from = view.state.doc.toString().indexOf("123");
+      view.dispatch({ changes: { from, to: from + 3, insert: "456" } });
+    });
+    await expect(pane().$("article code")).toHaveText(
+      expect.stringContaining("العربية 456"),
+    );
+    await expect(shell().$('[aria-label="Job stdout"]')).not.toExist();
+    await consent();
+    await shell().$("button=Run shell").click();
+    await expect(shell().$('[aria-label="Job stdout"]')).toHaveText(
+      "العربية 456",
+    );
+  });
+  it("lays out mixed Arabic Shell output and multiline SQLite rows with independent directions", async () => {
+    const rtl = "العربية ١٢٣ (abc)";
+    const ltr = "English 123 (عربي)";
+    await seed(
+      `# العربية (results)\n\n\`\`\`sh\nprintf '%s\\n' '${rtl}' '${ltr}'\n` +
+        `printf '%s\\n' '${ltr}' '${rtl}' >&2\nexit 7\n\`\`\`\n\n` +
+        "```sql\nWITH RECURSIVE numbers(n) AS (SELECT 1 UNION ALL " +
+        "SELECT n + 1 FROM numbers WHERE n < 27)\n" +
+        `SELECT n, '${rtl}\n${ltr}' AS 'النص (Text)' FROM numbers;\n\`\`\`\n`,
+    );
+    await configureShell();
+    await configureSqlite();
+    const shell = () => pane().$('[aria-label="Shell code block"]');
+    const sql = () => pane().$('[aria-label="SQL code block"]');
+    await shell().$("button=Run shell").waitForEnabled();
+    await consent();
+    await shell().$("button=Run shell").click();
+    await expect(shell().$(".inline-state")).toHaveText("Failed", {
+      ignoreCase: true,
+    });
+    await expect(shell().$(".inline-result")).toHaveText(
+      expect.stringContaining("Exit code 7"),
+    );
+    await consent();
+    await sql().$("button=Run SQL").click();
+    await expect(sql().$("tbody tr")).toBeDisplayed();
+    await sql().$("button=Next rows").click();
+    expect(await sql().$$("tbody tr")).toHaveLength(2);
+    await expect(sql().$("tbody tr:last-child td")).toHaveText("27");
+
+    const output = await browser.tauri.execute(() => {
+      const current = document.querySelector(".document-tab:not([hidden])");
+      function layout(selector) {
+        const element = current.querySelector(`.inline-fence ${selector}`);
+        const bounds = element.getBoundingClientRect();
+        const node = element.firstChild;
+        const range = document.createRange();
+        let offset = 0;
+        return node.data
+          .trimEnd()
+          .split("\n")
+          .map((line) => {
+            // Measure letters inside the line. WebKit can include the previous
+            // line's end in a range that begins at the bidi boundary.
+            range.setStart(node, offset + 1);
+            range.setEnd(node, offset + 4);
+            const rect = range.getBoundingClientRect();
+            offset += line.length + 1;
+            return {
+              line,
+              left: rect.left - bounds.left,
+              right: bounds.right - rect.right,
+            };
+          });
+      }
+      return {
+        stdout: layout('[aria-label="Job stdout"]'),
+        stderr: layout('[aria-label="Job stderr"]'),
+        row: layout(".job-table tbody tr:last-child td:last-child"),
+      };
+    });
+    expect(output.stdout.map(({ line }) => line)).toEqual([rtl, ltr]);
+    expect(output.stderr.map(({ line }) => line)).toEqual([ltr, rtl]);
+    expect(output.row.map(({ line }) => line)).toEqual([rtl, ltr]);
+    const aligned = ([arabic, english]) =>
+      arabic.right < arabic.left && english.left < english.right;
+    expect({
+      stdout: aligned(output.stdout),
+      stderr: aligned([...output.stderr].reverse()),
+      row: aligned(output.row),
+    }).toEqual({ stdout: true, stderr: true, row: true });
+    await sql().$(".inline-result").scrollIntoView({ block: "end" });
+    await browser.saveScreenshot("artifacts/native-mixed-job-output.png");
+    await sql().$("button=Previous rows").click();
+    await expect(sql().$("tbody tr td")).toHaveText("1");
+  });
+  it("explains the single-statement SQLite limit and runs valid SQL afterward", async () => {
+    await seed(
+      "# العربية (SQLite)\n\n```sql\nSELECT 1; SELECT 2;\n```\n\n" +
+        "```sql\nSELECT 'العربية; English' AS label; -- one statement\n```\n",
+    );
+    await configureSqlite();
+    const queries = () => pane().$$('[aria-label="SQL code block"]');
+    await browser.waitUntil(async () => (await queries()).length === 2);
+    const [multiple, single] = await queries();
+    await consent();
+    await multiple.$("button=Run SQL").click();
+    await expect(multiple.$(".inline-message")).toHaveText(
+      "Run one complete SQL statement at a time.",
+    );
+    await expect(multiple.$("table")).not.toExist();
+    await consent();
+    await single.$("button=Run SQL").click();
+    await expect(single.$("tbody td")).toHaveText("العربية; English");
+  });
   it("keeps execution off, converts a selected saved revision with approved images/diagrams and exports an exclusive real PDF", async () => {
     const fs = await import("node:fs");
     const path = await import("node:path");
@@ -4151,7 +4398,7 @@ describe("Export and local jobs", () => {
     await panel().$("button=Close export and jobs").waitForEnabled();
     await consent();
     await panel().$("button=Run captured fence…").click();
-    expect(await finish()).toContain("1 rows");
+    expect(await finish()).toMatch(/1\s+row\b/);
     let options = await panel()
       .$('select[aria-label="Captured fence"]')
       .$$("option");

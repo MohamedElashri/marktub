@@ -1,3 +1,4 @@
+import { closedFence, fenceKind } from "../power/fence";
 import { grammar, emptyContext, noteId } from "./grammar";
 import type { Environment } from "./grammar";
 import type { Index, Read, Section, Heading, Context } from "./model";
@@ -379,11 +380,25 @@ export function renderText(
   };
   const normalized = normalize(text, beginning);
   const tokens = md.parse(normalized, env);
-  for (const token of tokens)
-    if (sourceMap && token.map && token.nesting !== -1) {
-      token.attrSet("data-source-line", String(token.map[0]));
-      token.attrSet("data-source-end-line", String(token.map[1]));
-    }
+  let sourceLines: string[] | undefined;
+  for (const token of tokens) {
+    if (!sourceMap || !token.map || token.nesting === -1) continue;
+    const [first, end] = token.map;
+    token.attrSet("data-source-line", String(first));
+    token.attrSet("data-source-end-line", String(end));
+    if (token.type !== "fence" || token.level !== 0 || end - first < 2)
+      continue;
+    const kind = fenceKind(token.info.trim());
+    if (!kind || !token.content.trim()) continue;
+    sourceLines ??= normalized.split("\n");
+    if (!closedFence(sourceLines[first], sourceLines[end - 1])) continue;
+    // Markdown-it can expand tabs while rendering an indented fence. Keep the
+    // source unchanged for comparison with the native capture.
+    const code = sourceLines.slice(first + 1, end - 1).join("\n") + "\n";
+    if (encoder.encode(code).length > 8192) continue;
+    token.attrSet("data-run-kind", kind);
+    token.attrSet("data-run-source", JSON.stringify(code));
+  }
   const html = md.renderer.render(tokens, md.options, env);
   return { html, rich: env.rich ?? [] };
 }

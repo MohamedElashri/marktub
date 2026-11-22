@@ -38,6 +38,10 @@ export async function exportStandalone(
     checkCurrent();
     const host = document.createElement("div");
     host.innerHTML = sanitizeReader(page.html);
+    for (const fence of host.querySelectorAll("[data-run-kind]")) {
+      fence.removeAttribute("data-run-kind");
+      fence.removeAttribute("data-run-source");
+    }
     for (const target of host.querySelectorAll<HTMLElement>("[data-rich]")) {
       const rich = page.rich[Number(target.dataset.rich)];
       if (!rich) continue;
