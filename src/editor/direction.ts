@@ -12,9 +12,19 @@ const arabicProse = Decoration.line({
   class: "cm-arabic-prose",
   attributes: { dir: "auto" },
 });
-const code = Decoration.line({ attributes: { dir: "ltr" } });
+const arabicHeading = Decoration.line({
+  class: "cm-arabic-prose cm-arabic-heading",
+  attributes: { dir: "auto" },
+});
+const code = Decoration.line({
+  class: "cm-source-code",
+  attributes: { dir: "ltr" },
+});
+const inlineCode = Decoration.mark({ class: "cm-source-code" });
 const literalSpace = Decoration.mark({ class: "cm-arabic-literal-space" });
 const literalSpaces = /^[ \t]+|[ \t]*\t[ \t]*| {2,}|[ \t]+$/g;
+const blockCode = /^(FencedCode|CodeBlock)$/;
+const heading = /^(ATXHeading[1-6]|SetextHeading[12])$/;
 
 function lineDecorations(view: EditorView) {
   const decorations = [];
@@ -25,17 +35,24 @@ function lineDecorations(view: EditorView) {
     for (let pos = from; pos <= to;) {
       const line = view.state.doc.lineAt(pos);
       if (line.from > last) {
-        let node = tree.resolveInner(line.from, 1);
-        while (node.parent && !["FencedCode", "CodeBlock"].includes(node.name))
+        const arabic = /\p{Script=Arabic}/u.exec(line.text);
+        let node = tree.resolveInner(line.from + (arabic?.index ?? 0), 1);
+        while (
+          node.parent &&
+          !blockCode.test(node.name) &&
+          !heading.test(node.name)
+        )
           node = node.parent;
-        style = ["FencedCode", "CodeBlock"].includes(node.name)
+        style = blockCode.test(node.name)
           ? code
-          : /\p{Script=Arabic}/u.test(line.text)
-            ? arabicProse
+          : arabic
+            ? heading.test(node.name)
+              ? arabicHeading
+              : arabicProse
             : automatic;
         decorations.push(style.range(line.from));
       }
-      if (style === arabicProse) {
+      if (style === arabicProse || style === arabicHeading) {
         const visibleText = line.text.slice(pos - line.from, to - line.from);
         for (const match of visibleText.matchAll(literalSpaces)) {
           const start = pos + match.index;
@@ -46,7 +63,16 @@ function lineDecorations(view: EditorView) {
       pos = line.to + 1;
     }
   }
-  return Decoration.set(decorations);
+  for (const { from, to } of view.visibleRanges)
+    tree.iterate({
+      from,
+      to,
+      enter(node) {
+        if (node.name === "InlineCode")
+          decorations.push(inlineCode.range(node.from, node.to));
+      },
+    });
+  return Decoration.set(decorations, true);
 }
 
 // Resolve each rendered logical line in the browser. CodeMirror must use that
