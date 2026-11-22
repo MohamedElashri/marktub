@@ -4838,7 +4838,9 @@ describe("Everyday workflows", () => {
     await writeFile(removed, "# Deleted bookmark\n");
     const refresh = browser.$('button[aria-label="Refresh folders"]');
     await refresh.click();
-    const file = browser.$('.tree-file[aria-label="Open deleted-bookmark.md"]');
+    const file = browser.$(
+      '.library-panel button[aria-label="Open deleted-bookmark.md"]',
+    );
     await file.waitForEnabled();
     await file.click();
     const bookmark = browser.$(
