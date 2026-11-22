@@ -165,7 +165,7 @@ it("renders opted-in README HTML with inert image references and authentic reade
   const badge = host.querySelector<HTMLElement>(
     'button[data-image^="https:"]',
   )!;
-  const image = readerImage(badge, remoteImageURL(badge.dataset.image!)!, true);
+  const image = readerImage(badge, remoteImageURL(badge.dataset.image!)!);
   expect(image.alt).toBe("Badge");
   expect(image.src).toBe("https://example.invalid/badge.svg");
   expect(image.referrerPolicy).toBe("no-referrer");

@@ -955,7 +955,9 @@
     } else onlink(link);
   }
   function replaceImage(target: HTMLElement, src: string) {
-    const img = readerImage(target, src, true);
+    // Reader pages already bound the load window. WKWebView can defer lazy
+    // images with no intrinsic size inside the virtualized scroll container.
+    const img = readerImage(target, src);
     img.onload = measure;
     img.onerror = () => {
       const error = document.createElement("span");

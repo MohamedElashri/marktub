@@ -175,11 +175,10 @@ export function remoteImageURL(link: string) {
   }
 }
 
-export function readerImage(target: HTMLElement, src: string, lazy = false) {
+export function readerImage(target: HTMLElement, src: string) {
   const img = document.createElement("img");
   img.alt = (target.textContent ?? "Image").replace(/^Load image: /, "");
   img.decoding = "async";
-  if (lazy) img.loading = "lazy";
   img.style.maxWidth = "100%";
   img.referrerPolicy = "no-referrer";
   for (const name of ["width", "height"] as const) {

@@ -5783,7 +5783,7 @@ describe("Everyday workflows", () => {
     await browser.waitUntil(async () =>
       browser.tauri.execute(() => {
         const image = document.querySelector(
-          ".document-tab:not([hidden]) article img",
+          '.document-tab:not([hidden]) article img[alt="The Marktub app icon"]',
         );
         return (
           image?.complete &&
