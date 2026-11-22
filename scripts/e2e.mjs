@@ -1,4 +1,8 @@
-import { desktopTargetArgs, desktopBinary } from "./desktop-paths.mjs";
+import {
+  desktopTestTargetArgs,
+  desktopBinary,
+  macosTestArchitecture,
+} from "./desktop-paths.mjs";
 import { spawnSync } from "node:child_process";
 
 const build = spawnSync(
@@ -7,7 +11,7 @@ const build = spawnSync(
     "tauri",
     "build",
     "--debug",
-    ...desktopTargetArgs,
+    ...desktopTestTargetArgs,
     "--features",
     "e2e",
     "--config",
@@ -26,8 +30,9 @@ if (process.platform === "darwin") {
     "python3",
     [
       "-c",
-      "import sys; sys.path.insert(0, 'scripts'); from macos_binary import verify; verify(sys.argv[1])",
+      "import sys; sys.path.insert(0, 'scripts'); from macos_binary import verify; verify(sys.argv[1], sys.argv[2:])",
       desktopBinary("debug"),
+      macosTestArchitecture,
     ],
     { stdio: "inherit" },
   );

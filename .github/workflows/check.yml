@@ -47,6 +47,19 @@ jobs:
           rustup show
           rustc --version
           uname -a
+      - name: Locate the pnpm store
+        id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+      - name: Cache pinned dependency downloads
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ${{ steps.pnpm-store.outputs.path }}
+            ~/.cargo/registry/cache
+            ~/.cargo/registry/index
+            artifacts/test-tools
+          key: desktop-downloads-${{ matrix.os }}-${{ runner.arch }}-${{ hashFiles('package.json', 'pnpm-lock.yaml', 'rust-toolchain.toml', 'src-tauri/Cargo.lock', 'scripts/fetch-test-tools.py') }}
+          restore-keys: desktop-downloads-${{ matrix.os }}-${{ runner.arch }}-
       - name: Linux desktop dependencies
         if: runner.os == 'Linux'
         run: |

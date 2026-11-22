@@ -1,12 +1,12 @@
-"""Check both slices of a universal desktop macOS executable using Apple's tools."""
+"""Check architectures and platforms of desktop macOS executables."""
 import re
 import subprocess
 
 
-def verify(binary):
+def verify(binary, expected=("arm64", "x86_64")):
     architectures = subprocess.check_output(["lipo", "-archs", str(binary)], text=True).split()
-    if set(architectures) != {"arm64", "x86_64"} or len(architectures) != 2:
-        raise ValueError(f"Expected a universal arm64/x86_64 macOS executable: {architectures}")
+    if set(architectures) != set(expected) or len(architectures) != len(expected):
+        raise ValueError(f"Expected macOS architectures {', '.join(expected)}: {architectures}")
     for architecture in architectures:
         build = subprocess.check_output([
             "xcrun", "vtool", "-arch", architecture, "-show-build", str(binary)

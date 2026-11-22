@@ -9,6 +9,10 @@ spec.loader.exec_module(module)
 
 
 class UniversalMacTests(unittest.TestCase):
+    def test_verifies_a_native_debug_slice_when_requested(self):
+        with patch.object(module.subprocess, "check_output", side_effect=["arm64\n", " platform MACOS\n"]):
+            self.assertEqual(module.verify("app", ["arm64"]), ["arm64"])
+
     def test_validates_both_platforms(self):
         with patch.object(module.subprocess, "check_output", side_effect=["arm64 x86_64\n", " platform MACOS\n", " platform MACOS\n"]) as command:
             self.assertEqual(module.verify("app"), ["arm64", "x86_64"])
