@@ -7,6 +7,7 @@ export interface Descriptor {
   revision: string;
   watching: boolean;
   location?: string;
+  bundledGuide?: boolean;
 }
 
 export interface SourceRange {

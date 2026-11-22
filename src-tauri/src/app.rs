@@ -73,19 +73,20 @@ struct Invalidation {
     id: String,
 }
 
+const GUIDE_ASSET: &str = "guide/Marktub Guide.md";
+
 fn grant(
     app: &tauri::AppHandle,
     docs: &Documents,
     path: &std::path::Path,
 ) -> Result<Descriptor, FileError> {
     let events = app.clone();
-    docs.grant_with_policy(
-        path,
-        !path.starts_with(app.path().resource_dir().unwrap_or_default()),
-        move |id| {
-            let _ = events.emit_to("main", "document-invalidated", Invalidation { id });
-        },
-    )
+    let resources = app.path().resource_dir().unwrap_or_default();
+    let mut document = docs.grant_with_policy(path, !path.starts_with(&resources), move |id| {
+        let _ = events.emit_to("main", "document-invalidated", Invalidation { id });
+    })?;
+    document.bundled_guide = path == resources.join(GUIDE_ASSET);
+    Ok(document)
 }
 
 #[tauri::command]
@@ -120,7 +121,7 @@ async fn open_example(app: tauri::AppHandle) -> Result<Descriptor, FileError> {
             .path()
             .resource_dir()
             .map_err(|_| FileError::new("resource", "Example unavailable."))?
-            .join("guide/Marktub Guide.md");
+            .join(GUIDE_ASSET);
         grant(&app, &app.state::<Documents>(), &path)
     })
     .await
