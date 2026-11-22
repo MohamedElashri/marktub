@@ -93,7 +93,8 @@
     "reader.width":
       "Maximum text width; narrower columns keep long lines comfortable.",
     "reader.line_height": "Space between lines of document text.",
-    "editor.font": "System Mono uses bundled Noto Sans Arabic for Arabic text.",
+    "editor.font":
+      "System Mono keeps Latin monospaced and uses bundled Noto Naskh Arabic for Arabic text.",
     "editor.font_size": "Text size in Source and the Split editor.",
     "editor.line_height": "Space between lines in the editor.",
     "editor.tab_width":

@@ -76,6 +76,19 @@ describe("presentation and command contracts", () => {
       expect(fontStack(family)).toMatch(/^"Marktub Arabic",/);
     for (const family of ["Amiri", "Noto Naskh Arabic", "Noto Sans Arabic"])
       expect(fontStack(family)).toMatch(new RegExp(`^"${family}",`));
+    expect(fontStack("System Mono", true)).toMatch(/^"Marktub Arabic Source",/);
+    expect(fontStack("Cousine", true)).toMatch(
+      /^"Cousine", "Marktub Arabic Source",/,
+    );
+    expect(appearance({})).toContain(
+      "--source-size:16px;--source-line-height:1.8",
+    );
+    expect(
+      appearance({
+        "editor.font_size": { type: "number", value: 21 },
+        "editor.line_height": { type: "number", value: 200 },
+      }),
+    ).toContain("--source-size:21px;--source-line-height:2");
   });
   it("edits one literal override without hiding duplicate/invalid diagnostics", () => {
     const text = '# original\n$reader.width=760\n$unknown="keep"';

@@ -227,9 +227,8 @@ export function fontStack(name: string, mono = false) {
   // Generic/system families can already cover Arabic. Put the script-limited
   // bundled face first for these choices, while honoring an explicit typeface.
   const system = special[name.toLowerCase()];
-  const primary = system
-    ? `"Marktub Arabic", ${system}`
-    : `${face}, "Marktub Arabic"`;
+  const arabic = mono ? '"Marktub Arabic Source"' : '"Marktub Arabic"';
+  const primary = system ? `${arabic}, ${system}` : `${face}, ${arabic}`;
   return `${primary}, "Geeza Pro", "Noto Sans Hebrew", "Arial Hebrew", "Noto Sans CJK SC", "Hiragino Sans", "PingFang SC", "Apple Color Emoji", "Noto Color Emoji", ${mono ? "monospace" : fallback}`;
 }
 export const DEFAULT_READING_FONT = "Noto Naskh Arabic";
@@ -245,7 +244,7 @@ export function appearance(values: Values, dark = false) {
   const css = keys
     .map((key) => `--${key.replaceAll("_", "-")}:${color(key)}`)
     .join(";");
-  return `${css};color-scheme:${p.mode};--reader-font:${fontStack(body)};--reader-heading-font:${fontStack(heading.toLowerCase() === "same as body" ? body : heading)};--ui-font:${fontStack(String(value(values, "ui.font", "System UI")))};--source-font:${fontStack(String(value(values, "editor.font", "System Mono")), true)};--reader-size:${number("reader.font_size", 18, 12, 40)}px;--reader-width:${number("reader.width", 760, 400, 1600)}px;--reader-line-height:${number("reader.line_height", 175, 120, 240) / 100};--source-size:${number("editor.font_size", 14, 11, 32)}px;--source-line-height:${number("editor.line_height", 165, 120, 220) / 100};--ui-factor:${number("ui.scale", 100, 80, 150) / 100};font-family:var(--ui-font);`;
+  return `${css};color-scheme:${p.mode};--reader-font:${fontStack(body)};--reader-heading-font:${fontStack(heading.toLowerCase() === "same as body" ? body : heading)};--ui-font:${fontStack(String(value(values, "ui.font", "System UI")))};--source-font:${fontStack(String(value(values, "editor.font", "System Mono")), true)};--reader-size:${number("reader.font_size", 18, 12, 40)}px;--reader-width:${number("reader.width", 760, 400, 1600)}px;--reader-line-height:${number("reader.line_height", 175, 120, 240) / 100};--source-size:${number("editor.font_size", 16, 11, 32)}px;--source-line-height:${number("editor.line_height", 180, 120, 220) / 100};--ui-factor:${number("ui.scale", 100, 80, 150) / 100};font-family:var(--ui-font);`;
 }
 // Keep unknown/duplicate literal lines visible for native diagnostics; never evaluate text.
 export function put(text: string, key: string, literal: string | null) {

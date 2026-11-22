@@ -1342,10 +1342,26 @@ textarea {
 }
 .editor-host .cm-editor {
   font-family: var(--source-font, monospace);
-  font-size: var(--source-size, 14px);
-  line-height: var(--source-line-height, 1.65);
+  font-size: var(--source-size, 16px);
+  line-height: var(--source-line-height, 1.8);
   color: var(--ink);
   background: var(--paper);
+}
+.editor-host .cm-scroller {
+  /* CodeMirror's base theme otherwise replaces the chosen line spacing. */
+  font-family: inherit;
+  line-height: inherit;
+}
+.editor-host .cm-lineWrapping {
+  min-width: 0;
+  word-break: normal;
+  overflow-wrap: anywhere;
+}
+.editor-host .cm-editor .cm-content {
+  padding-block: 24px;
+}
+.editor-host .cm-editor .cm-line {
+  padding-inline: 20px;
 }
 .editor-host .cm-content,
 .editor-host .cm-gutters {
