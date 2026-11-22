@@ -5,6 +5,7 @@
   import BusyStatus from "./ui/BusyStatus.svelte";
   import { shortcutLabel } from "./commands";
   import { appearance, osDark, type Values } from "./preferences";
+  import { arabicCompatibility } from "./fonts/arabic-compatibility";
   import { listen } from "@tauri-apps/api/event";
   import * as bridge from "./bridge";
   import type { Descriptor, SourceRange, SettingsResult } from "./bridge";
@@ -104,9 +105,9 @@
     if (busy) throw Error("Wait for the current document operation.");
     operationBusy = true;
     operation = "Capturing revision…";
-    editor?.settle();
     editor?.lock(true);
     try {
+      await editor?.settle();
       const api = await import("./power/bridge");
       if (!saved) {
         if (!session || !editor)
@@ -131,9 +132,9 @@
       throw Error("Working editor changed; capture the revision again.");
     operationBusy = true;
     operation = "Updating recovery…";
-    editor.settle();
     editor.lock(true);
     try {
+      await editor.settle();
       await editor.controller().flush();
     } finally {
       editor.lock(false);
@@ -478,8 +479,11 @@
     document && document.id !== "recovery" ? document.id : null;
 
   const displayed = $derived(previewSettings ?? settings?.resolved ?? {});
+  const presentation = $derived(
+    appearance(displayed, $osDark, $arabicCompatibility),
+  );
   $effect.pre(() => {
-    const css = appearance(displayed, $osDark);
+    const css = presentation;
     const restore = reader?.captureLayout();
     if (active) {
       window.document.documentElement.setAttribute("style", css);
@@ -668,6 +672,7 @@
     operation = "Changing editing range…";
     previous.lock(true);
     try {
+      await previous.settle();
       const q = previous.controller();
       await q.flush();
       const result = await bridge.changeEditWindow(
@@ -738,8 +743,8 @@
           });
     }, 1000);
   }
-  function askLeave(): Promise<"keep" | "discard" | null> {
-    editor?.settle();
+  async function askLeave(): Promise<"keep" | "discard" | null> {
+    await editor?.settle();
     if (!dirty) return Promise.resolve("keep");
     if (discardAnswer) return Promise.resolve(null);
     return new Promise((resolve) => {
@@ -946,6 +951,8 @@
       next = "source";
     }
     if (next !== "read") readingFocus = false;
+    const nativeEdits = editor?.flushNative();
+    if (nativeEdits) await nativeEdits;
     mode = next;
     if (next === "visual") visual = true;
     else if (next === "source") visual = false;
@@ -962,12 +969,13 @@
         return;
       }
     }
-    editor.settle();
     operationBusy = true;
     operation = "Saving document…";
     const queue = editor.controller();
-    let revision = queue.pause();
     try {
+      const nativeEdits = editor.settle();
+      if (nativeEdits) await nativeEdits;
+      let revision = queue.pause();
       try {
         revision = await queue.saveBarrier();
       } catch (error) {
@@ -1268,7 +1276,7 @@
   class:reading-focus={focusedReading}
   class:writing-focus={writingFocus && mode !== "read"}
   data-theme={String(value("theme", "system"))}
-  style={appearance(displayed, $osDark)}
+  style={presentation}
   data-code-style={String(value("code.style", "classic"))}
 >
   <header class="toolbar" class:document-toolbar={!!document}>
@@ -1673,6 +1681,8 @@
                 {visual}
                 {spellcheck}
                 {numbers}
+                active={active && (mode === "source" || mode === "split")}
+                nativeAllowed={$arabicCompatibility}
                 focus={writingFocus}
                 onanchor={sourceAnchor}
                 onimage={async (copy, offer, bytes) => {
@@ -1686,7 +1696,7 @@
                 tabWidth={Number(value("editor.tab_width", 4))}
                 wrap={Boolean(value("editor.wrap", true))}
                 flushMs={Number(value("recovery.flush_ms", 500))}
-                presentation={appearance(displayed, $osDark)}
+                {presentation}
                 onchange={changed}
                 onready={() => {
                   sourceText = "";

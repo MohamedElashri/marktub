@@ -1,0 +1,70 @@
+@font-face {
+  font-family: "Noto Naskh Arabic";
+  src: url("../../src/fonts/assets/NotoNaskhArabic[wght].ttf")
+    format("truetype");
+  font-weight: 400 700;
+}
+
+@font-face {
+  font-family: Cousine;
+  src: url("../../src/fonts/assets/Cousine-Regular.ttf") format("truetype");
+}
+
+body {
+  margin: 0;
+  background: #fff;
+  color: #1b2128;
+}
+
+html,
+body,
+#editor,
+.cm-editor {
+  height: 100%;
+}
+
+#editor .cm-content {
+  font:
+    26px/44px "Noto Naskh Arabic",
+    Cousine,
+    monospace;
+  padding: 8px 0;
+}
+
+#editor .cm-line {
+  padding: 0 16px;
+}
+
+#editor .cm-focused {
+  outline: none;
+}
+
+::highlight(pango-ink) {
+  color: transparent;
+}
+
+body[data-bench] .cm-cursor {
+  visibility: hidden;
+}
+
+.pango-layer {
+  position: absolute;
+  pointer-events: none;
+  inset: 0;
+  overflow: hidden;
+  color: #1b2128;
+}
+
+.pango-layer svg {
+  position: absolute;
+  overflow: visible;
+  fill: currentColor;
+}
+
+body[data-bench] .cm-scroller {
+  scrollbar-width: none;
+}
+
+body[data-bench] .cm-scroller::-webkit-scrollbar {
+  display: none;
+}

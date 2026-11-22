@@ -86,7 +86,7 @@ jobs:
       - name: Native Wayland focus, editing and Arabic layout
         if: runner.os == 'Linux'
         env:
-          MARKTUB_E2E_GREP: "OS file open and accessibility|Preferences and commands|syncs actual viewport positions both ways|keeps narrow panes and secondary actions reachable|Arabic reading layout|Arabic editing layout|Continuous reader|exports Arabic with bundled PDF fonts"
+          MARKTUB_E2E_GREP: "OS file open and accessibility|Preferences and commands|syncs actual viewport positions both ways|keeps narrow panes and secondary actions reachable|Arabic reading layout|Arabic editing layout|Native GTK Arabic source|Continuous reader|exports Arabic with bundled PDF fonts"
         run: xvfb-run -a dbus-run-session -- python3 scripts/e2e-wayland.py
       - name: Production macOS bundle
         if: runner.os == 'macOS'

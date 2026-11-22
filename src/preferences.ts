@@ -234,7 +234,11 @@ export function fontStack(name: string, mono = false) {
 }
 export const DEFAULT_READING_FONT = "Noto Naskh Arabic";
 
-export function appearance(values: Values, dark = false) {
+export function appearance(
+  values: Values,
+  dark = false,
+  arabicCompatibility = false,
+) {
   const p = currentPalette(values, dark);
   const body = String(value(values, "reader.font", DEFAULT_READING_FONT));
   const heading = String(value(values, "reader.heading_font", "Same as body"));
@@ -246,7 +250,10 @@ export function appearance(values: Values, dark = false) {
   const css = keys
     .map((key) => `--${key.replaceAll("_", "-")}:${color(key)}`)
     .join(";");
-  return `${css};color-scheme:${p.mode};--reader-font:${fontStack(body)};--reader-heading-font:${fontStack(heading.toLowerCase() === "same as body" ? body : heading)};--ui-font:${fontStack(String(value(values, "ui.font", "System UI")))};--source-font:${fontStack(source, true)};--reader-size:${number("reader.font_size", 18, 12, 40)}px;--reader-width:${number("reader.width", 760, 400, 1600)}px;--reader-line-height:${number("reader.line_height", 175, 120, 240) / 100};--source-size:${number("editor.font_size", 16, 11, 32)}px;--source-line-height:${number("editor.line_height", 180, 120, 220) / 100};--ui-factor:${number("ui.scale", 100, 80, 150) / 100};font-family:var(--ui-font);`;
+  const arabicFallback = arabicCompatibility
+    ? '"Marktub Arabic Compatibility", '
+    : "";
+  return `${css};color-scheme:${p.mode};--reader-font:${arabicFallback}${fontStack(body)};--reader-heading-font:${arabicFallback}${fontStack(heading.toLowerCase() === "same as body" ? body : heading)};--ui-font:${fontStack(String(value(values, "ui.font", "System UI")))};--source-font:${arabicFallback}${fontStack(source, true)};--reader-size:${number("reader.font_size", 18, 12, 40)}px;--reader-width:${number("reader.width", 760, 400, 1600)}px;--reader-line-height:${number("reader.line_height", 175, 120, 240) / 100};--source-size:${number("editor.font_size", 16, 11, 32)}px;--source-line-height:${number("editor.line_height", 180, 120, 220) / 100};--ui-factor:${number("ui.scale", 100, 80, 150) / 100};font-family:var(--ui-font);`;
 }
 // Keep unknown/duplicate literal lines visible for native diagnostics; never evaluate text.
 export function put(text: string, key: string, literal: string | null) {

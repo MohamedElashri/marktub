@@ -1,24 +1,24 @@
 {
   "schemaVersion": 6,
   "date": "2026-11-22",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "status": "Release candidate. Hosted desktop, package and advisory checks qualify the final revision before publication.",
   "changes": [
-    "Use the Reading font, size and line spacing for Arabic prose in Read, Source, Split and Visual.",
-    "Apply the same heading typeface to Arabic Markdown headings and the same code typeface to inline and fenced code in both panes.",
-    "Compare the actual reader and editor font settings in native WebViews and check Arabic glyph placement and saved whitespace."
+    "Use native GTK editing for Arabic Markdown in Source and the editable side of Split when Linux WebKitGTK misplaces Arabic diacritics.",
+    "Use the bundled Amiri face for Arabic and retain live preview, undo, recovery, and exact-byte saves.",
+    "Resolve application shortcuts with the configured Latin mapping while the Arabic keyboard layout is active."
   ],
   "source": {
-    "baseRelease": "v0.3.3",
-    "baseCommit": "0fe0eff14e149cc445199b0f1a7e76c5b65cf84c"
+    "baseRelease": "v0.3.4",
+    "baseCommit": "04c9ccf74888c7990eb4feebfc11f956ef8cb140"
   },
   "checks": {
     "localLinux": {
       "frontendTests": 852,
       "toolingTests": 65,
       "typecheckLintFormatting": "pass",
-      "candidateDesktop": "Four focused Linux WebKitGTK X11 checks passed. The Arabic reading layout check timed out while updating settings and passed on an isolated rerun.",
-      "candidateWayland": "All four focused Arabic reading and editing checks passed under local Weston, including font parity, pixel comparisons and exact saved whitespace."
+      "candidateDesktop": "The 90-test X11 suite passed on the GTK integration before the version bump. The locally packaged app accepted typed and pasted Arabic with the Arabic keyboard layout active and Ctrl+S preserved exact BOM and CRLF bytes.",
+      "candidateWayland": "Six focused Arabic reading and editing checks passed before the version bump under Weston, including the native GTK pane in Source and Split."
     },
     "hostedCI": {
       "status": "required before publication",
@@ -53,7 +53,7 @@
     "installedUpgradeQualification": "Actual privileged DEB approval/restart and macOS replacement/restart require a controlled installed-release upgrade. Test fixtures never update this workstation."
   },
   "remainingQualifications": [
-    "WebKitGTK can shift parts of a Noto Naskh Arabic line next to literal tabs or repeated spaces. This engine behavior is tracked at https://bugs.webkit.org/show_bug.cgi?id=255972.",
+    "WebKitGTK can still misplace some marks in Read, Visual, and the Split preview. Browser spellcheck and Find use the web editing surface. The engine issue is tracked at https://bugs.webkit.org/show_bug.cgi?id=255972.",
     "Native Intel runtime and minimum-supported macOS verification; both universal slices compile and validate as desktop MACOS, while hosted runtime coverage is ARM64",
     "Physical IME, screen-reader speech/navigation, keyboard/image integration, font dialogs, HiDPI and printing",
     "Full installed Ubuntu desktop qualification; installed-package UI checks use isolated hosted and offline runtime desktops",
@@ -65,7 +65,7 @@
   ],
   "evidencePolicy": "Results apply only to their recorded executable, source, host and scope. Raw local traces and failed runs remain in ignored artifacts; maintained tests, provenance and legal notices remain in source. No ignored advisory, release evaluator or physical-input inference.",
   "historicalEvidence": {
-    "previousRelease": "https://github.com/MohamedElashri/marktub/blob/v0.3.3/docs/evidence/release-status.json",
-    "previousReleaseChecks": "https://github.com/MohamedElashri/marktub/actions/runs/45020711885"
+    "previousRelease": "https://github.com/MohamedElashri/marktub/blob/v0.3.4/docs/evidence/release-status.json",
+    "previousReleaseChecks": "https://github.com/MohamedElashri/marktub/actions/runs/45040580805"
   }
 }
