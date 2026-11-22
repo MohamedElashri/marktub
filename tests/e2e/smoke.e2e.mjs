@@ -2248,10 +2248,14 @@ describe("Author experience", () => {
       v.scrollDOM.dispatchEvent(
         new WheelEvent("wheel", { bubbles: true, deltaY: 1 }),
       );
-      v.scrollDOM.scrollTop +=
-        v.documentTop +
-        v.lineBlockAt(v.state.doc.line(123).from).top -
-        v.scrollDOM.getBoundingClientRect().top;
+      // Let CodeMirror resolve the target through its virtual height map once
+      // wrapping has been measured at the Split width.
+      v.dispatch({
+        effects: v.constructor.scrollIntoView(v.state.doc.line(123).from, {
+          y: "start",
+          yMargin: 0,
+        }),
+      });
     });
     await browser.waitUntil(
       () =>
