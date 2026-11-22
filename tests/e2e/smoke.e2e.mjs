@@ -6574,6 +6574,182 @@ describe("Arabic editing layout", () => {
       ),
       ...args,
     );
+  it("uses joined Arabic writing fonts, honors spacing and edits wrapped text without changing bytes", async () => {
+    const paragraph =
+      "اللُّغَةُ العربية جميلة، وهذه ملاحظات نكتبها مع English و١٢٣. ".repeat(
+        12,
+      );
+    const original = `\uFEFF# دفتر الكتابة\r\n\r\n${paragraph}\r\n\r\nEnglish with العربية and 123.\r\nhttps://example.com/${"abc".repeat(160)}\r\n`;
+    const catalogue = await call("preference_catalogue");
+    expect(catalogue.find((s) => s.key === "editor.font_size").default).toBe(
+      "16",
+    );
+    expect(catalogue.find((s) => s.key === "editor.line_height").default).toBe(
+      "180",
+    );
+    const fixture = await call("e2e_fixture", {
+      action: "seed",
+      text: original,
+    });
+    await call("update_settings", {
+      id: null,
+      scope: "session",
+      text: '$theme=light\n$editor.font="System Mono"\n$editor.font_size=16\n$editor.line_height=180\n$editor.wrap=true\n$ui.scale=100',
+    });
+    await pane().$("button.open-button").waitForEnabled({ timeout: 60000 });
+    await pane().$("button.open-button").click();
+    await pane().$("button=Source").waitForEnabled({ timeout: 60000 });
+    await pane().$("button=Source").click();
+    await pane().$(".cm-content").waitForDisplayed({ timeout: 60000 });
+    const observations = [];
+    for (const mode of ["Source", "Split"]) {
+      await pane().$(`button=${mode}`).click();
+      const layout = await editor(async (v) => {
+        await document.fonts.load('16px "Marktub Arabic Source"', "العربية");
+        await document.fonts.load('16px "Noto Naskh Arabic"', "العربية");
+        await document.fonts.ready;
+        v.requestMeasure();
+        await new Promise((done) =>
+          requestAnimationFrame(() => requestAnimationFrame(done)),
+        );
+        const style = getComputedStyle(v.contentDOM);
+        const canvas = document.createElement("canvas").getContext("2d");
+        const metrics = (family, text) => {
+          canvas.font = `${style.fontSize} ${family}`;
+          const m = canvas.measureText(text);
+          return [
+            m.width,
+            m.actualBoundingBoxAscent,
+            m.actualBoundingBoxDescent,
+          ];
+        };
+        const line = [...v.contentDOM.querySelectorAll(".cm-line")].find((n) =>
+          n.textContent.startsWith("اللُّغَةُ"),
+        );
+        const range = document.createRange();
+        const walker = document.createTreeWalker(line, NodeFilter.SHOW_TEXT);
+        let words = 0,
+          splitWords = 0;
+        const height = parseFloat(style.lineHeight);
+        while (walker.nextNode()) {
+          const node = walker.currentNode;
+          for (const match of node.textContent.matchAll(/[\p{L}\p{M}]+/gu)) {
+            if (!/\p{Script=Arabic}/u.test(match[0])) continue;
+            range.setStart(node, match.index);
+            range.setEnd(node, match.index + match[0].length);
+            const centers = [...range.getClientRects()]
+              .filter((r) => r.width > 0)
+              .map((r) => (r.top + r.bottom) / 2);
+            if (Math.max(...centers) - Math.min(...centers) > height / 2)
+              splitWords++;
+            words++;
+          }
+        }
+        range.selectNodeContents(line);
+        const rects = [...range.getClientRects()].filter((r) => r.width > 0);
+        const box = line.getBoundingClientRect();
+        return {
+          font: style.fontFamily,
+          size: style.fontSize,
+          lineHeight: style.lineHeight,
+          arabic: metrics(style.fontFamily, "العربية"),
+          reference: metrics('"Noto Naskh Arabic"', "العربية"),
+          latin: ["i", "m"].map((s) => metrics(style.fontFamily, s)[0]),
+          words,
+          splitWords,
+          rows: new Set(rects.map((r) => r.top.toFixed(1))).size,
+          clipped: rects.some(
+            (r) => r.left < box.left - 1 || r.right > box.right + 1,
+          ),
+          direction: getComputedStyle(line).direction,
+          horizontalOverflow:
+            v.scrollDOM.scrollWidth > v.scrollDOM.clientWidth + 1,
+          padding: [
+            getComputedStyle(line).paddingInlineStart,
+            getComputedStyle(line).paddingInlineEnd,
+          ],
+        };
+      });
+      observations.push({ mode, ...layout });
+      expect(layout.size).toBe("16px");
+      expect(parseFloat(layout.lineHeight)).toBeCloseTo(28.8, 1);
+      expect(layout.arabic).toEqual(layout.reference);
+      expect(layout.latin[0]).toBeCloseTo(layout.latin[1], 2);
+      expect(layout.words).toBeGreaterThan(50);
+      expect(layout.splitWords).toBe(0);
+      expect(layout.rows).toBeGreaterThan(2);
+      expect(layout.clipped).toBe(false);
+      expect(layout.horizontalOverflow).toBe(false);
+      expect(layout.direction).toBe("rtl");
+      expect(layout.padding).toEqual(["20px", "20px"]);
+      await browser.saveScreenshot(
+        `artifacts/native-arabic-writing-${mode.toLowerCase()}.png`,
+      );
+    }
+    // Use native WebView editing, rather than a CodeMirror transaction, to
+    // exercise DOM mutation reconciliation and caret/selection after shaping.
+    const target = await editor((v) => {
+      const from = v.state.doc.toString().indexOf("العربية");
+      v.focus();
+      v.dispatch({
+        selection: { anchor: from, head: from + "العربية".length },
+        scrollIntoView: true,
+      });
+      return { from, original: v.state.doc.toString() };
+    });
+    await editor(() => document.execCommand("insertText", false, "الكتابة"));
+    const changed = target.original.replace("العربية", "الكتابة");
+    await browser.waitUntil(() =>
+      editor((v, expected) => v.state.doc.toString() === expected, changed),
+    );
+    await browser.keys(["Shift", "ArrowLeft"]);
+    await browser.keys("Shift");
+    expect(await editor((v) => v.state.selection.main.empty)).toBe(false);
+    await editorTool("Undo");
+    await browser.waitUntil(() =>
+      editor(
+        (v, expected) => v.state.doc.toString() === expected,
+        target.original,
+      ),
+    );
+    await editor((v, from) => {
+      v.focus();
+      v.dispatch({ selection: { anchor: from } });
+    }, target.from);
+    for (const letter of "مرحبا ")
+      await editor(
+        (_v, letter) => document.execCommand("insertText", false, letter),
+        letter,
+      );
+    const typed =
+      target.original.slice(0, target.from) +
+      "مرحبا " +
+      target.original.slice(target.from);
+    await browser.waitUntil(() =>
+      editor((v, expected) => v.state.doc.toString() === expected, typed),
+    );
+    await call("update_settings", {
+      id: null,
+      scope: "session",
+      text: "$editor.font_size=20\n$editor.line_height=200",
+    });
+    await browser.waitUntil(() =>
+      editor((v) => getComputedStyle(v.contentDOM).lineHeight === "40px"),
+    );
+    await pane().$("header").$("button=Save").waitForEnabled();
+    await pane().$("header").$("button=Save").click();
+    const { readFile } = await import("node:fs/promises");
+    await browser.waitUntil(async () =>
+      (await readFile(fixture.path)).equals(
+        Buffer.from(original.replace("العربية", "مرحبا العربية")),
+      ),
+    );
+    await writeFile(
+      "artifacts/arabic-writing-layout.json",
+      JSON.stringify(observations, null, 2),
+    );
+    await call("update_settings", { id: null, scope: "session", text: "" });
+  });
   it("keeps per-line direction, native caret movement and exact undo across editing views", async () => {
     const lines = [
       "هذه فقرة عربية مع English و١٢٣.",
@@ -6610,6 +6786,23 @@ describe("Arabic editing layout", () => {
       window.arabicEditor = v;
       window.arabicOriginal = v.state.doc.toString();
     });
+    const typography = await editor(async (v) => {
+      await document.fonts.ready;
+      return {
+        editor: getComputedStyle(v.dom).lineHeight,
+        scroller: getComputedStyle(v.scrollDOM).lineHeight,
+        content: getComputedStyle(v.contentDOM).lineHeight,
+        font: getComputedStyle(v.contentDOM).fontFamily,
+        size: getComputedStyle(v.contentDOM).fontSize,
+      };
+    });
+    await writeFile(
+      "artifacts/arabic-source-typography.json",
+      JSON.stringify(typography, null, 2),
+    );
+    await browser.saveScreenshot("artifacts/arabic-source-typography.png");
+    expect(typography.content).toBe(typography.editor);
+    expect(typography.scroller).toBe(typography.editor);
     const directions = () =>
       editor((v) =>
         [...v.contentDOM.querySelectorAll(".cm-line")]

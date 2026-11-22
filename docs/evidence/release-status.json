@@ -1,25 +1,27 @@
 {
   "schemaVersion": 6,
   "date": "2026-11-22",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "status": "Release qualification snapshot. Publication and successful hosted checks are linked from the GitHub release.",
   "changes": [
-    "Add Linux x86_64 RPM builds with checked launcher, resources, executable and dependencies.",
-    "Select DEB or RPM in the installer and preserve the installed package format for signed manual updates.",
-    "Describe Linux support in the README with separate Debian/Ubuntu and Fedora installation instructions."
+    "Use bundled Noto Naskh Arabic for Arabic source text while keeping Latin monospaced and honoring explicit font choices.",
+    "Use readable 16 px / 180% source defaults and apply actual line-spacing preferences inside CodeMirror.",
+    "Keep Arabic words whole when wrapping and restore editor padding in Source and Split.",
+    "Qualify native Arabic font metrics, typing, selection, undo, wrapping and exact-byte saving; isolate the E2E app from the running normal app."
   ],
   "source": {
-    "baseRelease": "v0.3.0",
-    "baseCommit": "e9c0da37a6c219a0ba3a0961941e89580d1bb466"
+    "baseRelease": "v0.3.1",
+    "baseCommit": "4dcc0f8887335e4a6df5404b1483c51091b5ca38"
   },
   "checks": {
     "localMacOS": {
       "frontendTests": 846,
-      "toolingTests": 64,
+      "toolingTests": 65,
       "typecheckLintFormatting": "pass",
       "clippy": "pass",
       "nativeTests": 165,
-      "nativeIgnored": 6
+      "nativeIgnored": 6,
+      "arabicEditing": "12 native WKWebView checks passed for Arabic reading/writing, typography preferences, whole-word and long-token wrapping, viewport sync and exact-byte editing/saving."
     },
     "hostedCI": {
       "status": "required before publication",
@@ -65,7 +67,7 @@
   ],
   "evidencePolicy": "Results apply only to their recorded executable, source, host and scope. Raw local traces and failed runs remain in ignored artifacts; maintained tests, provenance and legal notices remain in source. No ignored advisory, release evaluator or physical-input inference.",
   "historicalEvidence": {
-    "previousRelease": "https://github.com/MohamedElashri/marktub/blob/v0.3.0/docs/evidence/release-status.json",
-    "previousReleaseChecks": "https://github.com/MohamedElashri/marktub/actions/runs/44973198290"
+    "previousRelease": "https://github.com/MohamedElashri/marktub/blob/v0.3.1/docs/evidence/release-status.json",
+    "previousReleaseChecks": "https://github.com/MohamedElashri/marktub/actions/runs/44981672911"
   }
 }

@@ -68,6 +68,10 @@ sets reading, heading, interface and code fonts separately from the color scheme
 Open Arabic fonts are bundled; installed Thmanyah is supported. HTML export keeps
 the reading theme and embeds the bundled fonts. PDF uses the converter’s print layout.
 
+Source and Split use Noto Naskh Arabic for Arabic with the default **System Mono**
+font, while Latin text stays monospaced. Source defaults to 16 px with 180% line
+spacing; choose your own source font, size and spacing in Settings.
+
 Choose whether settings apply to the app, a selected workspace, one file, or
 only this session. The Markdown document stays unchanged. Shortcuts and library
 width are app-wide or session-only. Reading and Source have separate typography

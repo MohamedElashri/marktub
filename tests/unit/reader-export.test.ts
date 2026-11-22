@@ -42,8 +42,10 @@ it("exports the same steady Arabic fallback face used by the app", async () => {
   expect(faces.map((face) => face[1])).toEqual([
     "Noto Sans Arabic",
     "Marktub Arabic",
+    "Marktub Arabic Source",
   ]);
   expect(faces[0][2]).toBe(faces[1][2]);
+  expect(faces[2][2]).not.toBe(faces[1][2]);
   expect(css).toContain("unicode-range:U+0600-06FF");
 });
 
