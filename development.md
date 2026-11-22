@@ -36,6 +36,21 @@ Development file filters treat repeated `+(...)` and `*(...)` globs as literals;
 use braces or `@(...)` alternatives instead. Reviewed local backports and raw
 upstream advisory findings are checked in CI.
 
+For editor regressions, start with a small fixture that fails on the original
+code. Check the command output and the rendered Markdown independently. Cover
+mixed script text, selections in both directions, and literal Markdown inside
+code where relevant. In the native test, run the editor action and verify the
+saved bytes, including any BOM and original line endings. For text alignment,
+compare painted pixels against a same-font reference in the WebView. DOM
+dimensions alone cannot detect displaced glyphs.
+
+Use `MARKTUB_E2E_GREP='Author experience|Arabic editing layout' pnpm test:e2e`
+for a focused native pass. Run the complete desktop matrix on the release
+candidate to cover the broader reading, editing and packaging workflows.
+Concurrent native runs need distinct `TAURI_WEBDRIVER_PORT` values as well as
+separate displays and private storage. Otherwise a worker can connect to the
+other run's application.
+
 Before a macOS release, also launch the normal app copied from the DMG. Open a
 saved note with Shell and SQL fences, cancel each native run confirmation, then
 repeat and run each block. Confirm that the dialog appears as a sheet on the

@@ -8,6 +8,7 @@
     imageText,
     imageSpan,
     richSpan,
+    writableBlock,
     type Patch,
   } from "./author";
   import { renderRich } from "../renderers/rich";
@@ -120,10 +121,9 @@
         body = rows[row][column];
       } else if (name === "image") {
         const line = v.state.doc.lineAt(from);
-        const match = imageSpan(line.text, from - line.from);
+        const match = imageSpan(v.state, from);
         if (match) {
-          from = line.from + match.from;
-          to = line.from + match.to;
+          ({ from, to } = match);
           path = match.path;
           alt = match.alt;
           title = match.title;
@@ -134,7 +134,11 @@
           writeHeight = match.height !== undefined;
           locked = !!(match.width && match.height);
         } else {
-          if (line.text.includes("!["))
+          if (
+            line.text.includes("![") ||
+            !writableBlock(v.state, from) ||
+            !writableBlock(v.state, to)
+          )
             throw Error("This image spelling remains editable in Source.");
           path = "";
           alt = "";

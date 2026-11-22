@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { EditorState, EditorSelection } from "@codemirror/state";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
+import { emptyContext, grammar } from "../../src/reader/grammar";
 import {
   format,
   tableAt,
@@ -37,6 +38,28 @@ describe("source preserving author adapters", () => {
       next.selection.ranges.map((r) => next.doc.sliceString(r.from, r.to)),
     ).toEqual(["文", "🦀"]);
   });
+  it.each([
+    ["bold", "**", "strong_open"],
+    ["italic", "*", "em_open"],
+  ])(
+    "applies %s inside edge spaces and preserves a backward selection",
+    (kind, mark, token) => {
+      const doc = "قبل  العربية 🦀  after";
+      const from = doc.indexOf("  العربية");
+      const to = doc.indexOf("after");
+      let s = state(doc);
+      s = s.update({ selection: EditorSelection.range(to, from) }).state;
+      const next = s.update(format(s, kind)).state;
+      const { anchor, head } = next.selection.main;
+      expect(next.doc.toString()).toBe(`قبل  ${mark}العربية 🦀${mark}  after`);
+      expect(anchor).toBeGreaterThan(head);
+      expect(next.doc.sliceString(head, anchor)).toBe("العربية 🦀");
+      const inline = grammar().parseInline(next.doc.toString(), {
+        ...emptyContext(),
+      });
+      expect(inline[0].children?.map((part) => part.type)).toContain(token);
+    },
+  );
   it("preserves nested indentation and refuses fenced text", () => {
     const s = state("  - words", 4);
     expect(s.update(format(s, "ordered")).state.doc.toString()).toBe(
@@ -104,10 +127,27 @@ describe("source preserving author adapters", () => {
   });
   it("targets the chosen image, escaped titles and opt-in dimensions without guessing reference syntax", () => {
     const line = String.raw`![one](a.png) ![two](b.png "say \"hello\""){height=120}`;
-    const parsed = imageSpan(line, line.indexOf("![two]"));
+    const parsed = imageSpan(state(line), line.indexOf("![two]"));
     expect(parsed?.path).toBe("b.png");
     expect(parsed?.height).toBe(120);
-    expect(imageSpan("![one][ref]", 0)).toBeNull();
+    expect(imageSpan(state("![one][ref]"), 0)).toBeNull();
+  });
+  it.each([
+    String.raw`\![literal](keep.png)`,
+    "`![literal](keep.png)`",
+    "~~~md\n![literal](keep.png)\n~~~",
+  ])("does not offer image edits for %s", (doc) =>
+    expect(imageSpan(state(doc), doc.indexOf("keep.png"))).toBeNull(),
+  );
+  it("resolves the caret between adjacent images to the following image", () => {
+    const doc = "Previous line\n![one](a.png)![two](b.png){height=120}";
+    const from = doc.indexOf("![two]");
+    expect(imageSpan(state(doc), from)).toMatchObject({
+      path: "b.png",
+      from,
+      to: doc.length,
+      height: 120,
+    });
   });
   it("patches rich bodies without rewriting math delimiters or Mermaid fences", () => {
     for (const doc of [
