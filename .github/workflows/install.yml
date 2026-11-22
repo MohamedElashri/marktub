@@ -89,9 +89,18 @@ jobs:
           dnf install -y gh python3
           candidate=$(gh run view "$CANDIDATE_RUN" --json headSha --jq .headSha)
           # Only qualification scripts/docs may differ from the compiled candidate.
-          git diff --name-only "$candidate" HEAD > /tmp/marktub-candidate-changes
-          changed=$(grep -Ev '^(scripts/check-linux-package.py|\.github/workflows/(check|install)\.yml|development\.md)$' /tmp/marktub-candidate-changes || true)
-          [[ -z "$changed" ]]
+          gh api "repos/$GH_REPO/compare/$candidate...$GITHUB_SHA" > /tmp/marktub-candidate-comparison.json
+          python3 - "$candidate" <<'PY'
+          import json, sys
+          comparison = json.load(open('/tmp/marktub-candidate-comparison.json'))
+          assert comparison['merge_base_commit']['sha'] == sys.argv[1]
+          files = comparison['files']
+          assert len(files) < 300, 'Commit comparison was truncated'
+          allowed = {'scripts/check-linux-package.py', '.github/workflows/check.yml', '.github/workflows/install.yml', 'development.md'}
+          for entry in files:
+              assert entry['filename'] in allowed, entry['filename']
+              assert entry.get('previous_filename', entry['filename']) in allowed
+          PY
           gh run download "$CANDIDATE_RUN" --name desktop-ubuntu-24.04 --dir /tmp/marktub-candidate
           version=$(python3 -c 'import json; print(json.load(open("package.json"))["version"])')
           package="/tmp/marktub-candidate/src-tauri/target/release/bundle/rpm/Marktub_${version}_x86_64.rpm"
