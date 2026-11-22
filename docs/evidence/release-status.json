@@ -1,114 +1,33 @@
 {
   "schemaVersion": 6,
-  "date": "2026-11-18",
-  "version": "0.2.1",
-  "status": "Desktop, package and advisory checks passed; update signatures verified",
+  "date": "2026-11-22",
+  "version": "0.3.0",
+  "status": "Unpublished release candidate. Desktop packages and hands-on macOS checks pending.",
   "changes": [
-    "Fix Arabic paragraph direction in Source/Visual and use consistent Arabic typography in the reader and HTML exports.",
-    "Make dense whole-document searches faster and cancel obsolete queries when the search text changes.",
-    "Keep input responsive between rich-rendering batches and ignore queued scroll events after the reader closes.",
-    "Stop HTML export when its reader closes, preventing incomplete documents from reaching the save dialog."
+    "Run Shell and SQLite blocks inline with native confirmation, results beneath the block, and runnable Guide examples.",
+    "Add Reading Focus, a responsive Library, and easier access to reading and editing controls in narrow windows.",
+    "Improve Arabic and mixed-direction typography with separate interface and document fonts.",
+    "Show Markdown in the folder tree, hide unavailable recent files and bookmarks, and clear recent history while keeping bookmarks.",
+    "Add tab close actions, move manual updates to Settings About, and refresh the indigo branding."
   ],
   "source": {
-    "integrationCommit": "f343a8f3b7bff3875192d879dcceace4e43b271f",
-    "includedPullRequests": [27, 28, 29, 30, 31, 32],
-    "qualifiedCommit": "8e1b89ed29139cb3aa8850f7dc72f23140cd467e",
-    "qualifiedTree": "efc7561479bbe1833b868687ef530c47928c4978",
-    "scope": "Packages bind to the qualified versioned main commit. The final release-record-only commit and checked source archive retain identical runtime source, manifests, dependency locks, workflows and bundled resources."
+    "integrationCommit": "b86b834b29db2c10ac2d3bbd739b5d3b96a0ae45",
+    "includedPullRequests": [33, 34, 35, 36, 37, 39, 40, 41, 42, 43]
   },
   "checks": {
     "hostedCI": {
-      "run": 44302346387,
-      "url": "https://github.com/MohamedElashri/marktub/actions/runs/44302346387",
-      "status": "pass",
-      "linux": "pass",
-      "macOS": "pass",
-      "advisories": "pass"
+      "status": "pending"
     },
     "local": {
-      "frontendTests": 845,
-      "nodeTooling": 22,
-      "pythonTooling": 37,
-      "nativeLinuxWebKitFocused": 8,
-      "typecheckLintFormatRepository": "pass",
-      "normalBuildIsolation": "pass; frontend and desktop executable contain no test hooks",
-      "sourceCommit": "1b08a86516690e7d047301f773b9c0767a4f7b84",
-      "scope": "Pre-versioned final PR stack; production package qualification and isolation bind to the hosted qualifiedCommit."
-    },
-    "frontend": {
-      "tests": 845,
-      "nodeTooling": 22,
-      "pythonTooling": 37,
-      "typecheck": "pass",
-      "lint": "pass",
-      "format": "pass"
-    },
-    "rust": {
-      "linux": 172,
-      "macOS": 163,
-      "ignoredPerPlatform": 6,
-      "fmt": "pass",
-      "clippyWarningsDenied": "pass",
-      "nativeBackportRegressions": "pass"
-    },
-    "nativeWebView": {
-      "linuxX11": 75,
-      "linuxWayland": 15,
-      "macOS": 74,
-      "waylandScope": "Actual GDK Wayland under isolated Weston with an X11-backed input seat; native focus assertions remain mandatory. Not physical input/IME/accessibility or GNOME activation-policy certification."
-    },
-    "processChecks": "pass; documents unchanged, finite counters, complete measured intervals and observed helper lifecycles confirmed. Finite hosted samples are not broad performance claims."
-  },
-  "packages": {
-    "ubuntu": {
-      "file": "Marktub_0.2.1_amd64.deb",
-      "debSha256": "9d07f973c90a6339996253b779f97360c343a5641b6ceeb5a637f6e604799704",
-      "binarySha256": "3a4f76efee39ffb17de1175db0e8d3bb4bd0e8d2196da33b53611d4249cf7a3d",
-      "version": "0.2.1",
-      "architecture": "amd64",
-      "iconsVerified": 5,
-      "portableLoaderAndLibraries": true,
-      "resourcesByteIdentical": true,
-      "desktopId": "Marktub.desktop",
-      "installedUI": "pass; native isolated hosted desktop"
-    },
-    "macOS": {
-      "file": "Marktub_0.2.1_universal.dmg",
-      "updateArchive": "Marktub_0.2.1_universal.app.tar.gz",
-      "dmgSha256": "4d5b3a7a9c2e4e19d8e0798a2875cc161cec0706a66f89d5ef78619f1aed4d34",
-      "archiveSha256": "eb1c1f700f921be53869374c37ab4a7d8d8e51ccb3ea499d70b5a02ffcf5e86c",
-      "binarySha256": "2317717eb1423596097aea90c331b174644e30ae38edd46708ca2d9fa2dcce8c",
-      "version": "0.2.1",
-      "buildVersion": "0.2.1",
-      "architectures": ["x86_64", "arm64"],
-      "platform": "MACOS",
-      "minimumSystemVersion": "13.0",
-      "strictAdHocSignature": "pass",
-      "resourcesByteIdentical": true,
-      "runtimeScope": "runner-native ARM64 only; both desktop slices compile and validate"
+      "sourceCommit": "cbdb28b507405075c1a44dddb78ef59fefe51582",
+      "rustTests": 173,
+      "rustClippy": "pass",
+      "scope": "Linux, integrated source before the version bump."
     }
   },
+  "packages": {},
   "security": {
-    "status": "pass; zero unreviewed findings",
-    "localOverrides": "Registry audits do not certify local source dependencies. Exact source/patch provenance and mandatory native/JavaScript regressions remain enforced; raw upstream JavaScript findings remain visible. See dependency-overrides.json.",
-    "javascriptProduction": 0,
-    "javascriptAllRegistry": 0,
-    "upstreamJavaScript": {
-      "visibleFindings": 1,
-      "unreviewed": 0,
-      "scope": "Raw registry findings for exact upstream identities; local backport mitigation requires verified source plus mandatory adversarial and consumer regressions. No registry finding is discarded."
-    },
-    "rustVulnerabilities": 0,
-    "rustWarnings": {},
-    "rustAuditVersion": "0.23.0",
-    "rustAdvisoryDatabase": {
-      "advisory-count": 1533,
-      "last-commit": "472a4c9a785030434f15d7da84964d60fbe789ab",
-      "last-updated": "2026-11-18T10:14:42+01:00"
-    },
-    "deny": ["unsound", "unmaintained"],
-    "ignores": [],
-    "updateSignatures": "pass; pinned public key, signed version and exact feed/sidecar signatures"
+    "status": "pending versioned advisory and package checks"
   },
   "manualUpdates": {
     "policy": "No startup checks, automatic downloads, installation or restart; each step requires an explicit action.",
@@ -116,10 +35,10 @@
       "macOS": "Pinned, version-bound signature; universal app archive; explicit install and restart.",
       "Linux": "Pinned, version-bound signature; amd64 DEB; OS installer approval and explicit version-checked restart."
     },
-    "installedUpgradeQualification": "Actual privileged DEB approval/restart and macOS replacement/restart require a controlled installed-release upgrade. Test fixtures never update this workstation.",
-    "status": "Both platform signatures verified and combined feed prepared; all checks, downloads, installation and restart remain explicit actions."
+    "installedUpgradeQualification": "Actual privileged DEB approval/restart and macOS replacement/restart require a controlled installed-release upgrade. Test fixtures never update this workstation."
   },
   "remainingQualifications": [
+    "Hands-on macOS testing of the 0.3.0 app before publication.",
     "Native Intel runtime and minimum-supported macOS verification; both universal slices compile and validate as desktop MACOS, while hosted runtime coverage is ARM64",
     "Physical IME, screen-reader speech/navigation, keyboard/image integration, font dialogs, HiDPI and printing",
     "Full installed Ubuntu desktop qualification; installed-package UI checks use isolated hosted and offline runtime desktops",
@@ -130,6 +49,6 @@
   ],
   "evidencePolicy": "Results apply only to their recorded executable, source, host and scope. Raw local traces and failed runs remain in ignored artifacts; maintained tests, provenance and legal notices remain in source. No ignored advisory, release evaluator or physical-input inference.",
   "historicalEvidence": {
-    "previousRelease": "https://github.com/MohamedElashri/marktub/blob/v0.2.0/docs/evidence/release-status.json"
+    "previousRelease": "https://github.com/MohamedElashri/marktub/blob/v0.2.1/docs/evidence/release-status.json"
   }
 }
