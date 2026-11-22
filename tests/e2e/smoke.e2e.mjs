@@ -6603,12 +6603,25 @@ describe("Arabic editing layout", () => {
     "  اللُّغَةُ  العربية جميلة، وفيها الحروفُ\tالمتّصلةُ والنقاطُ  ";
 
   async function comparePaintedWords(sample) {
-    const geometry = await editor((v, text) => {
-      const line = [...v.contentDOM.querySelectorAll(".cm-line")].find(
-        (node) => node.textContent === text,
-      );
-      const style = getComputedStyle(line);
+    const geometry = await editor(async (v, text) => {
+      const sampleLine = () =>
+        [...v.contentDOM.querySelectorAll(".cm-line")].find(
+          (node) => node.textContent === text,
+        );
+      let line = sampleLine();
+      const scrollBox = v.scrollDOM.getBoundingClientRect();
+      const outside = ({ top, bottom }) =>
+        top < scrollBox.top || bottom > scrollBox.bottom;
+      if (outside(line.getBoundingClientRect())) {
+        line.scrollIntoView({ block: "center", inline: "nearest" });
+        await new Promise((done) =>
+          requestAnimationFrame(() => requestAnimationFrame(done)),
+        );
+        line = sampleLine();
+      }
       const box = line.getBoundingClientRect();
+      if (outside(box)) throw Error(`Arabic paint sample is clipped: ${text}`);
+      const style = getComputedStyle(line);
       const reference = document.createElement("div");
       reference.id = "arabic-paint-reference";
       reference.dir = style.direction;
@@ -6639,8 +6652,17 @@ describe("Arabic editing layout", () => {
           for (const word of node.data.matchAll(/\S+/gu)) {
             range.setStart(node, word.index);
             range.setEnd(node, word.index + word[0].length);
-            const { left, right } = range.getBoundingClientRect();
-            words.push({ word: word[0], top, rowHeight, left, right });
+            const rect = range.getBoundingClientRect();
+            const row = Math.floor(
+              ((rect.top + rect.bottom) / 2 - top) / rowHeight,
+            );
+            words.push({
+              word: word[0],
+              top: top + row * rowHeight,
+              rowHeight,
+              left: rect.left,
+              right: rect.right,
+            });
           }
         }
         return words;
