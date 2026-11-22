@@ -152,11 +152,15 @@ fallback so their text remains available.
 
 ![The Marktub app icon](marktub-example.png)
 
-Select the image placeholder above to display the bundled example image.
-For your own notes, use **Image** to select a local PNG or JPEG. You can link it
-or explicitly copy it to a new destination; undoing text does not delete copied
-image files. Images from selected folders can be authorized through that folder.
-Remote images do not load automatically.
+The bundled example image and PNG or JPEG files in an authorized Library folder
+display automatically. Select **Load image** to choose a local file when its
+reference cannot be resolved. Use **Image** in the editor to link or copy a local
+image.
+
+In **Settings → Reading**, turn on **Render embedded HTML in Markdown** to display
+README markup such as collapsible sections and HTML images. Turn off
+**Automatically load HTTPS images** if you prefer to load remote images one at a
+time.
 
 ## Git and Review
 

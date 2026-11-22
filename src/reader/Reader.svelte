@@ -1,5 +1,6 @@
 <script lang="ts">
   import { mount, onMount, tick, unmount } from "svelte";
+  import { SvelteSet } from "svelte/reactivity";
   import InlineFence from "../power/InlineFence.svelte";
   import Icon from "../ui/Icon.svelte";
   import { dock } from "../ui/dock";
@@ -8,7 +9,12 @@
   import { ReaderClient } from "./client";
   import { headingBoundary, matchingHeadings } from "./headings";
   import type { Read, Section, Heading, Page } from "./model";
-  import { sanitizeReader, safeLink } from "./safe";
+  import {
+    readerImage,
+    remoteImageURL,
+    sanitizeReader,
+    safeLink,
+  } from "./safe";
   import { hydrate, clearRichCache } from "../renderers/rich";
   import { themes, type Values } from "../preferences";
   import { exportStandalone } from "./standalone";
@@ -48,6 +54,8 @@
     revision = "Saved snapshot",
     operationBusy = false,
     presentation = {},
+    allowHtml = false,
+    remoteImages = true,
     dark = false,
     onpreference,
     preferences = { theme: "system", width: 760, size: 18 },
@@ -67,6 +75,7 @@
     onnote?: (target: string) => void;
     onimage: (
       link: string,
+      automatic?: boolean,
     ) => Promise<{ dataUrl: string; width: number; height: number } | null>;
     onerror: (message: string) => void;
     onrun?: (fence: Fence) => void;
@@ -82,6 +91,8 @@
     revision?: string;
     operationBusy?: boolean;
     presentation?: Values;
+    allowHtml?: boolean;
+    remoteImages?: boolean;
     dark?: boolean;
     onpreference: (key: string, value: string) => void;
     preferences?: { theme: string; width: number; size: number };
@@ -460,6 +471,7 @@
       restoreImages(block);
       if (page && !page.provisional) showFences(block);
     }
+    void loadLocalImages();
   }
   let lastAnchor: ReturnType<typeof visibleAnchor> = null;
   let lastScroll = 0;
@@ -538,9 +550,7 @@
           continue;
         const html =
           richBytes.get(block)?.html ??
-          (block.querySelector(".reader-fence-tools")
-            ? sanitizeReader(item.page.html)
-            : block.innerHTML);
+          sanitizeReader(item.page.html, item.page.metadataKey);
         const saved = visibleAnchor();
         const scrollAtStart = host.scrollTop;
         await hydrate(
@@ -893,6 +903,7 @@
       if (current === client && request === findRequest) finding = false;
     }
   }
+  const selectedRemoteImages = new SvelteSet<string>();
   async function click(event: MouseEvent) {
     if ((event.target as Element).closest(".reader-fence-tools")) return;
     const target = (event.target as Element).closest<HTMLElement>(
@@ -913,12 +924,20 @@
       return;
     }
     if (target.dataset.image !== undefined) {
+      const link = target.dataset.image;
+      const remote = remoteImageURL(link);
+      if (remote) {
+        selectedRemoteImages.add(link);
+        restoreImages(host);
+        return;
+      }
       try {
-        const image = await onimage(target.dataset.image);
+        const current = client;
+        const image = await onimage(link);
         const src = image?.dataUrl;
-        if (src && target.isConnected) {
-          if (image) client?.approveImage(target.dataset.image!, image);
-          replaceImage(target, src);
+        if (image && src && current === client) {
+          current?.approveImage(link, image);
+          restoreImages(host);
         }
       } catch (e) {
         onerror(String(e));
@@ -936,20 +955,13 @@
     } else onlink(link);
   }
   function replaceImage(target: HTMLElement, src: string) {
-    const img = document.createElement("img");
-    img.src = src;
-    img.alt = target.textContent ?? "Image";
-    img.decoding = "async";
-    img.loading = "lazy";
-    img.style.maxWidth = "100%";
-    if (target.dataset.width) img.width = Number(target.dataset.width);
-    if (target.dataset.height) img.height = Number(target.dataset.height);
+    const img = readerImage(target, src, true);
     img.onload = measure;
     img.onerror = () => {
-      const error = document.createElement("p");
-      error.textContent =
-        "Image decoding failed. The Markdown reference is preserved; choose another local image.";
+      const error = document.createElement("span");
+      error.textContent = `Image unavailable: ${img.alt}`;
       img.replaceWith(error);
+      measure();
     };
     target.replaceWith(img);
   }
@@ -957,8 +969,44 @@
     for (const target of block.querySelectorAll<HTMLElement>(
       "button[data-image]",
     )) {
-      const src = client?.approvedImages.get(target.dataset.image!);
+      const link = target.dataset.image!;
+      const src =
+        client?.approvedImages.get(link) ||
+        (remoteImages || selectedRemoteImages.has(link)
+          ? remoteImageURL(link)
+          : null);
       if (src) replaceImage(target, src);
+    }
+  }
+  const automaticImages = new SvelteSet<string>();
+  let loadingImages = false;
+  async function loadLocalImages() {
+    const current = client;
+    if (!current || loadingImages) return;
+    loadingImages = true;
+    try {
+      while (current === client && !current.dead && automaticImages.size < 64) {
+        const link = Array.from(
+          host.querySelectorAll<HTMLElement>("button[data-image]"),
+        )
+          .map((target) => target.dataset.image!)
+          .find(
+            (link) => !!link && safeLink(link) && !automaticImages.has(link),
+          );
+        if (!link) break;
+        automaticImages.add(link);
+        try {
+          const image = await onimage(link, true);
+          if (image && current === client && !current.dead) {
+            current.approveImage(link, image);
+            restoreImages(host);
+          }
+        } catch {
+          // Keep the manual image control for unresolved and unavailable files.
+        }
+      }
+    } finally {
+      loadingImages = false;
     }
   }
   let requestedAnchor = $state<string | null>(null);
@@ -1170,6 +1218,7 @@
         }
       },
       onerror,
+      allowHtml,
     );
     client = current;
     return () => {
@@ -1410,7 +1459,7 @@
               {item.page.fallback}
             </p>{/if}
           <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-          {@html sanitizeReader(item.page.html)}
+          {@html sanitizeReader(item.page.html, item.page.metadataKey)}
         </div>{/each}
       <div
         class="reader-spacer"

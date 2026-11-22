@@ -75,12 +75,8 @@ pub(crate) fn image_bytes(bytes: &[u8]) -> Result<Image, FileError> {
     if bytes.len() > 8 * 1024 * 1024 {
         return Err(FileError::new("image", "Raster exceeds 8 MiB."));
     }
-    let (mime, width, height) = dimensions(bytes).ok_or_else(|| {
-        FileError::new(
-            "image",
-            "Only valid PNG and JPEG headers are supported; SVG and remote images are source-only.",
-        )
-    })?;
+    let (mime, width, height) = dimensions(bytes)
+        .ok_or_else(|| FileError::new("image", "Choose a valid PNG or JPEG for a local image."))?;
     if width == 0
         || height == 0
         || width > 4096

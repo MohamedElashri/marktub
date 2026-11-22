@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
 import { expect, it } from "vitest";
-import { sanitizeReader, sanitizeRich, safeLink } from "../../src/reader/safe";
+import {
+  readerImage,
+  remoteImageURL,
+  sanitizeReader,
+  sanitizeRich,
+  safeLink,
+} from "../../src/reader/safe";
 it("assigns unique SVG/MathML IDs while keeping references to the first original ID", () => {
   const host = document.createElement("div");
   host.innerHTML = sanitizeRich(
@@ -14,7 +20,7 @@ it("assigns unique SVG/MathML IDs while keeping references to the first original
 import { admissibleDiagram, renderRich } from "../../src/renderers/rich";
 import { renderText } from "../../src/reader/indexer";
 import { emptyContext } from "../../src/reader/grammar";
-it("keeps rendered document links delegated and all remote images inert", () => {
+it("keeps document links delegated and converts image URLs into placeholders", () => {
   const host = document.createElement("div");
   host.innerHTML = sanitizeReader(
     renderText(
@@ -120,4 +126,54 @@ it("keeps exported heading anchors aligned and admits numeric image dimensions o
   expect(html).toContain('data-width="32"');
   const math = renderText("$$a^2$$ and \\(b^2\\)", emptyContext());
   expect(math.rich.map((r) => r.source)).toEqual(["a^2", "b^2"]);
+});
+
+it("renders opted-in README HTML with inert image references and authentic reader controls", () => {
+  const source = [
+    '<details open><summary>More</summary><img src="assets/logo.png" alt="Logo" width="120" onerror="run()"></details>',
+    "",
+    "Press <kbd>Enter</kbd>. ![Badge](https://example.invalid/badge.svg)",
+    "",
+    '<div class="reader-fence-tools" data-run-kind="sh" data-rich="0" data-source-line="99">Injected</div>',
+    '<img src="file:///etc/passwd" alt="Unavailable">',
+    '<iframe src="https://example.invalid/"></iframe>',
+    "",
+    "```sh",
+    "echo hello",
+    "```",
+  ].join("\n");
+  const host = document.createElement("div");
+  host.innerHTML = sanitizeReader(renderText(source, emptyContext()).html);
+  expect(host.querySelector("details,kbd")).toBeNull();
+  const page = renderText(source, emptyContext(), [], true, true, true);
+  host.innerHTML = sanitizeReader(page.html, page.metadataKey);
+  expect(host.querySelector("details[open] summary")?.textContent).toBe("More");
+  expect(host.querySelector("kbd")?.textContent).toBe("Enter");
+  expect(
+    host.querySelector(
+      "iframe,img,[src],[onerror],[data-rich],.reader-fence-tools",
+    ),
+  ).toBeNull();
+  expect(host.querySelectorAll("[data-run-kind]")).toHaveLength(1);
+  expect(host.querySelector("[data-run-kind] pre")?.textContent).toBe(
+    "echo hello\n",
+  );
+  const logo = host.querySelector<HTMLElement>(
+    'button[data-image="assets/logo.png"]',
+  )!;
+  expect(logo.dataset.width).toBe("120");
+  const badge = host.querySelector<HTMLElement>(
+    'button[data-image^="https:"]',
+  )!;
+  const image = readerImage(badge, remoteImageURL(badge.dataset.image!)!, true);
+  expect(image.alt).toBe("Badge");
+  expect(image.src).toBe("https://example.invalid/badge.svg");
+  expect(image.referrerPolicy).toBe("no-referrer");
+  for (const denied of [
+    "file:///image.png",
+    "//host/image.png",
+    "http://host/image.png",
+    "https://user:pass@host/image.png",
+  ])
+    expect(remoteImageURL(denied)).toBeNull();
 });

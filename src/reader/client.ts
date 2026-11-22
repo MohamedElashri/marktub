@@ -50,6 +50,7 @@ export class ReaderClient {
     read: Read,
     update: (v: Update) => void,
     error: (message: string) => void,
+    allowHtml = false,
   ) {
     this.worker = new Worker(new URL("./paged.worker.ts", import.meta.url), {
       type: "module",
@@ -109,7 +110,7 @@ export class ReaderClient {
         "Reader worker failed. Reopen the document to retry. Source and recovery are preserved.",
       );
     };
-    this.worker.postMessage({ type: "start" });
+    this.worker.postMessage({ type: "start", allowHtml });
   }
   private request<T>(type: string, args: Record<string, unknown>): Promise<T> {
     if (this.dead) return Promise.reject(Error("Reader closed."));

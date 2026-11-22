@@ -23,9 +23,9 @@ export const noteId = (id: string) =>
   Array.from(id)
     .map((c) => c.codePointAt(0)!.toString(16))
     .join("-");
-export function grammar() {
+export function grammar(html = false) {
   const md = new MarkdownIt({
-    html: false,
+    html,
     linkify: true,
     typographer: false,
     maxNesting: 32,
