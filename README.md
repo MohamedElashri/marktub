@@ -4,12 +4,13 @@
 
 <h1 align="center">Marktub</h1>
 
-<p align="center"><strong>Read, write and review technical Markdown, offline and in your own files.</strong></p>
-<p align="center">macOS · Linux · Free and open source</p>
+<p align="center"><strong>Read, write and review technical Markdown in your own files.</strong></p>
+<p align="center">Offline · macOS and Linux · Free and open source</p>
 
 <p align="center">
   <a href="https://github.com/MohamedElashri/marktub/releases/latest"><strong>Download the latest release</strong></a> ·
   <a href="#get-started">Installation</a> ·
+  <a href="tests/fixtures/specimen.md">Feature guide</a> ·
   <a href="https://github.com/MohamedElashri/marktub/issues">Get help</a>
 </p>
 
@@ -19,60 +20,58 @@
   <a href="LICENSE"><img src="https://img.shields.io/github/license/MohamedElashri/marktub" alt="License" /></a>
 </p>
 
-|           Read comfortably, with room for your document           |                        Write Markdown beside its live preview                         |
-| :---------------------------------------------------------------: | :-----------------------------------------------------------------------------------: |
-| ![Read mode with a local Markdown notebook](docs/assets/read.png) | ![Split mode showing Markdown source and its rendered preview](docs/assets/split.png) |
+![Read mode in Marktub 0.3.1, with compact tabs and document controls](docs/assets/read.png)
 
 ## Why Marktub?
 
-- **Work directly with your files.** Open ordinary Markdown files and folders,
-  with tabs, search and bookmarks. No import, vault or account required; reading
-  and editing stay local, with no telemetry.
-- **Make technical writing readable.** Use math, equation references, diagrams,
-  tables, images and highlighted code. Switch between Read, Source, Split and
-  Visual to read comfortably or work on the Markdown itself. Arabic and mixed
-  RTL/LTR text use paragraph-level reading direction.
-- **Review changes and share your work.** Inspect Git diffs, stage selected hunks
-  and leave optional feedback on saved revisions. Export a standalone HTML copy
-  or create a PDF with your selected local tools.
+- **Ordinary files, kept local.** Open Markdown files and folders directly. Use
+  tabs, search, bookmarks and linked notes, with no account, import or telemetry.
+- **Technical writing, clearly rendered.** Read math, diagrams, tables and code,
+  including Arabic and mixed RTL/LTR text. Write in Source or Visual, or use Split
+  for a live preview beside your Markdown.
+- **Review and share.** Inspect Git diffs, stage changes and leave revision
+  feedback. Export standalone HTML or create PDFs with your selected local tools.
+
+<details>
+<summary>See the Split writing workspace</summary>
+
+![Split mode in Marktub 0.3.1, with Markdown source beside the rendered document](docs/assets/split.png)
+
+</details>
 
 ## Get started
 
-Download the [latest release](https://github.com/MohamedElashri/marktub/releases/latest):
+Choose a package from the [latest release](https://github.com/MohamedElashri/marktub/releases/latest):
 
-- **macOS:** open the universal `.dmg` for Apple Silicon and Intel, then drag
-  Marktub to Applications. Packages are ad-hoc signed and unnotarized. If macOS
-  blocks the app, verify the official download against the release’s
-  `SHA256SUMS`, then remove the installed app’s quarantine flag:
+| Platform                            | Package          | Install                                          |
+| ----------------------------------- | ---------------- | ------------------------------------------------ |
+| macOS 13+ · Apple Silicon and Intel | Universal `.dmg` | Open the image and drag Marktub to Applications. |
+| Linux x86_64 · Debian/Ubuntu        | `.deb`           | `sudo apt install ./Marktub_*_amd64.deb`         |
+| Linux x86_64 · Fedora/RPM           | `.rpm`           | `sudo dnf install ./Marktub_*_x86_64.rpm`        |
 
-  ```sh
-  xattr -dr com.apple.quarantine "/Applications/Marktub.app"
-  ```
+Run Linux commands from the download folder. Linux packages require GTK 3,
+WebKitGTK 4.1 and glibc 2.39 or newer. CI checks the installed app on Ubuntu 24.04
+and RPM installation and dependencies on Fedora 44.
 
-  For a verified official download you trust, this is safe to run: it removes only
-  Marktub’s quarantine metadata, without changing its code or disabling Gatekeeper
-  system-wide. You can also use Apple’s
-  [per-app opening instructions](https://support.apple.com/en-us/102445).
+<details>
+<summary>If macOS blocks the app</summary>
 
-- **Linux x86_64 — Debian/Ubuntu:** download the `.deb` and install it from your Downloads folder:
+macOS packages are ad-hoc signed and unnotarized. Verify the official download
+against the release’s `SHA256SUMS`, then follow Apple’s
+[per-app opening instructions](https://support.apple.com/en-us/102445).
+Alternatively, remove the installed app’s quarantine metadata:
 
-  ```sh
-  sudo apt install ./Marktub_*_amd64.deb
-  ```
+```sh
+xattr -dr com.apple.quarantine "/Applications/Marktub.app"
+```
 
-- **Linux x86_64 — Fedora/RPM:** download the `.rpm` and install it from your Downloads folder:
-
-  ```sh
-  sudo dnf install ./Marktub_*_x86_64.rpm
-  ```
-
-Linux packages require GTK 3, WebKitGTK 4.1 and glibc 2.39 or newer. CI checks
-the installed app on Ubuntu 24.04 and RPM dependency installation on Fedora 44.
+</details>
 
 <details>
 <summary>Install with curl or wget</summary>
 
-Use the [installer script](scripts/install.sh) with either command:
+The [installer](scripts/install.sh) detects your package format and verifies the
+SHA-256 before opening the macOS image or installing through APT, DNF or Zypper:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/MohamedElashri/marktub/main/scripts/install.sh | bash
@@ -82,79 +81,35 @@ curl -fsSL https://raw.githubusercontent.com/MohamedElashri/marktub/main/scripts
 wget -qO- https://raw.githubusercontent.com/MohamedElashri/marktub/main/scripts/install.sh | bash
 ```
 
-The script downloads the latest package and verifies its SHA-256. It installs the
-Linux package with your system package manager or opens the macOS disk image.
-It detects DEB or RPM from the available package manager; use `--package-format
-deb` or `--package-format rpm` to choose explicitly. To download without installing,
-append `-s -- --download-only` after `bash`.
+Append `-s -- --download-only` after `bash` to download without installing. Add
+`--package-format deb` or `--package-format rpm` to choose a Linux format explicitly.
 
 </details>
 
-**Try a complete workflow:** open a Markdown file or folder, choose **Split** to
-write beside the preview, then **Save** your Markdown or **Export HTML** to share
-a copy. Reading stays continuous in long notes; **Outline & find** reaches the
-whole document. Use **Git** for saved-file diffs and **Review** for feedback on saved
-revisions. Quick open is Cmd/Ctrl+P; open and save are Cmd/Ctrl+O and Cmd/Ctrl+S.
+## Read and write
 
-Start a **New note** with Cmd/Ctrl+N, or choose a starter template from the empty
-tab or command palette. Drafts stay recoverable until you choose where to save.
+Open a file or folder, or start a **New note**. Choose **Read**, **Source**,
+**Split** or **Visual**; **Format** opens writing tools and **More** holds secondary
+document actions. Save your Markdown, or use **Export HTML** to share a copy.
+**Focus reading** and writing focus give the document the whole workspace.
 
-Link saved notes with `[[Note]]` or `[[folder/Note#Heading|label]]`. Open **Links**
-to see backlinks within an authorized folder.
+Open the built-in **Guide** for examples of formatting, linked notes, navigation,
+themes, Git/Review, recovery and local tools. The same
+[feature guide is available here](tests/fixtures/specimen.md).
+PDF export requires Pandoc with Typst or XeLaTeX. Optional Shell, SQLite and TeX
+jobs require explicit enablement, folder trust and confirmation.
 
-Browse folders in the Library’s **Files** view; use **File details** for sorting
-and file operations. Quick Open filters filenames as you type; choose **File
-contents** to search text, then use the arrow keys and Enter to open a result.
+## Updates
 
-Tabs and navigation share a compact row; reading and editing controls share the
-document toolbar. **Format** opens writing tools and editor options. **More**
-keeps recovery records, backups and less frequent document actions close by.
+Use **Settings → About → Check for updates**. Checking, downloading and installing
+are separate, explicit actions; downloads use Marktub’s pinned signing key.
+On macOS, choose **Install and restart**. On Linux, approve the matching DEB or RPM
+in the system installer, then choose **Restart after installation**.
 
-Drag tabs to arrange them, resize the Library with its divider, and use **Settings**
-to preview themes, fonts and layout changes before applying them. Riwaq Day/Night
-add cream or navy with gold accents; **Use Riwaq typography** applies Arabic fonts
-separately. Open fonts are bundled; installed Thmanyah is supported. HTML exports
-preserve the reading appearance. The built-in
-**Guide** demonstrates formatting, math, diagrams, images, review and local tools.
+## Contributing and license
 
-<details>
-<summary>Advanced tools, file safety and export requirements</summary>
+See [development.md](development.md) for setup and checks. For bugs, include the OS,
+app version and a small reproducible example in an
+[issue](https://github.com/MohamedElashri/marktub/issues). Contributions are welcome.
 
-- Saves preserve original byte provenance, including mixed line endings, and
-  check external changes before replacement. Recovery and bundled examples need
-  **Save As**. Keep app-private storage: it may hold unsaved work and backups.
-- Large documents use bounded Source windows with local undo/find. Unsupported
-  rich content remains available as source. Images need native approval; text
-  Undo never deletes copied images. Close Source sessions before Git mutations.
-- PDF export needs separately installed Pandoc with Typst or XeLaTeX. Glyph
-  coverage depends on the selected engine and fonts; inspect export warnings.
-- Optional Shell, SQLite and trusted TeX jobs start disabled each session and
-  need enablement, folder trust and confirmation. Shell and TeX use ordinary OS
-  privileges; SQLite is read-only unless you confirm a write transaction.
-- Marktub does not change system trust or quarantine settings.
-
-</details>
-
-### Updates
-
-Open **Settings → About** to check for a newer stable release.
-Checking, downloading and installing are separate actions; nothing runs
-automatically. Reading and editing stay offline; only an explicit update action
-contacts GitHub. Downloads are verified with Marktub’s pinned signing key.
-
-On macOS, choose **Install and restart** after downloading. On Linux,
-choose **Open system installer**, approve the matching DEB or RPM installation there, then choose
-**Restart after installation**. Marktub asks how to handle unsaved work before
-restarting. You can also use the installer above to get the latest release.
-
-## Contributing
-
-See [development.md](development.md) for setup, checks and contribution guidance.
-
-For bugs, [open an issue](https://github.com/MohamedElashri/marktub/issues) with the
-OS, app revision, reproduction steps and a small redacted example. Pull requests
-are welcome.
-
-## LICENCE
-
-The repository and project is [MIT licensed](LICENSE).
+Marktub is [MIT licensed](LICENSE).
