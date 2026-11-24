@@ -2613,9 +2613,10 @@ mod tests {
         assert_eq!(found.items[0].name, "Écrit العربية.TXT");
         let original_id = &found.items[0].id;
         let original_location = found.items[0].location.as_deref();
+        let canonical_file = fs::canonicalize(folder.join("Écrit العربية.TXT")).unwrap();
         assert_eq!(
             original_location,
-            Some(crate::scoped_file::path_key(&folder.join("Écrit العربية.TXT")).as_str())
+            Some(crate::scoped_file::path_key(&canonical_file).as_str())
         );
         assert_eq!(query(&mut library, true, "notes", false).total, 2);
         let folders = query(&mut library, false, "folders", false);
