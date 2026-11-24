@@ -4,6 +4,7 @@ import { exportStandalone } from "../../src/reader/standalone";
 import type { ReaderClient } from "../../src/reader/client";
 import type { Values } from "../../src/preferences";
 import { exportFontCSS } from "../../src/fonts/export";
+import { resolveTypography } from "../../src/fonts/typography";
 import * as bundledFonts from "../../src/fonts/export";
 import { renderRich } from "../../src/renderers/rich";
 import type { Page } from "../../src/reader/model";
@@ -31,12 +32,14 @@ const settings: Values = {
 };
 
 it("exports the same steady Arabic fallback face used by the app", async () => {
-  const css = await exportFontCSS({
-    "reader.font": { type: "text", value: "Noto Sans Arabic" },
-  });
+  const css = await exportFontCSS(
+    resolveTypography({
+      "reader.font": { type: "text", value: "Noto Sans Arabic" },
+    }),
+  );
   const faces = [
     ...css.matchAll(
-      /@font-face\{font-family:"([^"]+)"[^}]+src:url\(([^)]+)\)/g,
+      /@font-face\{font-family:"([^"]+)"[^}]+src:url\("([^"]+)"\)/g,
     ),
   ];
   expect(faces.map((face) => face[1])).toEqual([
@@ -82,7 +85,10 @@ it("exports captured Riwaq appearance and approved fonts without external resour
   expect(css).toContain('--reader-heading-font:"Amiri"');
   expect(css).toContain('font-family:"Cousine"');
   expect(css).toContain("data:font/ttf;base64,");
-  expect(css).not.toMatch(/url\((?!data:)/);
+  const external = [...css.matchAll(/url\(["']?([^)"']+)/g)].filter(
+    ([, url]) => !url.startsWith("data:"),
+  );
+  expect(external).toEqual([]);
   expect(css).not.toContain('font-family:"Noto Sans Arabic"');
   expect(doc.querySelector("details")?.textContent).toContain(
     "Retained font notices",
@@ -90,10 +96,12 @@ it("exports captured Riwaq appearance and approved fonts without external resour
 });
 
 it("embeds open fallback faces for installed Thmanyah without copying restricted font files", async () => {
-  const css = await exportFontCSS({
-    "reader.font": { type: "text", value: "thmanyah serif text" },
-    "reader.heading_font": { type: "text", value: "Thmanyah Serif Display" },
-  });
+  const css = await exportFontCSS(
+    resolveTypography({
+      "reader.font": { type: "text", value: "thmanyah serif text" },
+      "reader.heading_font": { type: "text", value: "Thmanyah Serif Display" },
+    }),
+  );
   expect(css).toContain('font-family:"Noto Naskh Arabic"');
   expect(css).toContain('font-family:"Amiri"');
   expect(css).not.toContain("Thmanyah");

@@ -1,0 +1,81 @@
+.editor-host .cm-editor {
+  font-family: var(--source-font, monospace);
+  font-size: var(--source-size, 16px);
+  line-height: var(--source-line-height, 1.8);
+  color: var(--ink);
+  background: var(--paper);
+}
+.editor-host .cm-scroller {
+  /* CodeMirror's base theme otherwise replaces the chosen line spacing. */
+  font-family: inherit;
+  line-height: inherit;
+}
+.editor-host .cm-content,
+.editor-host .cm-gutters {
+  font-family: var(--source-font, monospace);
+}
+.cm-live-heading {
+  font-family: var(--reader-heading-font, serif);
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.7;
+}
+.visual .cm-content {
+  padding: 24px;
+}
+.visual .cm-content,
+.editor-host .cm-arabic-prose:not(.cm-live-heading) {
+  font-family: var(--reader-font);
+  font-size: var(--reader-size);
+  line-height: var(--reader-line-height);
+}
+.editor-host .cm-arabic-prose.cm-arabic-heading {
+  font-family: var(--reader-heading-font);
+}
+.editor-host :is(.cm-source-code, .cm-author-code) {
+  font-family: var(--source-font, monospace);
+}
+.editor-host .cm-line.cm-source-code {
+  font-size: var(--source-size);
+  line-height: var(--source-line-height);
+}
+.cm-author-strong {
+  font-weight: 700;
+  line-height: inherit;
+  vertical-align: baseline;
+  font-synthesis-weight: auto;
+}
+.cm-author-em {
+  font-style: italic;
+  font-synthesis-style: auto;
+}
+.editor-host .cm-panels {
+  font-family: var(--ui-font, system-ui);
+}
+.cm-author-code {
+  background: var(--code);
+}
+.cm-author-link {
+  color: var(--accent);
+  text-decoration: underline;
+}
+.cm-author-strike {
+  text-decoration: line-through;
+}
+
+/* WebKitGTK can shift whole Arabic words when painting preserved spaces. */
+.cm-arabic-spacing .cm-arabic-prose {
+  white-space: nowrap;
+}
+.cm-arabic-spacing .cm-lineWrapping .cm-arabic-prose {
+  white-space: normal;
+}
+.cm-arabic-spacing .cm-arabic-literal-space {
+  white-space: pre;
+}
+.cm-arabic-spacing .cm-lineWrapping .cm-arabic-literal-space {
+  white-space: break-spaces;
+}
+.cm-arabic-spacing.cm-native-input .cm-arabic-prose {
+  white-space: inherit;
+}

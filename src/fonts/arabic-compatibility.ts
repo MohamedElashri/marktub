@@ -1,21 +1,32 @@
-import { writable } from "svelte/store";
+import { writable, readonly } from "svelte/store";
+import { arabicCompatibilityFamily, arabicProbeFamily } from "./catalogue";
+import type { Shaping } from "./typography";
 
-export const arabicCompatibility = writable(false);
+const detectedShaping = writable<Shaping>("standard");
+export const shaping = readonly(detectedShaping);
+
+export function isWebKitGTK() {
+  return (
+    navigator.platform.startsWith("Linux") &&
+    navigator.userAgent.includes("AppleWebKit") &&
+    !/(Chrome|Chromium)\//.test(navigator.userAgent)
+  );
+}
 
 // WebKitGTK's horizontal Skia text path can discard the glyphs' individual
 // vertical offsets. A fatha tanween must leave the base letter where it was.
 // https://bugs.webkit.org/show_bug.cgi?id=255972
-export async function applyArabicCompatibilityFont() {
-  if (!navigator.platform.startsWith("Linux")) return;
-  const font = '64px "Noto Naskh Arabic"';
+async function needsCompatibilityFace() {
+  if (!isWebKitGTK() || !document.fonts) return false;
+  const font = `64px ${JSON.stringify(arabicProbeFamily)}`;
   const marks = await document.fonts.load(font, "بً");
-  if (!marks.length) return;
+  if (!marks.length) return false;
 
   const canvas = document.createElement("canvas");
   canvas.width = 96;
   canvas.height = 112;
   const context = canvas.getContext("2d", { willReadFrequently: true });
-  if (!context) return;
+  if (!context) return false;
   context.font = font;
   context.direction = "rtl";
   context.textAlign = "left";
@@ -37,15 +48,20 @@ export async function applyArabicCompatibilityFont() {
     basePixels++;
     if (marked[index] > 127) retainedPixels++;
   }
-  if (!basePixels || !markedPixels || retainedPixels >= basePixels * 0.8)
-    return;
-  await Promise.all(
-    [400, 700].map((weight) =>
-      document.fonts.load(
-        `${weight} 18px "Marktub Arabic Compatibility"`,
-        "العربية",
-      ),
-    ),
+  return Boolean(
+    basePixels && markedPixels && retainedPixels < basePixels * 0.8,
   );
-  arabicCompatibility.set(true);
+}
+
+export async function detectShaping() {
+  try {
+    if (!(await needsCompatibilityFace())) return;
+    const loaded = await document.fonts.load(
+      `400 18px ${JSON.stringify(arabicCompatibilityFamily)}`,
+      "العربية",
+    );
+    if (loaded.length) detectedShaping.set("webkit-compatibility");
+  } catch {
+    // Font loading or canvas sampling can fail independently of preferences.
+  }
 }

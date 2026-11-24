@@ -1,25 +1,15 @@
 //! Bundled and installed family names only; never a font path, download or file bridge.
 use std::collections::BTreeSet;
+
+#[cfg(target_os = "linux")]
+pub(crate) mod native;
+
 pub fn families() -> Vec<String> {
-    let mut names = BTreeSet::from([
-        "System UI".into(),
-        "System Mono".into(),
-        "Serif".into(),
-        "Sans Serif".into(),
-        "Noto Naskh Arabic".into(),
-        "Noto Sans Arabic".into(),
-        "Amiri".into(),
-        "Cousine".into(),
-    ]);
-    let mut installed = BTreeSet::new();
-    platform(&mut installed);
-    for name in installed {
-        if names.len() >= 512 {
-            break;
-        }
-        names.insert(name);
-    }
-    names.into_iter().collect()
+    let mut names = BTreeSet::new();
+    platform(&mut names);
+    #[cfg(target_os = "linux")]
+    names.retain(|name| !native::is_private_family(name));
+    names.into_iter().take(512).collect()
 }
 #[cfg(target_os = "macos")]
 fn platform(names: &mut BTreeSet<String>) {
@@ -116,7 +106,7 @@ mod tests {
     #[test]
     fn native_font_names_are_bounded_and_unique() {
         let names = super::families();
-        assert!(!names.is_empty() && names.len() <= 512);
+        assert!(names.len() <= 512);
         assert!(names.windows(2).all(|w| w[0] < w[1]));
         assert!(
             names

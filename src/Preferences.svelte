@@ -11,12 +11,13 @@
     currentPalette,
     osDark,
     themes,
-    riwaqTypography,
     type Spec,
     type Values,
   } from "./preferences";
-  import { arabicFamilies, readyFontChoices } from "./fonts/catalogue";
-  import { arabicCompatibility } from "./fonts/arabic-compatibility";
+  import { fontChoices } from "./fonts/catalogue";
+  import { riwaqStatus, riwaqTypography } from "./fonts/presets";
+  import { shaping } from "./fonts/arabic-compatibility";
+  import { resolveTypography, sameAsBody } from "./fonts/typography";
   import { chord } from "./commands";
   import Updates from "./Updates.svelte";
   let {
@@ -63,10 +64,23 @@
   const about = $derived(category === "About" && !query);
   const assigned = $derived(literals(text));
   const dirty = $derived(text !== loadedText);
-  const contentFamilies = $derived([
-    ...arabicFamilies,
-    ...families.filter((family) => !arabicFamilies.includes(family)),
-  ]);
+  const availableFonts = $derived(fontChoices(families));
+  const presetStatus = $derived(
+    validating || diagnostics.length || error
+      ? ""
+      : riwaqStatus(assigned, effective),
+  );
+  let discoveredFonts: Promise<void> | undefined;
+  function discoverFonts() {
+    discoveredFonts ??= fonts().then(
+      (installed) => {
+        families = installed;
+      },
+      () => {
+        discoveredFonts = undefined;
+      },
+    );
+  }
   const scopeLabels: Record<string, string> = {
     global: "This app",
     workspace: "This workspace",
@@ -87,9 +101,10 @@
     "ui.scale": "Make the interface more compact or easier to read.",
     "library.width":
       "Drag the library divider to resize it, or enter a width here. Global or session-only.",
-    "reader.font": $arabicCompatibility
-      ? "This WebView uses Amiri for Arabic text to improve diacritic placement."
-      : "Noto Naskh Arabic, Noto Sans Arabic and Amiri are bundled.",
+    "reader.font":
+      $shaping === "webkit-compatibility"
+        ? "This WebView uses Amiri for Arabic text to improve diacritic placement."
+        : "Noto Naskh Arabic, Noto Sans Arabic and Amiri are bundled.",
     "reader.heading_font":
       "Applies to Arabic headings in the editor too. Same as body uses the reading font.",
     "reader.font_size":
@@ -202,9 +217,9 @@
     capturedFocus = document.activeElement as HTMLElement | null;
     dialog.showModal();
     open = true;
+    discoverFonts();
     try {
-      if (!specs.length)
-        [specs, families] = await Promise.all([catalogue(), fonts()]);
+      if (!specs.length) specs = await catalogue();
       if (opening !== version || !dialog.open) return;
       const loaded = await loadScope();
       await tick();
@@ -266,8 +281,6 @@
       diagnostics = result.diagnostics;
       error = "";
       if (!diagnostics.length) {
-        await readyFontChoices(result.resolved);
-        if (request !== version) return false;
         effective = result.resolved;
         if (previewDocument) onpreview(effective);
         return true;
@@ -311,7 +324,8 @@
   }
   function chooseTypography() {
     text = riwaqTypography(text, families);
-    changed();
+    clearTimeout(timer);
+    void validate();
   }
   function customize() {
     const p = currentPalette(effective, $osDark);
@@ -547,9 +561,12 @@
         <div class="riwaq-typography">
           <button onclick={chooseTypography}>Use Riwaq typography</button>
           <p class="preference-hint">
-            Set document fonts and reading line spacing. Uses installed Thmanyah
-            or the bundled Noto and Amiri fonts.
+            Sets the reading and heading fonts, Cousine for source and code, and
+            reading line spacing.
           </p>
+          {#if presetStatus}<p class="preference-hint" role="status">
+              {presetStatus}
+            </p>{/if}
         </div>
       {/if}
       {#if category === "Workspace" && !query}<p class="preference-hint">
@@ -662,9 +679,7 @@
                   id={`pref-${spec.key}`}
                   list={spec.key === "reader.heading_font"
                     ? "heading-fonts"
-                    : spec.key === "ui.font"
-                      ? "installed-fonts"
-                      : "content-fonts"}
+                    : "available-fonts"}
                   maxlength="128"
                   value={String(controlValue(spec))}
                   oninput={(event) => set(spec, event.currentTarget.value)}
@@ -699,22 +714,24 @@
       {/if}
     </fieldset>
   </div>
-  {#if open}<datalist id="installed-fonts"
-      >{#each families as family (family)}<option value={family}
-        ></option>{/each}</datalist
-    >
-    <datalist id="content-fonts"
-      >{#each contentFamilies as family (family)}<option value={family}
-        ></option>{/each}</datalist
-    >
-    <datalist id="heading-fonts"
-      ><option value="Same as body"
-      ></option>{#each contentFamilies as family (family)}<option value={family}
-        ></option>{/each}</datalist
-    >{/if}
+  {#if open}
+    <datalist id="available-fonts">
+      {#each availableFonts as family (family)}<option value={family}
+        ></option>{/each}
+    </datalist>
+    <datalist id="heading-fonts">
+      <option value={sameAsBody}></option>
+      {#each availableFonts as family (family)}<option value={family}
+        ></option>{/each}
+    </datalist>
+  {/if}
   {#if !about}<aside
       class="preferences-specimen"
-      style={appearance(effective, $osDark, $arabicCompatibility)}
+      style={appearance(
+        effective,
+        $osDark,
+        resolveTypography(effective, $shaping),
+      )}
       aria-label="Live theme specimen"
     >
       <span class="specimen-title" dir="auto"

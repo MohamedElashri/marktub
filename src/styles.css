@@ -338,12 +338,6 @@ main {
   border: 0 !important;
   padding: 0 8px;
 }
-.cm-live-heading {
-  font-family: var(--reader-heading-font, Palatino), Georgia, serif;
-  font-size: 24px;
-  font-weight: 600;
-  line-height: 1.7;
-}
 .cm-editor.cm-focused {
   outline: none;
 }
@@ -1340,18 +1334,6 @@ textarea {
   font-size: var(--reader-size, 18px);
   line-height: var(--reader-line-height, 1.75);
 }
-.editor-host .cm-editor {
-  font-family: var(--source-font, monospace);
-  font-size: var(--source-size, 16px);
-  line-height: var(--source-line-height, 1.8);
-  color: var(--ink);
-  background: var(--paper);
-}
-.editor-host .cm-scroller {
-  /* CodeMirror's base theme otherwise replaces the chosen line spacing. */
-  font-family: inherit;
-  line-height: inherit;
-}
 .editor-host .cm-lineWrapping {
   min-width: 0;
   word-break: normal;
@@ -1362,10 +1344,6 @@ textarea {
 }
 .editor-host .cm-editor .cm-line {
   padding-inline: 20px;
-}
-.editor-host .cm-content,
-.editor-host .cm-gutters {
-  font-family: var(--source-font, monospace);
 }
 .editor-host .cm-gutters {
   background: var(--surface);
@@ -1827,63 +1805,6 @@ textarea {
   max-width: 900px;
   width: 100%;
   margin: auto;
-}
-.visual .cm-content {
-  font-family: var(--reader-font);
-  font-size: var(--reader-size);
-  line-height: var(--reader-line-height);
-  padding: 24px;
-}
-.editor-host .cm-arabic-prose {
-  /* WebKitGTK can shift whole Arabic words when it paints preserved spaces. */
-  white-space: nowrap;
-}
-.editor-host .cm-lineWrapping .cm-arabic-prose {
-  white-space: normal;
-}
-.editor-host .cm-arabic-literal-space {
-  white-space: pre;
-}
-.editor-host .cm-lineWrapping .cm-arabic-literal-space {
-  white-space: break-spaces;
-}
-.editor-host .cm-editor.cm-native-input .cm-arabic-prose {
-  white-space: inherit;
-}
-.editor-host .cm-arabic-prose:not(.cm-live-heading) {
-  font-family: var(--reader-font);
-  font-size: var(--reader-size);
-  line-height: var(--reader-line-height);
-}
-.editor-host .cm-arabic-prose.cm-arabic-heading {
-  font-family: var(--reader-heading-font);
-}
-.editor-host .cm-source-code {
-  font-family: var(--source-font, monospace);
-}
-.cm-author-strong {
-  font-weight: 700;
-  line-height: inherit;
-  vertical-align: baseline;
-  font-synthesis-weight: auto;
-}
-.cm-author-em {
-  font-style: italic;
-  font-synthesis-style: auto;
-}
-.editor-host .cm-panels {
-  font-family: var(--ui-font, system-ui);
-}
-.cm-author-code {
-  font-family: var(--source-font);
-  background: var(--code);
-}
-.cm-author-link {
-  color: var(--accent);
-  text-decoration: underline;
-}
-.cm-author-strike {
-  text-decoration: line-through;
 }
 .author-dialog {
   width: min(850px, 94vw);

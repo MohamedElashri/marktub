@@ -1,9 +1,13 @@
 import { mount } from "svelte";
 import App from "./App.svelte";
-import { applyArabicCompatibilityFont } from "./fonts/arabic-compatibility";
+import { detectShaping } from "./fonts/arabic-compatibility";
+import { installBundledFonts } from "./fonts/browser";
 import "./styles.css";
 import "./reader/typography.css";
-import "./fonts/fonts.css";
+import "./editor/typography.css";
+
+installBundledFonts();
+void detectShaping();
 
 if (import.meta.env.VITE_MARKTUB_E2E === "1") {
   await import("@wdio/tauri-plugin");
@@ -11,6 +15,3 @@ if (import.meta.env.VITE_MARKTUB_E2E === "1") {
 }
 
 mount(App, { target: document.getElementById("app")! });
-void applyArabicCompatibilityFont().catch(() => {
-  // Keep the requested typography if the renderer cannot sample the font.
-});

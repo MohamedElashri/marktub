@@ -3,7 +3,8 @@ import { ReaderClient } from "./client";
 import { readerImage, sanitizeReader } from "./safe";
 import { renderRich } from "../renderers/rich";
 import { appearance, type Values } from "../preferences";
-import typography from "./typography.css?raw";
+import { resolveTypography } from "../fonts/typography";
+import proseStyles from "./typography.css?raw";
 const LIMIT = 48 * 1024 * 1024;
 export async function exportStandalone(
   client: ReaderClient,
@@ -28,7 +29,8 @@ export async function exportStandalone(
   );
   // CSS strings may contain a literal HTML end tag. Escape '<' before the
   // style element is serialized into standalone HTML's raw-text context.
-  const css = appearance(settings, dark).replaceAll("<", "\\3c ");
+  const typography = resolveTypography(settings);
+  const css = appearance(settings, dark, typography).replaceAll("<", "\\3c ");
   if (!client.complete) throw Error("Document context is still provisional.");
   const parts: string[] = [];
   let cost = 0,
@@ -99,7 +101,7 @@ export async function exportStandalone(
   }
   const fontAssets = await import("../fonts/export");
   checkCurrent();
-  fonts += await fontAssets.exportFontCSS(settings);
+  fonts += await fontAssets.exportFontCSS(typography);
   checkCurrent();
   const doc = document.implementation.createHTMLDocument(title);
   doc.body.className = "prose";
@@ -112,7 +114,7 @@ export async function exportStandalone(
   meta.setAttribute("charset", "utf-8");
   doc.head.prepend(meta);
   const style = doc.createElement("style");
-  style.textContent = `body{${css};max-width:var(--reader-width);margin:40px auto;padding:0 24px;font-family:var(--reader-font);font-size:var(--reader-size);line-height:var(--reader-line-height);color:var(--ink);background:var(--paper)}a{color:var(--accent)}pre{white-space:pre-wrap;background:var(--code);padding:18px}pre,code{font-family:var(--source-font)}table{border-collapse:collapse}td,th{border:1px solid var(--line);padding:8px}svg{max-width:100%;height:auto}.export-revision{font:13px var(--ui-font);color:var(--quiet)}.hljs-keyword,.hljs-built_in,.hljs-literal{color:var(--keyword)}.hljs-string{color:var(--string)}.hljs-number{color:var(--number)} ${typography} ${fonts}`;
+  style.textContent = `body{${css};max-width:var(--reader-width);margin:40px auto;padding:0 24px;font-family:var(--reader-font);font-size:var(--reader-size);line-height:var(--reader-line-height);color:var(--ink);background:var(--paper)}a{color:var(--accent)}pre{white-space:pre-wrap;background:var(--code);padding:18px}pre,code{font-family:var(--source-font)}table{border-collapse:collapse}td,th{border:1px solid var(--line);padding:8px}svg{max-width:100%;height:auto}.export-revision{font:13px var(--ui-font);color:var(--quiet)}.hljs-keyword,.hljs-built_in,.hljs-literal{color:var(--keyword)}.hljs-string{color:var(--string)}.hljs-number{color:var(--number)} ${proseStyles} ${fonts}`;
   doc.head.append(style);
   style.textContent +=
     ".sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}";

@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { Annotation, ChangeSet, type Text } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
+import type { resolveTypography } from "../fonts/typography";
 
 export const fromGtk = Annotation.define<boolean>();
 
@@ -22,8 +23,8 @@ type Style = {
   paper: string;
   quiet: string;
   selection: string;
-  size: number;
-  spacing: number;
+  reader: ReturnType<typeof resolveTypography>["reader"];
+  source: ReturnType<typeof resolveTypography>["source"];
   numbers: boolean;
   wrap: boolean;
   tabWidth: number;
