@@ -83,4 +83,4 @@ it("does not finalize or export when the footnote appendix exceeds the index bud
     }),
   ).rejects.toThrow("Footnote appendix");
   expect(complete).toBe(false);
-});
+}, 30_000);

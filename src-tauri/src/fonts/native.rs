@@ -41,6 +41,17 @@ unsafe extern "C" {
     fn FcConfigAppFontAddFile(config: *mut c_void, path: *const c_char) -> i32;
 }
 
+#[link(name = "pangocairo-1.0")]
+unsafe extern "C" {
+    fn pango_cairo_font_map_get_default() -> *mut glib::gobject_ffi::GTypeInstance;
+}
+
+#[link(name = "pangoft2-1.0")]
+unsafe extern "C" {
+    fn pango_fc_font_map_get_type() -> glib::ffi::GType;
+    fn pango_fc_font_map_config_changed(font_map: *mut c_void);
+}
+
 pub fn register(window: &WebviewWindow) -> Result<(), String> {
     let directory = window
         .path()
@@ -85,6 +96,16 @@ pub fn register(window: &WebviewWindow) -> Result<(), String> {
     };
     if !registered {
         return Err("GTK could not load the bundled source fonts.".into());
+    }
+    // GTK has already initialized Pango. Invalidate its existing family and
+    // fallback cache so the application faces are visible on the first use.
+    unsafe {
+        let map = pango_cairo_font_map_get_default();
+        if !map.is_null()
+            && glib::gobject_ffi::g_type_check_instance_is_a(map, pango_fc_font_map_get_type()) != 0
+        {
+            pango_fc_font_map_config_changed(map.cast());
+        }
     }
     Ok(())
 }

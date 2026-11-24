@@ -6655,7 +6655,7 @@ describe("Native GTK Arabic source", () => {
       await browser.waitUntil(widgetVisible, { timeout: 15000 });
       const initial = await native();
       expect(initial.text).toBe(normalized);
-      expect(initial.font).toContain("Cousine");
+      expect(initial.font).toBe("Marktub Native Cousine");
       expect(initial.arabicReadingStyle).toBe(true);
       expect(initial.width).toBeGreaterThan(340);
 
@@ -7298,6 +7298,7 @@ describe("Arabic editing layout", () => {
     await pane().$("button=Source").waitForEnabled({ timeout: 60000 });
     await pane().$("button=Source").click();
     await pane().$(".cm-content").waitForDisplayed({ timeout: 60000 });
+    const usesGtkSpacing = process.platform === "linux";
     const observations = [];
     for (const mode of ["Source", "Split", "Visual"]) {
       await pane().$(`button=${mode}`).click();
@@ -7438,8 +7439,12 @@ describe("Arabic editing layout", () => {
           Math.abs(layout.englishSpace - layout.latin[0]),
         ).toBeLessThanOrEqual(1.1);
       }
-      expect(layout.wrappedWhitespace).toBe("normal");
-      expect(layout.literalSpaces).toEqual(["  ", "  ", "\t", "  "]);
+      expect(layout.wrappedWhitespace).toBe(
+        usesGtkSpacing ? "normal" : "break-spaces",
+      );
+      expect(layout.literalSpaces).toEqual(
+        usesGtkSpacing ? ["  ", "  ", "\t", "  "] : [],
+      );
       expect(layout.words).toBeGreaterThan(40);
       expect(layout.splitWords).toBe(0);
       expect(layout.rows).toBeGreaterThan(2);
@@ -7503,13 +7508,16 @@ describe("Arabic editing layout", () => {
       text: "$reader.font_size=20\n$reader.line_height=200\n$editor.wrap=false",
     });
     await browser.waitUntil(() =>
-      editor((v) => {
-        const prose = v.contentDOM.querySelector(
-          ".cm-arabic-prose:not(.cm-live-heading)",
-        );
-        const style = getComputedStyle(prose);
-        return style.lineHeight === "40px" && style.whiteSpace === "nowrap";
-      }),
+      editor(
+        (v, whitespace) => {
+          const prose = v.contentDOM.querySelector(
+            ".cm-arabic-prose:not(.cm-live-heading)",
+          );
+          const style = getComputedStyle(prose);
+          return style.lineHeight === "40px" && style.whiteSpace === whitespace;
+        },
+        usesGtkSpacing ? "nowrap" : "pre",
+      ),
     );
     await pane().$("header").$("button=Save").waitForEnabled();
     await pane().$("header").$("button=Save").click();
