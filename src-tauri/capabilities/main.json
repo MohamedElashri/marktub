@@ -114,6 +114,7 @@
     "allow-cancel-application-update",
     "allow-check-application-update",
     "allow-download-application-update",
+    "allow-apply-linux-application-update",
     "allow-open-application-installer",
     "allow-install-application-update",
     "allow-prepare-application-update"

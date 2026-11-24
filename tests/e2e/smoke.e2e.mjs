@@ -8454,6 +8454,14 @@ describe("Manual application updates", () => {
     await expect(updates.$("button=Download update")).not.toBeExisting();
     await expect(invoke("prepare_application_update")).rejects.toBeDefined();
     await expect(invoke("download_application_update")).rejects.toBeDefined();
+    const installError = await browser.tauri.execute(async ({ core }) => {
+      try {
+        await core.invoke("apply_linux_application_update");
+      } catch (error) {
+        return error;
+      }
+    });
+    expect(installError).toMatchObject({ code: "update" });
     await expect(invoke("open_application_installer")).rejects.toBeDefined();
     await expect(invoke("install_application_update")).rejects.toBeDefined();
     await prefs.$("button=Close").click();

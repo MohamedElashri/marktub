@@ -558,6 +558,7 @@ async fn storage_warning(app: tauri::AppHandle) -> Result<Option<String>, FileEr
 }
 #[tauri::command]
 async fn close_application(app: tauri::AppHandle) -> Result<(), FileError> {
+    crate::updates::ensure_not_installing(&app)?;
     if powers(&app)
         .lock()
         .map_err(|_| power::err("Local jobs unavailable."))?
@@ -645,7 +646,7 @@ async fn install_application_update(app: tauri::AppHandle) -> Result<(), FileErr
     Ok(())
 }
 
-macro_rules! commands {($($extra:ident),*)=>{tauri::generate_handler![crate::native_source::native_source_open,crate::native_source::native_source_layout,crate::native_source::native_source_sync,crate::native_source::native_source_close,crate::updates::prepare_application_update,crate::updates::application_update_status,crate::updates::cancel_application_update,crate::updates::check_application_update,crate::updates::download_application_update,crate::updates::open_application_installer,install_application_update,take_os_open,power_state,power_enable,power_choose_tool,power_trust,power_choose_database,power_capture,power_release,power_image,power_diagram,power_math,power_prepare,power_prepare_inline,power_run,power_poll,power_cancel,power_clear,power_save_pdf,power_open_pdf,review_begin,review_sync,review_displayed,review_end,review_update,review_compare,review_export,review_save,review_list,review_delete,review_archive_export,review_archive_save,git_badges,git_history_files,git_choose,git_refresh,git_revoke,git_compare,git_page,git_mutate,git_open,git_backups,git_export_backup,git_forget_backup,capture_edit_read,read_edit_snapshot,import_author_image,change_edit_window,preference_catalogue,list_fonts,preview_settings,library_location,library_session,library_remember_document,library_accept_drop,library_state,library_choose_root,library_page,library_open,note_catalogue,library_preview,library_scan,library_job,library_prepare,library_commit,library_configure,library_pin,library_clear_recent,library_remove_root,open_document_link,choose_image,export_html,choose_document,open_example,read_range,release_document,document_status,runtime_info,execution_status,
+macro_rules! commands {($($extra:ident),*)=>{tauri::generate_handler![crate::native_source::native_source_open,crate::native_source::native_source_layout,crate::native_source::native_source_sync,crate::native_source::native_source_close,crate::updates::prepare_application_update,crate::updates::application_update_status,crate::updates::cancel_application_update,crate::updates::check_application_update,crate::updates::download_application_update,crate::updates::apply_linux_application_update,crate::updates::open_application_installer,install_application_update,take_os_open,power_state,power_enable,power_choose_tool,power_trust,power_choose_database,power_capture,power_release,power_image,power_diagram,power_math,power_prepare,power_prepare_inline,power_run,power_poll,power_cancel,power_clear,power_save_pdf,power_open_pdf,review_begin,review_sync,review_displayed,review_end,review_update,review_compare,review_export,review_save,review_list,review_delete,review_archive_export,review_archive_save,git_badges,git_history_files,git_choose,git_refresh,git_revoke,git_compare,git_page,git_mutate,git_open,git_backups,git_export_backup,git_forget_backup,capture_edit_read,read_edit_snapshot,import_author_image,change_edit_window,preference_catalogue,list_fonts,preview_settings,library_location,library_session,library_remember_document,library_accept_drop,library_state,library_choose_root,library_page,library_open,note_catalogue,library_preview,library_scan,library_job,library_prepare,library_commit,library_configure,library_pin,library_clear_recent,library_remove_root,open_document_link,choose_image,export_html,choose_document,open_example,read_range,release_document,document_status,runtime_info,execution_status,
     create_note,begin_edit,apply_edits,flush_edits,save_document,save_as_document,editing_status,compare_document,reopen_document,release_editor,
     list_recoveries,restore_recovery,discard_recovery,get_settings,update_settings,import_settings,export_settings,document_position,remember_position,storage_warning,close_application,reset_settings,$($extra),*]};}
 
@@ -739,7 +740,9 @@ pub fn run() {
             }
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 api.prevent_close();
-                let _ = window.emit("close-requested", ());
+                if crate::updates::ensure_not_installing(window.app_handle()).is_ok() {
+                    let _ = window.emit("close-requested", ());
+                }
             }
         });
     #[cfg(feature = "e2e")]
@@ -767,7 +770,9 @@ pub fn run() {
             } = event
             {
                 api.prevent_exit();
-                let _ = app.emit_to("main", "close-requested", ());
+                if crate::updates::ensure_not_installing(app).is_ok() {
+                    let _ = app.emit_to("main", "close-requested", ());
+                }
             }
         });
 }

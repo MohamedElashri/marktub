@@ -46,6 +46,10 @@
       actionInFlight === "download_application_update",
   );
   const linux = $derived(status?.platform.startsWith("linux-") ?? false);
+  const installing = $derived(status?.phase === "installing");
+  const manualHandoff = $derived(
+    status?.phase === "ready" && installerVersion === status.version,
+  );
 
   function poll(request: number, delay: number) {
     clearTimeout(timer);
@@ -57,7 +61,7 @@
       const next = await invoke<Status>("application_update_status");
       if (request !== generation || !active) return;
       status = next;
-      if (busy) poll(request, 250);
+      if (busy || installing || restarting) poll(request, 250);
       else clearTimeout(timer);
     } catch (e) {
       if (request === generation && active) error = errorMessage(e);
@@ -95,15 +99,21 @@
     }
   }
 
-  async function restart() {
+  async function restart(installLinux = false) {
     restarting = true;
     error = "";
     try {
+      if (installLinux) {
+        poll(generation, 100);
+        await invoke("apply_linux_application_update");
+        await refresh();
+      }
       await onrestart();
     } catch (e) {
       error = errorMessage(e);
     } finally {
       restarting = false;
+      if (active) await refresh();
     }
   }
 </script>
@@ -145,10 +155,15 @@
       {#if status.phase === "ready"}
         <p role="status">Update downloaded and ready to install.</p>
         {#if linux}<p>
-            Approve the update in the system installer. Restart here after it
-            finishes.
+            Your system may ask you to authorize the installation.
           </p>{/if}
       {/if}
+      {#if installing}<p role="status">
+          Waiting for the system package installer…
+        </p>{/if}
+      {#if status.phase === "installed"}<p role="status">
+          Update installed. Restart Marktub to use it.
+        </p>{/if}
     {/if}
     {#if error || status?.error}<p class="error" role="alert">
         {error || status?.error}
@@ -161,33 +176,37 @@
           >Cancel request</button
         >
       {:else}
-        <button
-          disabled={!!actionInFlight || restarting}
-          onclick={() => action("check_application_update")}
-          >Check for updates</button
-        >
+        {#if status?.phase !== "installed"}
+          <button
+            disabled={!!actionInFlight || restarting || installing}
+            onclick={() => action("check_application_update")}
+            >Check for updates</button
+          >
+        {/if}
         {#if status?.phase === "available" && status.canInstall}<button
             disabled={!!actionInFlight}
             onclick={() => action("download_application_update")}
             >Download update</button
           >{/if}
-        {#if status?.phase === "ready"}
-          {#if linux}<button
+        {#if status?.phase === "ready" || status?.phase === "installed"}
+          <button
+            class="primary"
+            disabled={!!actionInFlight || restarting || restartDisabled}
+            onclick={() =>
+              restart(linux && status?.phase === "ready" && !manualHandoff)}
+            >{status.phase === "installed"
+              ? "Restart Marktub"
+              : manualHandoff
+                ? "Restart after installation"
+                : "Install and restart"}</button
+          >
+          {#if linux && status.phase === "ready" && (status.error || manualHandoff)}
+            <button
               disabled={!!actionInFlight || restarting}
               onclick={() => action("open_application_installer")}
               >Open system installer</button
-            >{/if}
-          <button
-            class="primary"
-            disabled={!!actionInFlight ||
-              restarting ||
-              restartDisabled ||
-              (linux && installerVersion !== status.version)}
-            onclick={restart}
-            >{linux
-              ? "Restart after installation"
-              : "Install and restart"}</button
-          >
+            >
+          {/if}
         {/if}
       {/if}
     </div>

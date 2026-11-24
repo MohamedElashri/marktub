@@ -20,6 +20,7 @@ fn main() {
         "cancel_application_update",
         "check_application_update",
         "download_application_update",
+        "apply_linux_application_update",
         "open_application_installer",
         "install_application_update",
         "take_os_open",

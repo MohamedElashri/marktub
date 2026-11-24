@@ -12,6 +12,9 @@ use std::{
 use tauri::{AppHandle, Manager};
 use tauri_plugin_updater::{Update, UpdaterExt};
 
+#[cfg(target_os = "linux")]
+mod linux;
+
 const FEED: &str = "https://github.com/MohamedElashri/marktub/releases/latest/download/latest.json";
 const RPM_FEED: &str =
     "https://github.com/MohamedElashri/marktub/releases/latest/download/latest-rpm.json";
@@ -47,6 +50,14 @@ fn feed() -> &'static str {
         RPM_FEED
     } else {
         FEED
+    }
+}
+#[cfg(target_os = "linux")]
+fn linux_format() -> linux::Format {
+    if target() == "linux-x86_64-rpm" {
+        linux::Format::Rpm
+    } else {
+        linux::Format::Deb
     }
 }
 fn supported() -> bool {
@@ -93,6 +104,18 @@ impl Default for Status {
 struct Candidate {
     update: Update,
     bytes: Option<Arc<Vec<u8>>>,
+}
+impl Candidate {
+    fn verified_bytes(&self) -> Result<&[u8], FileError> {
+        let bytes = self
+            .bytes
+            .as_ref()
+            .ok_or_else(|| err("Download the update first."))?;
+        self.update
+            .verify(bytes)
+            .map_err(|_| err("Update signature verification failed."))?;
+        Ok(bytes)
+    }
 }
 #[derive(Default)]
 pub struct Updates(Mutex<Session>);
@@ -267,6 +290,9 @@ pub fn cancel_application_update(host: tauri::State<'_, Updates>) -> Result<(), 
     if s.status.phase == "installing" {
         return Err(err("Installation is already in progress."));
     }
+    if s.status.phase == "installed" {
+        return Ok(());
+    }
     if let Some(abort) = s.abort.take() {
         abort.abort();
     }
@@ -288,6 +314,11 @@ pub async fn check_application_update(app: AppHandle) -> Result<(), FileError> {
         let mut s = host.lock()?;
         if matches!(s.status.phase, "checking" | "downloading" | "installing") {
             return Err(err("An update request is already in progress."));
+        }
+        if s.status.phase == "installed" {
+            return Err(err(
+                "Restart Marktub to finish applying the installed update.",
+            ));
         }
         s.generation = uuid::Uuid::new_v4();
         s.candidate = None;
@@ -427,63 +458,90 @@ pub async fn download_application_update(app: AppHandle) -> Result<(), FileError
 pub async fn prepare_application_update(app: AppHandle) -> Result<(), FileError> {
     tauri::async_runtime::spawn_blocking(move || {
         let host = app.state::<Updates>();
-        let s = host.lock()?;
-        if s.status.phase != "ready" || !supported() {
-            return Err(err("Download and verify an update first."));
-        }
-        let candidate = s
-            .candidate
-            .as_ref()
-            .ok_or_else(|| err("No verified update is available."))?;
-        let bytes = candidate
-            .bytes
-            .as_ref()
-            .ok_or_else(|| err("Download the update first."))?;
-        candidate
-            .update
-            .verify(bytes)
-            .map_err(|_| err("Update signature verification failed."))?;
+        let candidate = {
+            let s = host.lock()?;
+            restart_candidate(&s)?.clone()
+        };
+        candidate.verified_bytes()?;
         #[cfg(target_os = "linux")]
-        installed(&candidate.update.version)?;
+        linux::confirm_installed(linux_format(), &candidate.update.version)?;
         Ok(())
     })
     .await
     .map_err(|_| err("Update preparation interrupted."))?
 }
 
+fn restart_candidate(s: &Session) -> Result<&Candidate, FileError> {
+    if !matches!(s.status.phase, "ready" | "installed") || !supported() {
+        return Err(err("Download and verify an update first."));
+    }
+    s.candidate
+        .as_ref()
+        .ok_or_else(|| err("No verified update is available."))
+}
+
+pub(crate) fn ensure_not_installing(app: &AppHandle) -> Result<(), FileError> {
+    if app.state::<Updates>().lock()?.status.phase == "installing" {
+        return Err(err("Wait for the system package installer to finish."));
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn apply_linux_application_update(app: AppHandle) -> Result<(), FileError> {
+    #[cfg(target_os = "linux")]
+    return tauri::async_runtime::spawn_blocking(move || {
+        let host = app.state::<Updates>();
+        let candidate = {
+            let mut s = host.lock()?;
+            if s.status.phase != "ready" {
+                return Err(err("Download and verify an update first."));
+            }
+            let candidate = restart_candidate(&s)?.clone();
+            s.status.phase = "installing";
+            s.status.error = None;
+            candidate
+        };
+        let result = candidate
+            .verified_bytes()
+            .and_then(|bytes| linux::install(linux_format(), &candidate.update.version, bytes));
+        let mut s = host.lock()?;
+        s.status.phase = if result.is_ok() { "installed" } else { "ready" };
+        if let Err(error) = &result {
+            s.status.error = Some(error.message.clone());
+        }
+        result
+    })
+    .await
+    .map_err(|_| err("System package installation interrupted."))?;
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = app;
+        Err(err("The system package installer is only used on Linux."))
+    }
+}
+
 /// Called only after the app's ordinary unsaved-work prompts, under the native
 /// editing/job reservation. No renderer-supplied paths, versions or packages.
 pub fn install(app: &AppHandle) -> Result<(), FileError> {
-    let candidate = {
+    let (candidate, phase) = {
         let host = app.state::<Updates>();
         let mut s = host.lock()?;
-        if s.status.phase != "ready" || !supported() {
-            return Err(err("Download and verify an update first."));
-        }
-        let c = s
-            .candidate
-            .clone()
-            .ok_or_else(|| err("No verified update is available."))?;
+        let candidate = restart_candidate(&s)?.clone();
+        let phase = s.status.phase;
         s.status.phase = "installing";
-        c
+        (candidate, phase)
     };
     let result = (|| {
-        let bytes = candidate
-            .bytes
-            .as_ref()
-            .ok_or_else(|| err("Download the update first."))?;
-        candidate
-            .update
-            .verify(bytes)
-            .map_err(|_| err("Update signature verification failed."))?;
+        let _bytes = candidate.verified_bytes()?;
         #[cfg(target_os = "macos")]
-        candidate.update.install(bytes.as_slice()).map_err(|_| err("Installation failed. The app has not restarted; try again or use the released installer."))?;
+        candidate.update.install(_bytes).map_err(|_| err("Installation failed. The app has not restarted; try again or use the released installer."))?;
         #[cfg(target_os = "linux")]
-        installed(&candidate.update.version)?;
+        linux::confirm_installed(linux_format(), &candidate.update.version)?;
         Ok(())
     })();
     if result.is_err() {
-        app.state::<Updates>().lock()?.status.phase = "ready";
+        app.state::<Updates>().lock()?.status.phase = phase;
     }
     result
 }
@@ -495,12 +553,10 @@ pub async fn open_application_installer(app: AppHandle) -> Result<(), FileError>
         let host = app.state::<Updates>(); let s = host.lock()?;
         if s.status.phase != "ready" || !supported() { return Err(err("Download and verify an update first.")); }
         let candidate = s.candidate.as_ref().ok_or_else(|| err("No update is available."))?;
-        let bytes = candidate.bytes.as_ref().ok_or_else(|| err("Download the update first."))?;
-        candidate.update.verify(bytes).map_err(|_| err("Update signature verification failed."))?;
+        let bytes = candidate.verified_bytes()?;
         let dir = app.path().download_dir().map_err(|_| err("Downloads folder unavailable."))?.join(format!("Marktub-update-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir(&dir)?;
-        let suffix = if target() == "linux-x86_64-rpm" { "x86_64.rpm" } else { "amd64.deb" };
-        let path = dir.join(format!("Marktub_{}_{suffix}", candidate.update.version));
+        let path = dir.join(linux_format().file_name(&candidate.update.version));
         let mut file = std::fs::OpenOptions::new().write(true).create_new(true).mode(0o644).open(&path)?;
         file.write_all(bytes)?; file.sync_all()?; drop(file);
         // Hand off an exclusively created, signed package. The OS installer owns
@@ -518,63 +574,6 @@ pub async fn open_application_installer(app: AppHandle) -> Result<(), FileError>
         Err(err("The system package installer is only used on Linux."))
     }
 }
-#[cfg(target_os = "linux")]
-fn installed(version: &str) -> Result<(), FileError> {
-    use std::{
-        io::Read,
-        os::unix::fs::MetadataExt,
-        process::{Command, Stdio},
-        time::Instant,
-    };
-    let metadata = std::fs::symlink_metadata("/usr/bin/marktub")?;
-    if !metadata.is_file() || metadata.uid() != 0 || metadata.mode() & 0o022 != 0 {
-        return Err(err("The installed executable failed its ownership check."));
-    }
-    let rpm = target() == "linux-x86_64-rpm";
-    let (program, args): (&str, &[&str]) = if rpm {
-        (
-            "/usr/bin/rpm",
-            &["-q", "--queryformat", "%{VERSION}", "--", "marktub"],
-        )
-    } else {
-        (
-            "/usr/bin/dpkg-query",
-            &["-W", "-f=${Version}", "--", "marktub"],
-        )
-    };
-    let mut child = Command::new(program)
-        .args(args)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .spawn()?;
-    let deadline = Instant::now() + Duration::from_secs(5);
-    loop {
-        if let Some(status) = child.try_wait()? {
-            let mut output = String::new();
-            child
-                .stdout
-                .take()
-                .unwrap()
-                .take(128)
-                .read_to_string(&mut output)?;
-            if status.success() && output.trim() == version {
-                return Ok(());
-            }
-            return Err(err(
-                "Finish installing this update in the system installer before restarting.",
-            ));
-        }
-        if Instant::now() >= deadline {
-            let _ = child.kill();
-            let _ = child.wait();
-            return Err(err(
-                "Could not confirm installation. Try again after the system installer finishes.",
-            ));
-        }
-        std::thread::sleep(Duration::from_millis(25));
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

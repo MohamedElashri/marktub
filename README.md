@@ -93,9 +93,11 @@ jobs require explicit enablement, folder trust and confirmation.
 ## Updates
 
 Use **Settings → About → Check for updates**. Checking, downloading and installing
-are separate, explicit actions; downloads use Marktub’s pinned signing key.
-On macOS, choose **Install and restart**. On Linux, approve the matching DEB or RPM
-in the system installer, then choose **Restart after installation**.
+are separate, explicit actions. Downloads use Marktub’s pinned signing key.
+Choose **Install and restart** after downloading. On Linux, approve the
+installation if your desktop asks. Marktub waits for PackageKit to finish before
+restarting. If PackageKit is unavailable, use **Open system installer** to
+install the verified DEB or RPM manually.
 
 ## Contributing and license
 
