@@ -1291,7 +1291,7 @@ describe("Library", () => {
   it("pages a real 3000-entry root and keeps the frontend bounded", async () => {
     const fixture = await invoke("e2e_fixture", {
       action: "seed",
-      text: "\ufeff# Library source\r\n\r\nneedle العربية\nlast\r",
+      text: "\ufeff# Library source\r\n\r\nneedle العربية\nlast\r\n\r\n## عنوان فرعي\n\nهذه فقرة مع `code`.\n",
     });
     appPid = fixture.pid;
     folder = fixture.path.slice(0, fixture.path.lastIndexOf("/"));
@@ -1330,6 +1330,7 @@ describe("Library", () => {
         ),
       { timeout: 20000 },
     );
+    const completeListingMs = performance.now() - start;
     root = (await invoke("library_state")).roots[0].id;
     const page = await invoke("library_page", {
       id: root,
@@ -1360,14 +1361,48 @@ describe("Library", () => {
     expect(metrics.rows).toBe(100);
     expect(metrics.nodes).toBeLessThan(2500);
     expect(page.total).toBe(3003); // destination, loop, source plus 3000 notes; ignored excluded
+    const warmPaging = await browser.tauri.execute(async ({ core }, id) => {
+      const measurements = [];
+      for (const sort of ["name", "modified"]) {
+        const samples = [];
+        let items = 0;
+        for (let i = 0; i < 30; i++) {
+          const start = performance.now();
+          const page = await core.invoke("library_page", {
+            id,
+            offset: (i % 30) * 100,
+            sort,
+            hidden: false,
+            filter: "all",
+            refresh: false,
+            ignored: false,
+          });
+          const elapsed = performance.now() - start;
+          if (!page.complete || page.items.length !== 100)
+            throw Error("Warm benchmark expected a complete 100-row page");
+          items += page.items.length;
+          if (i >= 5) samples.push(elapsed);
+        }
+        samples.sort((left, right) => left - right);
+        measurements.push({
+          sort,
+          items,
+          samples,
+          medianMs: samples[Math.floor(samples.length / 2)],
+          p95Ms: samples[Math.ceil(samples.length * 0.95) - 1],
+        });
+      }
+      return measurements;
+    }, root);
     await writeFile(
       "artifacts/library-folder.json",
       JSON.stringify(
         {
           ...metrics,
           nativeEntries: page.total,
-          completeListingMs: performance.now() - start,
-          profile: `debug ${nativeWebView}; injected native picker; fixture creation excluded; one sample`,
+          completeListingMs,
+          warmPaging,
+          profile: `debug ${nativeWebView}; initial UI scan excludes fixture creation; warm samples include native IPC and JSON decoding`,
         },
         null,
         2,
@@ -1425,11 +1460,67 @@ describe("Library", () => {
       .$(".workspace-search-results")
       .$('button[aria-label="Open source.txt"]')
       .waitForExist({ timeout: 20000 });
-    await browser.$(".workspace-search-results").$("button=Preview").click();
-    await expect(browser.$(".quick-preview article h1")).toHaveText(
-      "Library source",
-    );
-    await browser.$("button=Close preview").click();
+    const scope = { id: null, scope: "session" };
+    const previous = await invoke("get_settings", scope);
+    try {
+      await invoke("update_settings", {
+        ...scope,
+        text: '$reader.font="Noto Sans Arabic"\n$reader.heading_font="Amiri"\n$editor.font="Cousine"\n$reader.font_size=23\n$reader.line_height=190',
+      });
+      await browser.waitUntil(() =>
+        browser.tauri.execute(
+          () =>
+            document.documentElement.style.getPropertyValue("--reader-size") ===
+            "23px",
+        ),
+      );
+      await browser.$(".workspace-search-results").$("button=Preview").click();
+      await expect(browser.$(".quick-preview article h1")).toHaveText(
+        "Library source",
+      );
+      const previewTypography = await browser.tauri.execute(async () => {
+        const dialog = document.querySelector(".quick-preview");
+        const article = dialog.querySelector("article");
+        const paragraph = article.querySelector("p:last-child");
+        const styles = getComputedStyle(paragraph);
+        const fonts = await Promise.all([
+          document.fonts.load('23px "Noto Sans Arabic"', "العربية"),
+          document.fonts.load('700 24px "Amiri"', "العربية"),
+          document.fonts.load('16px "Cousine"', "code"),
+        ]);
+        return {
+          body: styles.fontFamily,
+          size: styles.fontSize,
+          lineHeight: parseFloat(styles.lineHeight),
+          direction: styles.direction,
+          heading: getComputedStyle(article.querySelector("h1")).fontFamily,
+          subheadingSize: getComputedStyle(article.querySelector("h2"))
+            .fontSize,
+          code: getComputedStyle(article.querySelector("code")).fontFamily,
+          width: dialog.getBoundingClientRect().width,
+          expectedWidth: Math.min(850, window.innerWidth * 0.9),
+          loaded: fonts.map((faces) =>
+            faces.some((face) => face.status === "loaded"),
+          ),
+        };
+      });
+      expect(previewTypography.body).toContain("Noto Sans Arabic");
+      expect(previewTypography.size).toBe("23px");
+      expect(previewTypography.lineHeight).toBeCloseTo(43.7, 1);
+      expect(previewTypography.direction).toBe("rtl");
+      expect(previewTypography.heading).toContain("Amiri");
+      expect(previewTypography.subheadingSize).toBe("26px");
+      expect(previewTypography.code).toContain("Cousine");
+      expect(previewTypography.width).toBeCloseTo(
+        previewTypography.expectedWidth,
+        1,
+      );
+      expect(previewTypography.loaded).toEqual([true, true, true]);
+    } finally {
+      const closePreview = browser.$("button=Close preview");
+      if (await closePreview.isDisplayed()) await closePreview.click();
+      await invoke("update_settings", { ...scope, text: previous.text });
+    }
     await browser
       .$(".workspace-search-results")
       .$('button[aria-label="Open source.txt"]')
@@ -5040,6 +5131,166 @@ describe("Everyday workflows", () => {
     await bookmark.waitForExist({ reverse: true });
   });
 
+  it("coalesces concurrent opens of one document and releases the extra native grant", async () => {
+    const count = async () =>
+      Number((await invoke("e2e_fixture", { action: "grant-count" })).text);
+    const before = await count();
+    await invoke("e2e_fixture", { action: "hold-positions" });
+    try {
+      await browser.tauri.execute(() => {
+        const guide = document.querySelector(
+          '[aria-label="Open feature guide"]',
+        );
+        guide.click();
+        guide.click();
+      });
+      await browser.waitUntil(async () => (await count()) === before + 2);
+      await pane().$('.window-shell[data-busy="true"]').waitForExist();
+      await invoke("e2e_fixture", { action: "release-positions" });
+      await pane().$("article h1").waitForDisplayed({ timeout: 30000 });
+      await ready();
+      await browser.waitUntil(async () => (await count()) === before + 1);
+      expect(await browser.$$(".tabs .tab").length).toBe(1);
+    } finally {
+      await invoke("e2e_fixture", { action: "release-positions" });
+    }
+  });
+
+  it("reuses a dirty Source tab on native picker and symlink opens", async () => {
+    const fs = await import("node:fs/promises");
+    const original = "\ufeff# Original العربية\r\n\r\nUntouched disk\r\n";
+    const fixture = await invoke("e2e_fixture", {
+      action: "seed",
+      text: original,
+    });
+    const alias = join(dirname(fixture.path), "alias العربية.txt");
+    await fs.symlink(fixture.path, alias);
+    handoff(fixture.path);
+    await readDocument("Original العربية");
+    const tab = await selected().getAttribute("id");
+    await pane().$("button=Source").click();
+    await pane().$(".cm-content").waitForDisplayed({ timeout: 30000 });
+    await ready();
+    await browser.tauri.execute(() => {
+      const content = document.querySelector(
+        ".document-tab:not([hidden]) .cm-content",
+      );
+      window.marktubOriginalSource = content;
+      content.focus();
+      document.execCommand("insertText", false, "Unsaved 🦀 ");
+    });
+    await browser.$('button[aria-label="New tab"]').click();
+    await pane().$(".empty-actions").$("button=Open file").click();
+    await browser.waitUntil(
+      async () => (await selected().getAttribute("id")) === tab,
+    );
+    const other = browser.$('.tabs [role="tab"][aria-selected="false"]');
+    await other.click();
+    handoff(alias);
+    await browser.waitUntil(
+      async () => (await selected().getAttribute("id")) === tab,
+    );
+    await ready();
+    expect(await browser.$$(".tabs .tab").length).toBe(2);
+    expect(
+      await browser.tauri.execute(() => {
+        const source = window.marktubOriginalSource;
+        delete window.marktubOriginalSource;
+        return (
+          source ===
+          document.querySelector(".document-tab:not([hidden]) .cm-content")
+        );
+      }),
+    ).toBe(true);
+    await expect(pane().$(".cm-content")).toHaveText(
+      expect.stringContaining("Unsaved 🦀"),
+    );
+    expect(await fs.readFile(fixture.path, "utf8")).toBe(original);
+  });
+
+  it("keeps idle Source tabs free of periodic recovery work", async () => {
+    const fs = await import("node:fs/promises");
+    const fixture = await invoke("e2e_fixture", { action: "seed" });
+    const output = "artifacts/source-idle-counters.json";
+    const tabCount = 4;
+    await fs.rm(output, { force: true });
+    await browser.tauri.execute(() => {
+      const original = window.setInterval;
+      window.marktubIdleProbe = { original, ticks: 0 };
+      window.setInterval = (callback, delay, ...args) => {
+        if (typeof callback !== "function" || delay !== 1000)
+          return original(callback, delay, ...args);
+        return original(() => {
+          if (window.marktubIdleProbe) window.marktubIdleProbe.ticks++;
+          callback(...args);
+        }, delay);
+      };
+    });
+    try {
+      for (let i = 0; i < tabCount; i++) {
+        const path = join(dirname(fixture.path), `idle-${i}.txt`);
+        await fs.writeFile(path, `# Idle ${i}\n\nLocal text.\n`);
+        handoff(path);
+        await readDocument(`Idle ${i}`);
+        await pane().$("button=Source").click();
+        await pane().$(".cm-content").waitForDisplayed({ timeout: 30000 });
+        await ready();
+      }
+      await browser.tauri.execute(() =>
+        document.querySelector(".library-toggle").focus(),
+      );
+      // Allow session persistence, lazy imports and focus work to settle first.
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      const sample = (label) => {
+        const result = spawnSync(
+          "python3",
+          [
+            "benchmarks/source_memory.py",
+            "--pid",
+            String(fixture.pid),
+            "--label",
+            label,
+            "--output",
+            output,
+            "--rusage",
+          ],
+          { encoding: "utf8" },
+        );
+        if (result.status !== 0)
+          throw Error(result.stderr || "Process sample failed");
+      };
+      sample("idle-start");
+      const read = () =>
+        browser.tauri.execute(() => ({
+          editors: document.querySelectorAll(".document-tab .cm-editor").length,
+          ticks: window.marktubIdleProbe.ticks,
+          time: performance.now(),
+        }));
+      const before = await read();
+      await new Promise((resolve) => setTimeout(resolve, 6000));
+      const after = await read();
+      sample("idle-end");
+      const evidence = {
+        profile: `debug ${nativeWebView}; clean Source tabs, no input during observation`,
+        editors: after.editors,
+        elapsedMs: after.time - before.time,
+        oneSecondIntervalCallbacks: after.ticks - before.ticks,
+      };
+      await writeFile(
+        "artifacts/source-idle.json",
+        JSON.stringify(evidence, null, 2),
+      );
+      expect(before.editors).toBe(tabCount);
+      expect(after.editors).toBe(tabCount);
+      expect(evidence.oneSecondIntervalCallbacks).toBe(0);
+    } finally {
+      await browser.tauri.execute(() => {
+        window.setInterval = window.marktubIdleProbe.original;
+        delete window.marktubIdleProbe;
+      });
+    }
+  });
+
   it("distinguishes duplicate recent filenames using bounded native context", async () => {
     const fs = await import("node:fs/promises");
     const fixture = await invoke("e2e_fixture", {
@@ -5304,6 +5555,11 @@ describe("Everyday workflows", () => {
       join(root, "nested", "Scratch.md"),
       "# Scratch\n\nA needle for content search.\n",
     );
+    await Promise.all(
+      Array.from({ length: 105 }, (_, i) =>
+        fs.writeFile(join(root, "nested", `Archive ${i}.md`), "# Archive\n"),
+      ),
+    );
     await fs.writeFile(join(root, "Other.md"), "# Other\n");
     await Promise.all(
       Array.from({ length: 20 }, (_, i) =>
@@ -5313,15 +5569,15 @@ describe("Everyday workflows", () => {
         ),
       ),
     );
+    await browser.setWindowSize(1200, 760);
     await pane().$("button=Open folder").click();
     await browser
       .$(`button[aria-label="Remove root ${root.split("/").at(-1)}"]`)
       .waitForExist({ timeout: 60000 });
-    await browser
-      .$(".library-views")
-      .$("button=Files")
-      .waitForEnabled({ timeout: 60000 });
-    await browser.$(".library-views").$("button=Files").click();
+    const notes = () => browser.$('section[aria-label="Folder notes"]');
+    const browseNotes = () => browser.$(".library-views").$("button=Notes");
+    await browseNotes().waitForEnabled({ timeout: 60000 });
+    await browseNotes().click();
     const folder = browser.$('button[aria-label="Folder nested"]');
     await folder.waitForExist({ timeout: 60000 });
     await folder.scrollIntoView({ block: "nearest" });
@@ -5330,13 +5586,39 @@ describe("Everyday workflows", () => {
     await browser.keys("ArrowLeft");
     await expect(folder).toHaveAttribute("aria-expanded", "false");
     await browser.keys("ArrowRight");
-    const file = browser.$('.root-list button[aria-label="Open Scratch.md"]');
-    await file.waitForEnabled({ timeout: 60000 });
-    await expect(
-      browser.$('.root-list button[aria-label="Open source.txt"]'),
-    ).not.toExist();
-    await file.click();
+    await expect(folder).toHaveAttribute("aria-expanded", "true");
+    const filter = () => notes().$('input[type="search"]');
+    await filter().waitForDisplayed();
+    await expect(notes().$("h2")).toHaveText("nested");
+    const file = () => notes().$('button[aria-label="Open Scratch.md"]');
+    await expect(file()).not.toExist();
+    await filter().setValue("sCrAtCh");
+    await file().waitForEnabled({ timeout: 60000 });
+    await expect(notes().$(".note-list")).not.toHaveText(
+      expect.stringContaining("Archive"),
+    );
+    await filter().click();
+    await browser.keys("ArrowDown");
+    await expect(file()).toBeFocused();
+    await browser.keys("Enter");
     await readDocument("Scratch");
+    await expect(file()).toHaveAttribute("aria-current", "page");
+    await browser.saveScreenshot("artifacts/native-note-workspace.png");
+
+    await pane().$("button=Split").click();
+    await expect(notes()).not.toBeDisplayed();
+    await pane().$("button=Read").click();
+    await file().waitForDisplayed();
+    await expect(filter()).toHaveValue("sCrAtCh");
+    await expect(file()).toHaveAttribute("aria-current", "page");
+
+    await documentAction("Review");
+    await pane().$(".review-margin").waitForDisplayed();
+    await expect(notes()).not.toBeDisplayed();
+    await documentAction("Review on");
+    await file().waitForDisplayed();
+    await expect(file()).toHaveAttribute("aria-current", "page");
+
     const details = browser.$(".library-views").$("button=File details");
     await details.waitForEnabled();
     await details.click();
@@ -5347,10 +5629,11 @@ describe("Everyday workflows", () => {
     await detailsRoot.waitForEnabled();
     await detailsRoot.click();
     await expect(browser.$(".library-controls")).toBeDisplayed();
-    await browser.$(".library-views").$("button=Files").click();
+    await browseNotes().click();
     await expect(
       browser.$('button[aria-label="Folder nested"]'),
     ).toHaveAttribute("aria-expanded", "true");
+    await browser.setWindowSize(1080, 760);
     await browser.$(".workspace-actions .quick-open-button").click();
     const search = browser.$('dialog[aria-label="Quick open and search"]');
     const input = search.$('[aria-label="Workspace query"]');
@@ -6606,6 +6889,7 @@ describe("Arabic reading layout", () => {
       ([, url]) => !url.startsWith("data:"),
     );
     expect(external).toEqual([]);
+    await writeFile("artifacts/arabic-reader-export.html", html);
     expect(await readFile(fixture.path)).toEqual(
       Buffer.from(longArabicDocument, "utf8"),
     );
@@ -8377,7 +8661,9 @@ describe("Library README preview", () => {
           await addFolder.click();
         }
       } else await addFolder.click();
-      const entry = browser.$('.tree-file[aria-label="Open README.md"]');
+      const entry = browser.$(
+        '.library-note-browser:not([hidden]) .note-list-row[aria-label="Open README.md"], .tree-file[aria-label="Open README.md"]',
+      );
       await entry.waitForEnabled({ timeout: 20000 });
       await entry.click();
       await expectReadingHeading("README preview");

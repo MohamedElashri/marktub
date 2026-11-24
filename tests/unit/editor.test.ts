@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { EditorState } from "@codemirror/state";
+import { EditorSelection, EditorState } from "@codemirror/state";
 import { history, undo, redo } from "@codemirror/commands";
-import { tableCellRange, formattingKind } from "../../src/editor/visual";
-import { markdown } from "@codemirror/lang-markdown";
+import { formattingKind } from "../../src/editor/visual";
+import { format, tableCell } from "../../src/editor/author";
+import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { ensureSyntaxTree } from "@codemirror/language";
 import fixture from "../fixtures/fidelity.json";
 
-describe("CodeMirror source-backed probes", () => {
+describe("Source-backed formatting and edits", () => {
   it("preserves Markdown-looking text inside fences and indented code", () => {
     const source =
       "# Heading\n\n```md\n# Literal heading\n- Literal list\n```\n\n    # indented code\n\n- outer\n  - inner\n";
@@ -23,18 +24,23 @@ describe("CodeMirror source-backed probes", () => {
     expect(kind("  - inner")).toBe("list");
   });
 
-  it("changes a heading and nested Unicode list item with one reversible transaction", () => {
-    const source = "# Heading 🦀\n\n- outer\n  - inner العربية\n";
-    let state = EditorState.create({ doc: source, extensions: [history()] });
-    const from = source.indexOf("inner");
-    state = state.update({
-      changes: [
-        { from: 2, to: 9, insert: "Title" },
-        { from, to: from + 5, insert: "child" },
+  it("formats two Unicode headings in one reversible transaction", () => {
+    const source = "# Heading 🦀\n\nUnselected\n\n# العنوان\n";
+    let state = EditorState.create({
+      doc: source,
+      selection: EditorSelection.create([
+        EditorSelection.cursor(2),
+        EditorSelection.cursor(source.indexOf("العنوان")),
+      ]),
+      extensions: [
+        history(),
+        markdown(),
+        EditorState.allowMultipleSelections.of(true),
       ],
-    }).state;
+    });
+    state = state.update(format(state, "heading2")).state;
     expect(state.doc.toString()).toBe(
-      source.replace("Heading", "Title").replace("inner", "child"),
+      "## Heading 🦀\n\nUnselected\n\n## العنوان\n",
     );
     undo({
       state,
@@ -43,7 +49,6 @@ describe("CodeMirror source-backed probes", () => {
       },
     });
     expect(state.doc.toString()).toBe(source);
-    expect(tableCellRange("|   | next |", 0)).toEqual({ from: 4, to: 4 });
   });
   it("uses shared base UTF-16 coordinates and matches the byte-provenance fixture", () => {
     const state = EditorState.create({
@@ -58,16 +63,13 @@ describe("CodeMirror source-backed probes", () => {
 
   it("patches one escaped-pipe table cell, then undoes/redoes without formatting siblings", () => {
     const source =
-      "# Heading 🦀\n\n- nested العربية\n\n| one \\| literal | two |\n";
-    const lineStart = source.indexOf("| one");
-    const cell = tableCellRange(source.slice(lineStart), 1);
-    let state = EditorState.create({ doc: source, extensions: [history()] });
+      "# Heading 🦀\n\n- nested العربية\n\n| first | second |\n| --- | --- |\n| `one \\| literal` | two |\n";
+    let state = EditorState.create({
+      doc: source,
+      extensions: [history(), markdown({ base: markdownLanguage })],
+    });
     state = state.update({
-      changes: {
-        from: lineStart + cell.from,
-        to: lineStart + cell.to,
-        insert: "文",
-      },
+      changes: tableCell(state, source.indexOf("| first"), 2, 1, "文"),
     }).state;
     expect(state.doc.toString()).toBe(source.replace("two", "文"));
     const target = {
@@ -82,9 +84,5 @@ describe("CodeMirror source-backed probes", () => {
     expect(state.doc.toString()).toBe(source);
     expect(redo(target)).toBe(true);
     expect(state.doc.toString()).toBe(source.replace("two", "文"));
-  });
-
-  it("refuses ambiguous table code spans", () => {
-    expect(() => tableCellRange("| `a|b` | c |", 0)).toThrow("Code spans");
   });
 });

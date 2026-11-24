@@ -1,6 +1,27 @@
+const autoDirection = new WeakMap<Document, boolean>();
+
+function resolvesDetachedDirection(root: DocumentFragment) {
+  const document = root.ownerDocument;
+  const known = autoDirection.get(document);
+  if (known !== undefined) return known;
+  const sample = document.createElement("p");
+  sample.dir = "auto";
+  sample.textContent = "العربية English";
+  document.createDocumentFragment().append(sample);
+  let supported = false;
+  try {
+    // Some implementations parse :dir() but resolve a detached auto block as LTR.
+    supported = sample.matches(":dir(rtl)");
+  } catch {
+    // Retain HTML auto direction when the selector is unavailable.
+  }
+  autoDirection.set(document, supported);
+  return supported;
+}
+
 // Resolve text before isolating links: dir=auto ignores children with a dir of
 // their own, so annotating a link first loses an entirely linked Arabic title.
-export function readingDirections(root: ParentNode) {
+export function readingDirections(root: DocumentFragment) {
   const blocks = [
     ...root.querySelectorAll(
       "blockquote, ul, ol, table, p, h1, h2, h3, h4, h5, h6, li, dt, dd, th, td, pre:not(:has(code))",
@@ -13,12 +34,9 @@ export function readingDirections(root: ParentNode) {
   ))
     code.setAttribute("dir", "ltr");
 
-  let resolved = true;
-  try {
-    (blocks[0] ?? links[0])?.matches(":dir(ltr)");
-  } catch {
-    resolved = false;
-  }
+  const resolved = Boolean(
+    (blocks.length || links.length) && resolvesDetachedDirection(root),
+  );
   // Preorder lets neutral children inherit their resolved parent while future
   // child annotations cannot hide text from the parent's direction calculation.
   const directions = new Map<Element, string>();

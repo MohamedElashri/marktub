@@ -40,6 +40,7 @@
     onnewnote,
     ontemplate,
     onlinked,
+    onpicked,
   }: {
     active?: boolean;
     ongit: () => void | Promise<void>;
@@ -52,6 +53,11 @@
     onnewnote: () => void;
     ontemplate: () => void;
     onlinked: (document: Descriptor, link?: string) => Promise<void>;
+    onpicked: (
+      document: Descriptor,
+      link: string | undefined,
+      adopt: () => Promise<void>,
+    ) => Promise<void>;
     previewSettings?: Values | null;
     onstate: (
       name: string,
@@ -534,6 +540,7 @@
       editing: !!session,
       busy: busy || inlinePending || !!powerPanel?.inlineRunning(),
       mode,
+      review: reviewEnabled,
       readingFocus: focusedReading,
       authorBudget:
         !session?.range &&
@@ -900,32 +907,37 @@
           ? await bridge.openDocumentLink(realDocument()!, link)
           : await bridge.chooseDocument();
       if (!selected) return;
-      const position = await bridge
-        .documentPosition(selected.id)
-        .catch(() => ({ byte: 0, caret: 0, anchor: null }));
-      readerAnchor = position.anchor;
-      if (link?.includes("#")) {
-        try {
-          const fragment = decodeURIComponent(
-            link.split("#").slice(1).join("#"),
-          );
-          readerAnchor = fragment.startsWith("h-") ? fragment : "h-" + fragment;
-        } catch {
-          readerAnchor = null;
+      const picked = selected;
+      await onpicked(picked, link, async () => {
+        const position = await bridge
+          .documentPosition(picked.id)
+          .catch(() => ({ byte: 0, caret: 0, anchor: null }));
+        readerAnchor = position.anchor;
+        if (link?.includes("#")) {
+          try {
+            const fragment = decodeURIComponent(
+              link.split("#").slice(1).join("#"),
+            );
+            readerAnchor = fragment.startsWith("h-")
+              ? fragment
+              : "h-" + fragment;
+          } catch {
+            readerAnchor = null;
+          }
         }
-      }
-      const loaded = await bridge.readRange(
-        selected.id,
-        Math.min(position.byte, selected.byteLength),
-      );
-      if (request !== openGeneration) {
-        await bridge.releaseDocument(selected.id);
-        return;
-      }
-      if (reviewEnabled && document?.location !== selected.location)
-        await endReview();
-      await finishLeave(choice);
-      await showDocument(selected, loaded);
+        const loaded = await bridge.readRange(
+          picked.id,
+          Math.min(position.byte, picked.byteLength),
+        );
+        if (request !== openGeneration) {
+          await bridge.releaseDocument(picked.id);
+          return;
+        }
+        if (reviewEnabled && document?.location !== picked.location)
+          await endReview();
+        await finishLeave(choice);
+        await showDocument(picked, loaded);
+      });
     } catch (error) {
       if (selected && selected.id !== document?.id)
         await bridge.releaseDocument(selected.id).catch(() => {});

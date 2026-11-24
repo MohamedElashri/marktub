@@ -5,6 +5,7 @@ import { installBundledFonts } from "./fonts/browser";
 import "./styles.css";
 import "./reader/typography.css";
 import "./editor/typography.css";
+import "./library/workspace.css";
 
 installBundledFonts();
 void detectShaping();

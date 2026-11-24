@@ -189,31 +189,3 @@ export const liveFormatting = ViewPlugin.fromClass(
   },
   { decorations: (value) => value.decorations },
 );
-
-// A bounded GFM table experiment, not a full table editor. Reject code spans rather
-// than infer their pipe grammar; exact supported behavior is covered by fixtures.
-export function tableCellRange(
-  line: string,
-  cell: number,
-): { from: number; to: number } {
-  if (line.includes("`"))
-    throw new Error("Code spans require the later table range adapter.");
-  const pipes: number[] = [];
-  for (let i = 0; i < line.length; i++) {
-    if (line[i] === "\\") {
-      i++;
-      continue;
-    }
-    if (line[i] === "|") pipes.push(i);
-  }
-  if (pipes.length < 2 || cell < 0 || cell >= pipes.length - 1)
-    throw new Error("Unsupported table cell.");
-  const start = pipes[cell] + 1;
-  const end = pipes[cell + 1];
-  const content = line.slice(start, end);
-  const from = start + (content.match(/^\s*/)?.[0].length ?? 0);
-  return {
-    from,
-    to: from + content.trim().length,
-  };
-}

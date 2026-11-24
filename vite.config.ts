@@ -3,7 +3,7 @@ import { defineConfig } from "vitest/config";
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [
     {
       name: "generated-attribution",
@@ -58,5 +58,7 @@ export default defineConfig({
   clearScreen: false,
   server: { host: "127.0.0.1", port: 1420, strictPort: true },
   build: { target: "es2022" },
+  // Component tests mount into jsdom and need Svelte's client entry point.
+  resolve: mode === "test" ? { conditions: ["browser"] } : undefined,
   test: { include: ["tests/unit/**/*.test.ts"], environment: "node" },
-});
+}));

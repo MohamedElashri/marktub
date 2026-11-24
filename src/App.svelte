@@ -17,7 +17,12 @@
   import NewNote from "./NewNote.svelte";
   import TabBar from "./TabBar.svelte";
   import ResizeHandle from "./ui/ResizeHandle.svelte";
-  import { libraryWidth, librarySize } from "./workspace";
+  import {
+    folderRailWidth,
+    libraryWidth,
+    librarySize,
+    showNoteColumns,
+  } from "./workspace";
   import { literals, put } from "./preferences";
   import type { Values } from "./preferences";
   import type ReviewArchive from "./review/Archive.svelte";
@@ -262,22 +267,36 @@
   }
   let viewportWidth = $state(1024),
     draftWidth = $state<number | null>(null);
+  let sidebar = $state(false);
+  const noteColumns = $derived.by(() => {
+    const document = tabs[active]?.pane?.commandState();
+    return (
+      sidebar &&
+      !readingFocus &&
+      !document?.review &&
+      showNoteColumns(viewportWidth, document?.mode)
+    );
+  });
+  function fittedLibraryWidth(width: number) {
+    return noteColumns
+      ? libraryWidth(width, viewportWidth - folderRailWidth, 448)
+      : libraryWidth(width, viewportWidth);
+  }
   const sidebarWidth = $derived(
-    libraryWidth(
+    fittedLibraryWidth(
       Number(
         previewValues?.["library.width"]?.value ??
           draftWidth ??
           currentValues["library.width"]?.value ??
           librarySize.default,
       ),
-      viewportWidth,
     ),
   );
 
   let layoutWrite = Promise.resolve(),
     layoutRevision = 0;
   function resizeLibrary(width: number) {
-    const next = libraryWidth(width, viewportWidth),
+    const next = fittedLibraryWidth(width),
       revision = ++layoutRevision;
     draftWidth = next;
     let saved = false;
@@ -311,7 +330,6 @@
         }
       });
   }
-  let sidebar = $state(false);
   const libraryDrawer = $derived(
     sidebar && !readingFocus && viewportWidth <= 700,
   );
@@ -409,20 +427,59 @@
     if (libraryDrawer) await hideLibrary();
   }
   const openingTabs = new SvelteSet<number>();
-  async function openTab(descriptor: bridge.Descriptor, link?: string) {
-    const existing = tabs.findIndex(
+  // The reservations coordinate open requests and have no reactive readers.
+  // eslint-disable-next-line svelte/prefer-svelte-reactivity
+  const openingDocuments = new Map<
+    string,
+    { id: string; complete: Promise<void> }
+  >();
+  async function openTab(
+    descriptor: bridge.Descriptor,
+    link?: string,
+    adopt = () => openNewTab(descriptor, link),
+    replaceKey?: number,
+  ): Promise<void> {
+    const location = descriptor.location || descriptor.id;
+    const pending = openingDocuments.get(location);
+    if (pending) {
+      await pending.complete.catch(() => {});
+      if (
+        pending.id !== descriptor.id ||
+        tabs.some((t) => t.document === descriptor.id)
+      )
+        await openTab(descriptor, link, adopt, replaceKey);
+      return;
+    }
+    const existing = tabs.find(
       (t) =>
         t.document === descriptor.id ||
         (!!descriptor.location && t.location === descriptor.location),
     );
-    if (existing >= 0) {
-      if (tabs[existing].document !== descriptor.id)
+    if (existing && existing.key !== replaceKey) {
+      const key = existing.key;
+      if (existing.document !== descriptor.id)
         await bridge.releaseDocument(descriptor.id);
-      active = existing;
-      if (link?.includes("#")) await tabs[existing].pane?.revealLink(link);
+      const index = tabs.findIndex(
+        (tab) =>
+          tab.key === key &&
+          (tab.document === descriptor.id ||
+            (!!descriptor.location && tab.location === descriptor.location)),
+      );
+      if (index < 0 || closingTabs.includes(key)) return;
+      active = index;
+      if (link?.includes("#")) await tabs[index].pane?.revealLink(link);
       await revealDocumentOnNarrowScreens();
       return;
     }
+    const complete = adopt();
+    openingDocuments.set(location, { id: descriptor.id, complete });
+    try {
+      await complete;
+    } finally {
+      openingDocuments.delete(location);
+    }
+  }
+  async function openNewTab(descriptor: bridge.Descriptor, link?: string) {
     let tab = emptyTabAvailable(tabs[active])
       ? tabs[active]
       : (tabs.find(emptyTabAvailable) ?? null);
@@ -735,7 +792,7 @@
   class:library-drawer-open={libraryDrawer}
   class:reading-focus={readingFocus}
   class:macos={navigator.platform.startsWith("Mac")}
-  style={`--library-width:${sidebarWidth}px`}
+  style={`--library-width:${sidebarWidth}px;--folder-rail-width:${folderRailWidth}px`}
 >
   <header class="workbench-header" data-tauri-drag-region>
     <nav class="workspace-actions" aria-label="Workspace">
@@ -848,12 +905,19 @@
     {#if LibraryComponent}<aside
         id="library-sidebar"
         class="library-host"
+        class:library-columns={noteColumns}
         aria-label="Library"
         bind:this={libraryHost}
         hidden={!sidebar || readingFocus}
       >
         <LibraryComponent
           bind:this={panel}
+          columns={noteColumns}
+          activeLocation={tabs[active]?.location ?? null}
+          canCreate={canCreateNote}
+          oncreate={() => {
+            void runCommand("new_note");
+          }}
           onopen={openTab}
           onrecent={recent}
           onrestore={restoreSession}
@@ -867,7 +931,7 @@
     {#if sidebar && !readingFocus && !libraryDrawer}<ResizeHandle
         value={sidebarWidth}
         min={librarySize.min}
-        max={libraryWidth(librarySize.max, viewportWidth)}
+        max={fittedLibraryWidth(librarySize.max)}
         reset={librarySize.default}
         onpreview={(width) => (draftWidth = width)}
         oncommit={resizeLibrary}
@@ -883,6 +947,8 @@
           <DocumentPane
             bind:this={tab.pane}
             onlinked={openTab}
+            onpicked={(descriptor, link, adopt) =>
+              openTab(descriptor, link, adopt, tab.key)}
             onnewnote={() => {
               void runCommand("new_note");
             }}
@@ -899,6 +965,11 @@
             onpreferences={showPreferences}
             previewSettings={index === active ? previewValues : null}
             onstate={(name, dirty, id, location) => {
+              if (
+                (tab.dirty && !dirty) ||
+                (tab.location && tab.location !== location)
+              )
+                panel?.refreshFiles();
               if (id && id !== "recovery" && tab.document !== id)
                 recordNavigation(id);
               tab.location = location;

@@ -150,8 +150,21 @@ struct Dir {
 struct Entry {
     dir: String,
     name: OsString,
+    folded_name: Box<str>,
     kind: String,
     stamp: Stamp,
+}
+impl Entry {
+    fn new(dir: String, name: OsString, kind: &str, stamp: Stamp) -> Self {
+        let folded_name = name.to_string_lossy().to_lowercase().into_boxed_str();
+        Self {
+            dir,
+            name,
+            folded_name,
+            kind: kind.into(),
+            stamp,
+        }
+    }
 }
 struct Listing {
     stream: Stream,
@@ -171,6 +184,7 @@ pub struct Item {
     pub kind: String,
     pub bytes: u64,
     pub modified: i64,
+    pub location: Option<String>,
     pub directory: Option<String>,
     pub parent: Folder,
 }
@@ -698,6 +712,15 @@ impl Library {
         let e = self.entries.get(id).ok_or_else(stale)?.clone();
         let parent = self.folder(&e.dir)?;
         let d = self.dirs.get(&e.dir).ok_or_else(stale)?.clone();
+        let location = (e.kind == "file").then(|| {
+            let path = d
+                .parts
+                .iter()
+                .fold(self.roots[&d.root].path.clone(), |path, part| {
+                    path.join(part)
+                });
+            crate::scoped_file::path_key(&path.join(&e.name))
+        });
         let directory = if e.kind == "folder" {
             let mut parts = d.parts;
             parts.push(e.name.clone());
@@ -739,6 +762,7 @@ impl Library {
             kind: e.kind,
             bytes: e.stamp.2,
             modified: e.stamp.3,
+            location,
             directory,
             parent,
         })
@@ -754,6 +778,25 @@ impl Library {
         refresh: bool,
         ignored: bool,
     ) -> Result<Page, FileError> {
+        self.page_matching(id, offset, sort, hidden, filter, refresh, ignored, "")
+    }
+
+    #[allow(clippy::too_many_arguments)] // Reuses the bounded folder listing with a name filter.
+    pub fn page_matching(
+        &mut self,
+        id: &str,
+        offset: usize,
+        sort: &str,
+        hidden: bool,
+        filter: &str,
+        refresh: bool,
+        ignored: bool,
+        query: &str,
+    ) -> Result<Page, FileError> {
+        if query.len() > 512 {
+            return Err(err("query", "Folder search is limited to 512 bytes."));
+        }
+        let query = query.trim().to_lowercase();
         let (dir, path) = self.dir(id)?;
         if refresh {
             let root = &self.dirs[id].root;
@@ -804,6 +847,7 @@ impl Library {
             );
         }
         let mut list = self.lists.remove(id).unwrap();
+        let was_complete = list.complete;
         for _ in 0..512 {
             if list.complete {
                 break;
@@ -850,16 +894,10 @@ impl Library {
                     "Library handle budget reached (100,000 entries or 50,000 per folder). Remove and reselect roots to release it.",
                 ));
             }
-            let e = Entry {
-                dir: id.into(),
-                name,
-                kind: kind.into(),
-                stamp: stamp(&metadata),
-            };
-            let key = self.intern(e)?;
+            let key = self.intern(Entry::new(id.into(), name, kind, stamp(&metadata)))?;
             list.entries.push(key);
         }
-        if list.complete {
+        if list.complete && !was_complete {
             let live = list
                 .entries
                 .iter()
@@ -878,23 +916,25 @@ impl Library {
         let mut ids = list
             .entries
             .iter()
-            .filter(|key| {
-                let e = &self.entries[*key];
+            .map(|key| (key, &self.entries[key]))
+            .filter(|(_, e)| {
                 (hidden || !e.name.as_bytes().starts_with(b"."))
-                    && (filter == "all"
-                        || e.kind == "folder"
-                        || match filter {
+                    && (query.is_empty() || e.folded_name.contains(&query))
+                    && match filter {
+                        "folders" => e.kind == "folder",
+                        "notes" => e.kind == "file" && is_text(&e.name),
+                        "all" => true,
+                        _ if e.kind == "folder" => true,
+                        _ => match filter {
                             "markdown" => e.kind == "file" && is_markdown(&e.name),
                             "text" => is_text(&e.name),
                             "images" => is_image(&e.name),
                             _ => false,
-                        })
+                        },
+                    }
             })
-            .cloned()
             .collect::<Vec<_>>();
-        ids.sort_by(|a, b| {
-            let a = &self.entries[a];
-            let b = &self.entries[b];
+        ids.sort_by(|(_, a), (_, b)| {
             (a.kind != "folder")
                 .cmp(&(b.kind != "folder"))
                 .then_with(|| match sort {
@@ -905,21 +945,20 @@ impl Library {
                         .cmp(&Path::new(&b.name).extension()),
                     _ => std::cmp::Ordering::Equal,
                 })
-                .then_with(|| {
-                    a.name
-                        .to_string_lossy()
-                        .to_lowercase()
-                        .cmp(&b.name.to_string_lossy().to_lowercase())
-                })
+                .then_with(|| a.folded_name.cmp(&b.folded_name))
         });
         let total = ids.len();
         let scanned = list.scanned;
         let complete = list.complete;
-        self.lists.insert(id.into(), list);
-        let items = ids
-            .iter()
+        let page_ids = ids
+            .into_iter()
             .skip(offset.min(total))
             .take(PAGE)
+            .map(|(key, _)| key.clone())
+            .collect::<Vec<_>>();
+        self.lists.insert(id.into(), list);
+        let items = page_ids
+            .iter()
             .map(|id| self.item(id))
             .collect::<Result<Vec<_>, _>>()?;
         Ok(Page {
@@ -1282,12 +1321,7 @@ impl Library {
             } else {
                 "link"
             };
-            let id = self.intern(Entry {
-                dir: dir.clone(),
-                name: part.clone(),
-                kind: kind.into(),
-                stamp: stamp(&m),
-            })?;
+            let id = self.intern(Entry::new(dir.clone(), part.clone(), kind, stamp(&m)))?;
             if index + 1 == parts.len() {
                 return Ok(id);
             }
@@ -2552,6 +2586,46 @@ mod tests {
             .unwrap();
         assert_eq!(p.items.len(), 50);
         assert_eq!(p.items[0].name, "1200.txt");
+    }
+    #[test]
+    fn note_queries_filter_before_paging_and_preserve_location_across_revisions() {
+        let (t, mut library, root) = setup();
+        let folder = t.path().join("root");
+        for i in 0..520 {
+            fs::write(folder.join(format!("note-{i:03}.md")), b"note").unwrap();
+        }
+        for name in ["Écrit العربية.TXT", ".Écrit.md", "Écrit.png"] {
+            fs::write(folder.join(name), b"first").unwrap();
+        }
+        fs::create_dir(folder.join("Écrit")).unwrap();
+
+        let query = |library: &mut Library, hidden, filter, mut refresh| loop {
+            let page = library
+                .page_matching(&root.id, 0, "name", hidden, filter, refresh, false, "ÉCRIT")
+                .unwrap();
+            if page.complete {
+                break page;
+            }
+            refresh = false;
+        };
+        let found = query(&mut library, false, "notes", false);
+        assert_eq!(found.total, 1);
+        assert_eq!(found.items[0].name, "Écrit العربية.TXT");
+        let original_id = &found.items[0].id;
+        let original_location = found.items[0].location.as_deref();
+        assert_eq!(
+            original_location,
+            Some(crate::scoped_file::path_key(&folder.join("Écrit العربية.TXT")).as_str())
+        );
+        assert_eq!(query(&mut library, true, "notes", false).total, 2);
+        let folders = query(&mut library, false, "folders", false);
+        assert_eq!(folders.total, 1);
+        assert!(folders.items[0].directory.is_some());
+        fs::write(folder.join("Écrit العربية.TXT"), b"a different revision").unwrap();
+        let refreshed = query(&mut library, false, "notes", true);
+        assert_ne!(&refreshed.items[0].id, original_id);
+        assert_eq!(refreshed.items[0].location.as_deref(), original_location);
+        assert!(library.scoped(original_id).is_err());
     }
     #[test]
     fn symlinks_specials_and_protected_trees_do_not_grant_reads() {

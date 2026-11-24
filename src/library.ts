@@ -12,6 +12,7 @@ export interface Item {
   kind: string;
   bytes: number;
   modified: number;
+  location?: string | null;
   directory: string | null;
   parent: Folder;
 }
@@ -79,6 +80,7 @@ export const page = (
   filter: string,
   refresh: boolean,
   ignored: boolean,
+  query?: string,
 ) =>
   invoke<Page>("library_page", {
     id,
@@ -88,6 +90,7 @@ export const page = (
     filter,
     refresh,
     ignored,
+    query,
   });
 export const open = (id: string, recent = false) =>
   invoke<Descriptor>("library_open", { id, recent });

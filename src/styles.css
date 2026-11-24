@@ -355,11 +355,11 @@ dialog {
 dialog::backdrop {
   background: #0005;
 }
-dialog h2 {
+dialog h2:where(:not(.prose h2)) {
   margin: 0 0 14px;
   font-size: 20px;
 }
-dialog p {
+dialog p:where(:not(.prose p)) {
   font-size: 14px;
   line-height: 1.6;
   color: var(--quiet);
@@ -1061,7 +1061,7 @@ button.library-scrim:hover:not(:disabled) {
   font-size: 20px;
   line-height: 1;
 }
-.library-drawer-open .library-title {
+.library-drawer-open .library-navigation-title {
   position: sticky;
   inset-block-start: 0;
   z-index: 2;
@@ -1228,17 +1228,13 @@ input:not([type]) {
 }
 .quick-preview {
   width: min(850px, 90vw);
+  max-width: none;
   max-height: 85dvh;
-}
-.quick-preview article {
-  font-family: var(--reader-font);
-  line-height: var(--reader-line-height, 1.75);
-  overflow-wrap: anywhere;
 }
 .quick-preview pre {
   white-space: pre-wrap;
 }
-.quick-preview p,
+.quick-preview > p,
 dialog[aria-label="Quick open and search"] p {
   color: var(--quiet);
   font-size: 13px;
@@ -1329,7 +1325,8 @@ textarea {
 .workbench .toolbar {
   padding-block: calc(7px * var(--ui-factor, 1));
 }
-.reader-scroll.prose {
+.reader-scroll.prose,
+.quick-preview .prose {
   font-family: var(--reader-font, Palatino, serif);
   font-size: var(--reader-size, 18px);
   line-height: var(--reader-line-height, 1.75);
@@ -3162,9 +3159,9 @@ textarea {
 .workbench-header {
   display: flex;
   align-items: center;
-  gap: 4px;
-  min-height: 44px;
-  padding: 4px 8px;
+  gap: 5px;
+  min-height: 40px;
+  padding: 3px 8px;
   background: var(--surface);
   border-bottom: 1px solid var(--line);
   position: relative;
@@ -3218,16 +3215,25 @@ textarea {
   order: 1;
   flex: 1;
   min-width: 0;
-  min-height: 34px;
+  min-height: 32px;
   padding: 0;
   border: 0;
   background: transparent;
 }
 .workbench-header .tab {
-  flex-basis: 180px;
+  flex-basis: 168px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+}
+.workbench-header .tab.active {
+  box-shadow: none;
+  border-color: var(--line);
+}
+.workbench-header .tab button[aria-selected="true"] {
+  color: var(--ink);
 }
 .workbench-header .tab button[role="tab"] {
-  padding: 6px 9px;
+  padding: 5px 8px;
 }
 .workbench .toolbar {
   min-height: 40px;
@@ -3237,6 +3243,7 @@ textarea {
 }
 .workbench .toolbar.document-toolbar {
   position: relative;
+  background: var(--paper);
   z-index: 8;
 }
 .document-toolbar .mode-switch {

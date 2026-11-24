@@ -79,6 +79,11 @@ pub struct Document {
 pub struct Documents(Mutex<HashMap<String, Arc<Document>>>);
 
 impl Documents {
+    #[cfg(feature = "e2e")]
+    pub(crate) fn grant_count(&self) -> usize {
+        self.0.lock().unwrap().len()
+    }
+
     // Deliberately not a Tauri command: only native selection/app-owned examples grant paths.
     #[cfg(test)]
     pub fn grant(

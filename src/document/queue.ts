@@ -18,7 +18,8 @@ export class EditQueue {
   error: unknown = null;
   batchDelay = 500;
   private timer: ReturnType<typeof setTimeout> | undefined;
-  private interval: ReturnType<typeof setInterval>;
+  private flushTimer: ReturnType<typeof setTimeout> | undefined;
+  private flushing: Promise<void> | undefined;
   private flight: Promise<void> | undefined;
   private fence = Infinity;
   private dead = false;
@@ -30,15 +31,40 @@ export class EditQueue {
   ) {
     this.revision = descriptor.state.receivedRevision;
     this.state = descriptor.state;
-    this.interval = setInterval(() => {
-      if (
-        !this.error &&
-        !this.dead &&
-        this.fence === Infinity &&
-        this.revision > this.state.durableRevision
-      )
-        void this.flush().catch(() => {});
+    this.scheduleFlush();
+  }
+  private scheduleFlush() {
+    if (
+      this.flushTimer !== undefined ||
+      this.flushing ||
+      this.error ||
+      this.dead ||
+      this.fence !== Infinity ||
+      this.revision <= this.state.durableRevision
+    )
+      return;
+    this.flushTimer = setTimeout(() => {
+      this.flushTimer = undefined;
+      void this.flush().catch(() => {});
     }, 1000);
+  }
+  private cancelFlushTimer() {
+    clearTimeout(this.flushTimer);
+    this.flushTimer = undefined;
+  }
+  private scheduleDrain(delay = this.batchDelay) {
+    if (
+      this.timer !== undefined ||
+      this.flushing ||
+      this.dead ||
+      this.error ||
+      this.state.receivedRevision >= Math.min(this.revision, this.fence)
+    )
+      return;
+    this.timer = setTimeout(() => {
+      this.timer = undefined;
+      void this.drain(Math.min(this.revision, this.fence)).catch(() => {});
+    }, delay);
   }
   private emit() {
     if (!this.dead) this.notify();
@@ -75,11 +101,8 @@ export class EditQueue {
       newRevision: ++this.revision,
       changes,
     });
-    if (!this.timer && !this.error)
-      this.timer = setTimeout(() => {
-        this.timer = undefined;
-        void this.drain(Math.min(this.revision, this.fence)).catch(() => {});
-      }, this.batchDelay);
+    this.scheduleDrain();
+    this.scheduleFlush();
     this.emit();
     return operationId;
   }
@@ -162,8 +185,23 @@ export class EditQueue {
     }
   }
   async flush(target = Math.min(this.revision, this.fence)) {
+    while (this.flushing) {
+      await this.flushing;
+      if (this.state.durableRevision >= target) return;
+    }
+    this.cancelFlushTimer();
     clearTimeout(this.timer);
     this.timer = undefined;
+    this.flushing = this.persist(target);
+    try {
+      await this.flushing;
+    } finally {
+      this.flushing = undefined;
+      this.scheduleDrain();
+      this.scheduleFlush();
+    }
+  }
+  private async persist(target: number) {
     try {
       await this.drain(target);
       const state = await this.transport.flush();
@@ -183,8 +221,7 @@ export class EditQueue {
     }
   }
   async saveBarrier() {
-    this.fence = this.revision;
-    const revision = this.fence;
+    const revision = this.pause();
     try {
       await this.flush(revision);
       return revision;
@@ -194,18 +231,16 @@ export class EditQueue {
     }
   }
   pause() {
+    this.cancelFlushTimer();
     this.fence = this.revision;
     return this.fence;
   }
   resume() {
     this.fence = Infinity;
-    if (this.pending.length && !this.error) {
-      clearTimeout(this.timer);
-      this.timer = setTimeout(() => {
-        this.timer = undefined;
-        void this.drain(this.revision).catch(() => {});
-      }, 0);
-    }
+    clearTimeout(this.timer);
+    this.timer = undefined;
+    this.scheduleDrain(0);
+    this.scheduleFlush();
     this.emit();
   }
   saved(state: EditState) {
@@ -216,6 +251,6 @@ export class EditQueue {
   dispose() {
     this.dead = true;
     clearTimeout(this.timer);
-    clearInterval(this.interval);
+    this.cancelFlushTimer();
   }
 }

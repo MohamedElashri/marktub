@@ -1,0 +1,291 @@
+.library-host.library-columns {
+  width: calc(var(--library-width) + var(--folder-rail-width));
+  overflow: hidden;
+}
+
+.library-panel.library-columns {
+  display: grid;
+  grid-template-columns: var(--folder-rail-width) minmax(0, 1fr);
+  height: 100%;
+  padding: 0;
+}
+
+.library-columns .library-navigation,
+.library-columns .library-file-browser {
+  min-height: 0;
+  overflow: auto;
+}
+
+.library-columns .library-navigation {
+  padding: 12px 8px;
+  background: var(--surface);
+  border-inline-end: 1px solid var(--line);
+  scrollbar-width: thin;
+}
+
+.library-columns .library-navigation-title {
+  min-height: 30px;
+  padding-inline-start: 7px;
+}
+
+.library-columns .library-navigation-title h2 {
+  letter-spacing: 0.01em;
+}
+
+.library-columns .library-views > button[aria-label] {
+  display: inline-grid;
+  place-items: center;
+  min-width: 25px;
+  min-height: 25px;
+  padding: 3px;
+}
+
+.library-columns .library-views {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 2px;
+  margin-block: 8px 12px;
+}
+
+.library-columns .library-views button {
+  padding: 4px 5px;
+  font-size: 11px;
+  text-align: start;
+}
+
+.library-columns .library-views button[aria-pressed="true"] {
+  background: var(--selection);
+  box-shadow: none;
+}
+
+.library-columns .library-views button:nth-child(2) {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.library-columns .root-list .tree-root {
+  padding-inline-end: 0;
+}
+
+.library-columns .folder-button {
+  padding: 3px 5px;
+  font-size: 11px;
+}
+
+.library-columns .folder-tree-node {
+  position: relative;
+}
+
+.library-columns .folder-tree-node .tree-folder {
+  min-height: 30px;
+  padding: 4px 5px;
+  padding-inline-start: 19px;
+  gap: 5px;
+  border-radius: 5px;
+}
+
+.library-columns .root-list .tree-root > .folder-tree-node > .tree-folder,
+.library-columns .root-list .tree-root > .tree-folder {
+  padding-inline-end: 19px;
+}
+
+.library-columns .tree-folder span {
+  text-align: start;
+}
+
+.library-columns .tree-folder .ui-icon {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  color: var(--quiet);
+}
+
+.library-columns .tree-folder[aria-current="location"] {
+  background: var(--selection);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.library-columns .folder-disclosure,
+.library-columns .remove-root {
+  position: absolute;
+  inset-block-start: 2px;
+  min-height: 26px;
+  padding: 0 4px;
+  font-size: 15px;
+  color: var(--quiet);
+}
+
+.library-columns .folder-disclosure {
+  inset-inline-start: 1px;
+}
+
+.library-columns .folder-tree-entries li {
+  padding-inline-start: 7px;
+}
+
+.library-columns .recents {
+  margin-block-start: 15px;
+  padding-inline: 3px;
+}
+
+.library-columns .recents .library-title {
+  align-items: start;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.library-columns .library-file-browser {
+  container-type: inline-size;
+  padding: 12px;
+}
+
+.library-note-browser {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--paper);
+}
+
+.library-note-browser[hidden] {
+  display: none;
+}
+
+.note-browser-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 12px 8px;
+}
+
+.note-browser-header > div {
+  min-width: 0;
+}
+
+.note-browser-header h2 {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 15px;
+  font-weight: 650;
+  text-align: start;
+}
+
+.note-browser-header p {
+  margin: 3px 0 0;
+  font-size: 11px;
+  color: var(--quiet);
+}
+
+.note-browser-search {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex: none;
+  min-width: 0;
+  margin: 0 10px 10px;
+  padding: 0 8px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--quiet);
+}
+
+.note-browser-search:focus-within {
+  border-color: var(--accent);
+}
+
+.note-browser-search .ui-icon {
+  width: 14px;
+  height: 14px;
+  flex: none;
+}
+
+.note-browser-search input {
+  width: 100%;
+  min-width: 0;
+  padding: 7px 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  outline: none;
+}
+
+.note-browser-content {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.note-browser-message {
+  padding: 0 12px;
+  color: var(--quiet);
+  line-height: 1.5;
+}
+
+.note-list {
+  margin: 0;
+  padding: 0 6px 6px;
+  list-style: none;
+}
+
+.note-list li + li {
+  border-block-start: 1px solid var(--line);
+}
+
+.note-list-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 7px;
+  border-radius: 5px;
+  text-align: start;
+}
+
+.note-list-row > .ui-icon {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  color: var(--quiet);
+}
+
+.note-list-row > span:first-of-type {
+  display: grid;
+  flex: 1;
+  gap: 3px;
+  min-width: 0;
+}
+
+.note-list-row bdi {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 550;
+}
+
+.note-list-row small {
+  font-size: 11px;
+  color: var(--quiet);
+}
+
+.note-list-row[aria-current="page"] {
+  background: var(--selection);
+  box-shadow: inset 2px 0 var(--accent);
+}
+
+.note-browser-pagination {
+  padding-inline: 10px;
+  border-block-start: 1px solid var(--line);
+}
+
+.note-browser-pagination button {
+  min-width: 26px;
+  font-size: 16px;
+  line-height: 1;
+}

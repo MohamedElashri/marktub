@@ -17,5 +17,8 @@ it("sanitizes generated output even if a renderer emits dangerous markup", () =>
   host.innerHTML = sanitizePreview(
     '<p id="__TAURI__" onclick="run()" style="background:url(https://attacker.invalid)">ok</p><svg onload="run()"></svg><iframe src="file:///etc/passwd"></iframe>',
   );
-  expect(host.innerHTML).toBe('<p dir="ltr">ok</p>');
+  expect(host.children).toHaveLength(1);
+  const paragraph = host.querySelector("p");
+  expect(paragraph?.textContent).toBe("ok");
+  expect(paragraph?.getAttributeNames()).toEqual(["dir"]);
 });

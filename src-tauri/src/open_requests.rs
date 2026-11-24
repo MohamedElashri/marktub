@@ -17,10 +17,6 @@ impl OpenRequests {
                 self.rejected = true;
                 break;
             }
-            if self.paths.len() >= 16 {
-                self.rejected = true;
-                break;
-            }
             if path.as_os_str().len() > 4096
                 || !matches!(
                     path.extension()
@@ -33,9 +29,14 @@ impl OpenRequests {
                 self.rejected = true;
                 continue;
             }
-            if !self.paths.iter().any(|(p, _)| p == &path) {
-                self.paths.push_back((path, Instant::now()));
+            if self.paths.iter().any(|(p, _)| p == &path) {
+                continue;
             }
+            if self.paths.len() >= 16 {
+                self.rejected = true;
+                break;
+            }
+            self.paths.push_back((path, Instant::now()));
         }
     }
     pub fn arguments(&mut self, args: impl IntoIterator<Item = String>, cwd: &std::path::Path) {
@@ -118,5 +119,14 @@ mod tests {
         let (p, rejected) = q.take();
         assert!(rejected);
         assert_eq!(p.len(), 16);
+    }
+
+    #[test]
+    fn a_duplicate_at_capacity_does_not_report_a_rejected_open() {
+        let mut q = OpenRequests::default();
+        let files = (0..16).map(|n| PathBuf::from(format!("{n}.md")));
+        q.push(files.clone());
+        q.push([PathBuf::from("0.md"), PathBuf::from("15.md")]);
+        assert_eq!(q.take(), (files.collect::<Vec<_>>(), false));
     }
 }

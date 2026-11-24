@@ -3,6 +3,7 @@
   import type { SvelteMap } from "svelte/reactivity";
   import FolderTree from "./FolderTree.svelte";
   import * as api from "./library";
+  import Icon from "./ui/Icon.svelte";
   import { errorMessage } from "./bridge";
   let {
     folder,
@@ -11,6 +12,8 @@
     revision,
     hidden,
     ignored,
+    foldersOnly = false,
+    currentFolder = null,
     depth = 0,
     onopen,
     onfolder,
@@ -21,6 +24,8 @@
     revision: number;
     hidden: boolean;
     ignored: boolean;
+    foldersOnly?: boolean;
+    currentFolder?: string | null;
     depth?: number;
     onopen: (item: api.Item) => Promise<void>;
     onfolder: (folder: api.Folder, ancestors: api.Folder[]) => Promise<void>;
@@ -46,7 +51,7 @@
         offset,
         "name",
         showHidden,
-        "markdown",
+        foldersOnly ? "folders" : "markdown",
         refresh,
         showIgnored,
       );
@@ -69,7 +74,7 @@
   }
   $effect(() => {
     const open = expanded.has(folder.id);
-    const display = { revision, hidden, ignored };
+    const display = { revision, hidden, ignored, foldersOnly };
     if (open)
       untrack(() => {
         void load(true, display.hidden, display.ignored);
@@ -99,10 +104,16 @@
 <div class="folder-tree-node">
   <button
     class="tree-folder"
+    aria-current={folder.id === currentFolder ? "location" : undefined}
     aria-expanded={expanded.has(folder.id)}
     aria-label={`Folder ${folder.name}`}
-    onclick={toggle}
-    title="Use Left and Right arrows to collapse or expand"
+    onclick={(event) =>
+      foldersOnly && expanded.has(folder.id)
+        ? onfolder(folder, ancestors)
+        : toggle(event)}
+    title={foldersOnly
+      ? (folder.label ?? folder.name)
+      : "Use Left and Right arrows to collapse or expand"}
     onkeydown={(event) => {
       if (event.isComposing || event.keyCode === 229) return;
       if (
@@ -114,14 +125,27 @@
       }
     }}
   >
-    <span aria-hidden="true">{expanded.has(folder.id) ? "⌄" : "›"}</span><span
-      >{folder.name}</span
-    >
+    {#if foldersOnly}<Icon name="folder" />{:else}<span aria-hidden="true"
+        >{expanded.has(folder.id) ? "⌄" : "›"}</span
+      >{/if}
+    <span dir="auto">{folder.name}</span>
   </button>
+  {#if foldersOnly}
+    <button
+      class="folder-disclosure"
+      aria-label={`${expanded.has(folder.id) ? "Collapse" : "Expand"} ${folder.name}`}
+      aria-expanded={expanded.has(folder.id)}
+      onclick={toggle}>{expanded.has(folder.id) ? "⌄" : "›"}</button
+    >
+  {/if}
   {#if error}<p role="status" class="library-help">{error}</p>{/if}
   {#if expanded.has(folder.id)}
-    <ul class="folder-tree-entries" aria-label={`Files in ${folder.name}`}>
-      {#each page?.items ?? [] as item (item.id)}<li>
+    <ul
+      class="folder-tree-entries"
+      aria-label={`${foldersOnly ? "Folders" : "Files"} in ${folder.name}`}
+    >
+      {#each (page?.items ?? []).filter((item) => !foldersOnly || item.directory) as item (item.id)}<li
+        >
           {#if item.directory}<FolderTree
               folder={{
                 id: item.directory,
@@ -133,6 +157,8 @@
               {revision}
               {hidden}
               {ignored}
+              {foldersOnly}
+              {currentFolder}
               depth={depth + 1}
               {onopen}
               {onfolder}
@@ -150,7 +176,9 @@
     {#if busy || !page?.complete}<p class="library-help" role="status">
         Loading folder…
       </p>{/if}
-    {#if page?.complete && !page.items.length}<p class="library-help">
+    {#if page?.complete && !page.items.length && !foldersOnly}<p
+        class="library-help"
+      >
         No Markdown files or folders.
       </p>{/if}
     {#if offset > 0 || (page?.total ?? 0) > 100}<div class="pagination">

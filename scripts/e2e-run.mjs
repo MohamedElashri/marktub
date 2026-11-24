@@ -1,6 +1,8 @@
 import { desktopBinary } from "./desktop-paths.mjs";
 import { spawnSync } from "node:child_process";
+import { once } from "node:events";
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
+import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -17,6 +19,16 @@ const baseline = spawnSync(
 );
 if (baseline.status !== 0) process.exit(baseline.status ?? 1);
 const environment = { ...process.env };
+if (!environment.TAURI_WEBDRIVER_PORT) {
+  // Each runner needs its own port for both WebDriver and direct Tauri calls.
+  const listener = createServer();
+  listener.listen(0, "127.0.0.1");
+  await once(listener, "listening");
+  environment.TAURI_WEBDRIVER_PORT = String(listener.address().port);
+  const closed = once(listener, "close");
+  listener.close();
+  await closed;
+}
 if (process.platform === "linux") {
   // Isolate native Trash and desktop records as well as the existing per-process
   // e2e private store. Keep the directory as failure evidence; never clean users' data.
@@ -35,7 +47,14 @@ if (process.platform === "linux") {
   );
   writeFileSync(
     "artifacts/native-e2e-environment.json",
-    JSON.stringify({ xdgDataHome: environment.XDG_DATA_HOME }, null, 2),
+    JSON.stringify(
+      {
+        xdgDataHome: environment.XDG_DATA_HOME,
+        webdriverPort: Number(environment.TAURI_WEBDRIVER_PORT),
+      },
+      null,
+      2,
+    ),
   );
 }
 const run = spawnSync(
@@ -56,4 +75,4 @@ const finalize = spawnSync(
   ["benchmarks/source_memory.py", "--finalize"],
   { stdio: "inherit" },
 );
-process.exit(run.status || finalize.status || 0);
+process.exit((run.status ?? 1) || (finalize.status ?? 1));

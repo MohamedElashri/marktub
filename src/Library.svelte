@@ -3,11 +3,18 @@
   import { onMount } from "svelte";
   import { SvelteMap } from "svelte/reactivity";
   import FolderTree from "./FolderTree.svelte";
+  import NoteList from "./library/NoteList.svelte";
+  import QuickPreview from "./library/QuickPreview.svelte";
+  import Icon from "./ui/Icon.svelte";
   import WorkspaceSearch from "./WorkspaceSearch.svelte";
   import type { Descriptor } from "./bridge";
   import { errorMessage } from "./bridge";
   import * as api from "./library";
   let {
+    columns,
+    activeLocation,
+    canCreate,
+    oncreate,
     onopen,
     onrecent,
     onrestore,
@@ -17,6 +24,10 @@
     onclearrecent,
     onclose,
   }: {
+    columns: boolean;
+    activeLocation: string | null;
+    canCreate: boolean;
+    oncreate: () => void;
     onopen: (d: Descriptor) => Promise<void>;
     onrecent: (h: api.Hint) => Promise<void>;
     onrestore: (hints: api.Hint[], active: number) => Promise<void>;
@@ -31,6 +42,7 @@
     trail = $state<api.Folder[]>([]),
     known = $state<api.Folder[]>([]);
   let gitBadges = $state<Record<string, string>>({});
+  let gitRevision = $state(0);
   async function refreshGitBadges(items: api.Item[]) {
     const ids = items.map((i) => i.id);
     try {
@@ -60,10 +72,8 @@
     treeRevision = $state(0);
   const expandedFolders = new SvelteMap<string, string>();
   let treeInitialized = false;
-  let preview = $state(""),
-    previewName = $state(""),
-    previewHtml = $state("");
-  let previewDialog: HTMLDialogElement, reviewDialog: HTMLDialogElement;
+  let quickPreview: QuickPreview;
+  let reviewDialog: HTMLDialogElement;
   let timer: ReturnType<typeof setTimeout> | undefined,
     listingTimer: ReturnType<typeof setTimeout> | undefined;
   let generation = 0,
@@ -117,6 +127,18 @@
   }
   async function refreshState(selectMissing = true) {
     libraryState = await api.state();
+    if (
+      current &&
+      !libraryState.roots.some((root) => root.id === current?.root)
+    ) {
+      generation++;
+      clearTimeout(listingTimer);
+      current = null;
+      page = null;
+      trail = [];
+      selected = [];
+      message = "";
+    }
     if (!treeInitialized && libraryState.roots[0]) {
       expandedFolders.set(libraryState.roots[0].id, libraryState.roots[0].root);
       treeInitialized = true;
@@ -161,7 +183,7 @@
     await addRoot();
   }
   async function load(refresh = false) {
-    if (!current) return;
+    if (!current || !detailsOpen) return;
     const request = ++generation;
     clearTimeout(listingTimer);
     try {
@@ -201,6 +223,12 @@
     ancestors = trail,
     restoreOffset = 0,
   ) {
+    const request = ++generation;
+    clearTimeout(listingTimer);
+    if (current?.id !== folder.id) {
+      page = null;
+      message = "";
+    }
     current = folder;
     trail = ancestors;
     offset = restoreOffset;
@@ -208,7 +236,30 @@
     destination = folder.id;
     if (!known.some((d) => d.id === folder.id))
       known = [...known, folder].slice(-64);
-    await load(true);
+    if (detailsOpen) await load(true);
+    else {
+      try {
+        await api.location(folder.id, {
+          offset,
+          sort,
+          hidden,
+          ignored,
+          filter,
+        });
+      } catch (error) {
+        if (mounted && request === generation) message = errorMessage(error);
+      }
+    }
+  }
+  async function browseDetails(openDetails: boolean) {
+    if (detailsOpen === openDetails) return;
+    detailsOpen = openDetails;
+    if (detailsOpen) await load();
+    else {
+      generation++;
+      clearTimeout(listingTimer);
+      page = null;
+    }
   }
   function toggle(item: api.Item) {
     selected = selected.includes(item.id)
@@ -232,20 +283,8 @@
     });
     busy = false;
   }
-  async function showPreview(item: api.Item) {
-    if (item.kind !== "file") return;
-    previewName = item.name;
-    preview = "Loading preview…";
-    previewHtml = "";
-    previewDialog.showModal();
-    await run(async () => {
-      preview = await api.preview(item.id);
-      const [{ renderSection }, { sanitizePreview }] = await Promise.all([
-        import("./reader/render"),
-        import("./reader/sanitize"),
-      ]);
-      previewHtml = sanitizePreview(renderSection(preview).html);
-    });
+  function showPreview(item: api.Item) {
+    return quickPreview.show(item);
   }
   async function prepare(kind: string) {
     message = "";
@@ -276,9 +315,10 @@
         if (next.selection.length && ownsSelection) {
           await enter(next.selection[0].parent, []);
           selected = next.selection.map((item) => item.id);
+          treeRevision++;
         } else {
           if (ownsSelection && mutation?.kind === "trash") selected = [];
-          await load(true);
+          refreshFiles();
         }
         if (mutation?.id === id) mutation = null;
       }
@@ -294,7 +334,7 @@
           progress = null;
           if (mutation?.id === id) mutation = null;
           await refreshState(false);
-          await load(true);
+          refreshFiles();
         } else message = errorMessage(error);
       } catch (reconcileError) {
         if (mounted && request === pollGeneration)
@@ -318,9 +358,12 @@
       await poll(id);
     });
   }
-  function refreshFolders() {
+  export function refreshFiles() {
     treeRevision++;
     void load(true);
+  }
+  function refreshFolders() {
+    refreshFiles();
     void run(() => refreshState(false));
   }
   async function changeView() {
@@ -334,10 +377,11 @@
       await refreshState();
     });
     const focus = () => {
-      if (!progress?.running) void load(true);
+      if (!progress?.running) refreshFiles();
     };
     window.addEventListener("focus", focus);
     const gitListener = listen("git-updated", () => {
+      gitRevision++;
       if (page) void refreshGitBadges(page.items);
     });
     return () => {
@@ -352,272 +396,7 @@
   });
 </script>
 
-<div class="library-panel">
-  <div class="library-title">
-    <h2>Library</h2>
-    <div class="library-title-actions">
-      <button class="folder-button" onclick={addRoot} disabled={busy}
-        >Add folder</button
-      >
-      {#if onclose}<button
-          class="library-close icon-button"
-          aria-label="Close library"
-          title="Close library (Escape)"
-          onclick={onclose}><span aria-hidden="true">×</span></button
-        >{/if}
-    </div>
-  </div>
-  <p class="library-help">Local folders. Reselect after restarting.</p>
-  {#if libraryState?.rootHints.length && !libraryState.roots.length}<p
-      class="library-help"
-    >
-      Remembered folders: {libraryState.rootHints
-        .filter((hint) => !hint.authorized)
-        .map((r) => r.name)
-        .join(", ")}. Use Add folder to reselect.
-    </p>{/if}
-  <nav class="library-views" aria-label="Library browser view">
-    <button
-      disabled={busy}
-      aria-pressed={!detailsOpen}
-      onclick={() => {
-        detailsOpen = false;
-      }}>Files</button
-    >
-    <button
-      disabled={busy}
-      aria-pressed={detailsOpen}
-      onclick={() => {
-        detailsOpen = true;
-      }}>File details</button
-    >
-    <button aria-label="Refresh folders" onclick={refreshFolders}>↻</button>
-    <button onclick={() => quickOpen()}>Find files</button>
-  </nav>
-  <div class="root-list" aria-label="Authorized folders">
-    {#each libraryState?.roots ?? [] as root (root.id)}<div class="tree-root">
-        {#if detailsOpen}<button
-            aria-pressed={current?.root === root.id}
-            title={root.label}
-            onclick={() => enter(root, [])}>▱ {root.name}</button
-          >
-        {:else}<FolderTree
-            folder={root}
-            expanded={expandedFolders}
-            revision={treeRevision}
-            {hidden}
-            {ignored}
-            onopen={open}
-            onfolder={enter}
-          />{/if}
-        <button
-          class="remove-root"
-          aria-label={`Remove root ${root.name}`}
-          onclick={() => removeRoot(root)}>×</button
-        >
-      </div>{/each}
-  </div>
-  {#if message}<p role="status" class="library-message">
-      {message}<button
-        aria-label="Dismiss library message"
-        onclick={() => (message = "")}>×</button
-      >
-    </p>{/if}
-  {#if current && detailsOpen}
-    <nav class="breadcrumbs" aria-label="Folder breadcrumbs">
-      {#each trail as folder, index (folder.id)}<button
-          onclick={() => enter(folder, trail.slice(0, index))}
-          >{folder.name}</button
-        ><span>/</span>{/each}<strong>{current.name}</strong>
-    </nav>
-    <div class="library-controls">
-      <label
-        >Sort<select
-          aria-label="Sort files"
-          bind:value={sort}
-          onchange={() => {
-            offset = 0;
-            void load();
-          }}
-          ><option value="name">Name</option><option value="modified"
-            >Modified</option
-          ><option value="size">Size</option><option value="type">Type</option
-          ></select
-        ></label
-      >
-      <label
-        >Show<select
-          aria-label="File type"
-          bind:value={filter}
-          onchange={() => {
-            offset = 0;
-            void load();
-          }}
-          ><option value="all">All files</option><option value="text"
-            >Markdown / text</option
-          ><option value="images">Images</option></select
-        ></label
-      >
-      <label
-        >View<select
-          aria-label="Library view"
-          bind:value={view}
-          onchange={changeView}
-          ><option value="list">List</option><option value="compact"
-            >Compact</option
-          ><option value="grid">Grid</option></select
-        ></label
-      >
-      <label
-        ><input
-          type="checkbox"
-          bind:checked={hidden}
-          onchange={() => {
-            offset = 0;
-            void load();
-          }}
-        />Hidden</label
-      >
-      <label
-        ><input
-          type="checkbox"
-          bind:checked={ignored}
-          onchange={() => {
-            offset = 0;
-            void load(true);
-          }}
-        />Ignored</label
-      >
-      <button onclick={refreshFolders}>Refresh</button><button
-        onclick={() => quickOpen()}>Search folders</button
-      >
-    </div>
-    <details class="library-policy">
-      <summary>Exclusions &amp; counts</summary>
-      <p class="library-help">
-        .git and symlink traversal are excluded. “Ignored” uses the root
-        .gitignore; nested rules are not applied. Counts include discovered
-        entries only.
-      </p>
-    </details>
-    <p class="listing-status" role="status">
-      {page?.total ?? 0} visible / {page?.scanned ?? 0} discovered{page?.complete
-        ? " · listing complete"
-        : " · scanning; order is provisional"}
-    </p>
-    <div class={`file-list ${view}`} role="list" aria-label="Folder entries">
-      {#each page?.items ?? [] as item (item.id)}<div
-          class="file-row"
-          role="listitem"
-          class:selected={selected.includes(item.id)}
-        >
-          <input
-            aria-label={`Select ${item.name}`}
-            type="checkbox"
-            checked={selected.includes(item.id)}
-            onchange={() => toggle(item)}
-          />
-          <button
-            class="file-name"
-            title={item.name}
-            disabled={item.kind === "link" || item.kind === "special"}
-            onclick={() => open(item)}
-            onkeydown={(event) => {
-              if (event.key === " ") {
-                event.preventDefault();
-                void showPreview(item);
-              }
-              if (event.key === "Enter" && !item.directory) {
-                event.preventDefault();
-                void open(item);
-              }
-            }}
-            ><span aria-hidden="true"
-              >{item.directory ? "▱" : item.kind === "link" ? "↗" : "≡"}</span
-            >{item.name}{#if gitBadges[item.id]}<small
-                class="library-git-badge"
-                title={`Git at last refresh: ${gitBadges[item.id]}`}>Git</small
-              >{/if}</button
-          >
-          <span class="file-meta"
-            >{item.kind === "folder"
-              ? "Folder"
-              : `${item.bytes.toLocaleString()} B`}<br />{new Date(
-              item.modified * 1000,
-            ).toLocaleDateString()}</span
-          >
-          {#if item.kind === "file"}<button
-              aria-label={`Preview ${item.name}`}
-              onclick={() => showPreview(item)}>Space</button
-            ><button
-              aria-label={`Open ${item.name}`}
-              onclick={() => open(item)}
-              disabled={busy}>Open</button
-            >{/if}
-        </div>{/each}
-    </div>
-    <div class="pagination">
-      <button
-        disabled={offset === 0}
-        onclick={() => {
-          offset = Math.max(0, offset - 100);
-          void load();
-        }}>Previous</button
-      ><span>{offset + 1}–{Math.min(offset + 100, page?.total ?? 0)}</span
-      ><button
-        disabled={offset + 100 >= (page?.total ?? 0)}
-        onclick={() => {
-          offset += 100;
-          void load();
-        }}>Next</button
-      >
-    </div>
-    <details class="file-actions">
-      <summary>Manage files ({selected.length} selected)</summary>
-      <p>
-        Close Source tabs before changing files. Completed operations are
-        separate from text undo.
-      </p>
-      <label
-        >Name<input
-          aria-label="New filename"
-          bind:value={name}
-          placeholder="notes.txt"
-          maxlength="240"
-        /></label
-      >
-      <label
-        >Destination<select
-          aria-label="Operation destination"
-          bind:value={destination}
-          >{#each known.filter( (d) => libraryState?.roots.some((r) => r.id === d.root) ) as folder (folder.id)}<option
-              value={folder.id}>{folder.name}</option
-            >{/each}</select
-        ></label
-      >
-      <div>
-        <button
-          disabled={busy || progress?.running}
-          onclick={() => prepare("createFile")}>New file</button
-        ><button
-          disabled={busy || progress?.running}
-          onclick={() => prepare("createFolder")}>New folder</button
-        ><button
-          disabled={selected.length !== 1 || busy || progress?.running}
-          onclick={() => prepare("rename")}>Rename</button
-        ><button
-          disabled={!selected.length || busy || progress?.running}
-          onclick={() => prepare("copy")}>Copy</button
-        ><button
-          disabled={!selected.length || busy || progress?.running}
-          onclick={() => prepare("move")}>Move</button
-        ><button
-          disabled={!selected.length || busy || progress?.running}
-          onclick={() => prepare("trash")}>Move to Trash</button
-        >
-      </div>
-    </details>
-  {/if}
+{#snippet libraryActivity()}
   {#if progress}<section class="library-job" aria-label="Library job">
       <h3>
         {progress.running
@@ -656,6 +435,9 @@
           />{outcome.message}
         </p>{/each}
     </details>{/if}
+{/snippet}
+
+{#snippet libraryExtras()}
   {#if libraryState?.session.length}<section class="recents">
       <h3>Previous session</h3>
       <button
@@ -698,25 +480,334 @@
           >
         </div>{/each}
     </section>{/if}
-</div>
-<dialog
-  bind:this={previewDialog}
-  class="quick-preview"
-  aria-label="Quick preview"
->
-  <div class="library-title">
-    <h2>{previewName}</h2>
-    <button onclick={() => previewDialog.close()}>Close preview</button>
+{/snippet}
+
+<div class="library-panel" class:library-columns={columns}>
+  <div class="library-navigation">
+    <div class="library-title library-navigation-title">
+      <h2>{columns ? "Folders" : "Library"}</h2>
+      <div class="library-title-actions">
+        <button
+          class="folder-button"
+          aria-label="Add folder"
+          title="Add folder"
+          onclick={addRoot}
+          disabled={busy}
+        >
+          Add folder
+        </button>
+        {#if onclose}<button
+            class="library-close icon-button"
+            aria-label="Close library"
+            title="Close library (Escape)"
+            onclick={onclose}><span aria-hidden="true">×</span></button
+          >{/if}
+      </div>
+    </div>
+
+    {#if libraryState?.rootHints.length && !libraryState.roots.length}<p
+        class="library-help"
+      >
+        Remembered folders: {libraryState.rootHints
+          .filter((hint) => !hint.authorized)
+          .map((r) => r.name)
+          .join(", ")}. Use Add folder to reselect.
+      </p>{:else if !columns && libraryState && !libraryState.roots.length}
+      <p class="library-help">Add a folder to browse your files.</p>
+    {/if}
+    <nav class="library-views" aria-label="Library browser view">
+      <button
+        disabled={busy}
+        aria-pressed={!detailsOpen}
+        onclick={() => browseDetails(false)}
+        >{columns ? "Notes" : "Files"}</button
+      >
+      <button
+        disabled={busy}
+        aria-pressed={detailsOpen}
+        onclick={() => browseDetails(true)}>File details</button
+      >
+      <button aria-label="Refresh folders" onclick={refreshFolders}>↻</button>
+      <button
+        aria-label="Find files"
+        title="Find files across workspaces"
+        onclick={() => quickOpen()}
+      >
+        {#if columns}<Icon name="find" />{:else}Find files{/if}
+      </button>
+    </nav>
+    <div class="root-list" aria-label="Authorized folders">
+      {#each libraryState?.roots ?? [] as root (root.id)}<div class="tree-root">
+          {#if detailsOpen}<button
+              class="tree-folder"
+              aria-pressed={current?.root === root.id}
+              title={root.label}
+              onclick={() => enter(root, [])}
+              ><Icon name="folder" /><span dir="auto">{root.name}</span></button
+            >
+          {:else}<FolderTree
+              folder={root}
+              expanded={expandedFolders}
+              revision={treeRevision}
+              {hidden}
+              {ignored}
+              foldersOnly={columns}
+              currentFolder={current?.id}
+              onopen={open}
+              onfolder={enter}
+            />{/if}
+          <button
+            class="remove-root"
+            aria-label={`Remove root ${root.name}`}
+            onclick={() => removeRoot(root)}>×</button
+          >
+        </div>{/each}
+    </div>
+    {#if message}<p role="status" class="library-message">
+        {message}<button
+          aria-label="Dismiss library message"
+          onclick={() => (message = "")}>×</button
+        >
+      </p>{/if}
+    {#if columns}
+      {#if !detailsOpen}
+        {#if progress && !progress.running}
+          <details class="file-actions">
+            <summary>Last file operation</summary>
+            {@render libraryActivity()}
+          </details>
+        {:else}
+          {@render libraryActivity()}
+        {/if}
+      {/if}
+      {@render libraryExtras()}
+    {/if}
   </div>
-  <p>
-    First 64 KiB, at most 32 blocks. Context-limited preview; open the file for
-    the complete reader.
-  </p>
-  {#if previewHtml}<article>
-      <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-      {@html previewHtml}
-    </article>{:else}<pre>{preview}</pre>{/if}
-</dialog>
+  {#key current?.id}
+    <NoteList
+      folder={current}
+      active={columns && !detailsOpen}
+      {activeLocation}
+      revision={treeRevision}
+      {gitRevision}
+      {hidden}
+      {ignored}
+      {busy}
+      {canCreate}
+      onopen={open}
+      {oncreate}
+    />
+  {/key}
+  {#if current && detailsOpen}
+    <section class="library-file-browser" aria-label="File details">
+      <nav class="breadcrumbs" aria-label="Folder breadcrumbs">
+        {#each trail as folder, index (folder.id)}<button
+            onclick={() => enter(folder, trail.slice(0, index))}
+            >{folder.name}</button
+          ><span>/</span>{/each}<strong>{current.name}</strong>
+      </nav>
+      <div class="library-controls">
+        <label
+          >Sort<select
+            aria-label="Sort files"
+            bind:value={sort}
+            onchange={() => {
+              offset = 0;
+              void load();
+            }}
+            ><option value="name">Name</option><option value="modified"
+              >Modified</option
+            ><option value="size">Size</option><option value="type">Type</option
+            ></select
+          ></label
+        >
+        <label
+          >Show<select
+            aria-label="File type"
+            bind:value={filter}
+            onchange={() => {
+              offset = 0;
+              void load();
+            }}
+            ><option value="all">All files</option><option value="text"
+              >Markdown / text</option
+            ><option value="images">Images</option></select
+          ></label
+        >
+        <label
+          >View<select
+            aria-label="Library view"
+            bind:value={view}
+            onchange={changeView}
+            ><option value="list">List</option><option value="compact"
+              >Compact</option
+            ><option value="grid">Grid</option></select
+          ></label
+        >
+        <label
+          ><input
+            type="checkbox"
+            bind:checked={hidden}
+            onchange={() => {
+              offset = 0;
+              void load();
+            }}
+          />Hidden</label
+        >
+        <label
+          ><input
+            type="checkbox"
+            bind:checked={ignored}
+            onchange={() => {
+              offset = 0;
+              void load(true);
+            }}
+          />Ignored</label
+        >
+        <button onclick={refreshFolders}>Refresh</button><button
+          onclick={() => quickOpen()}>Search folders</button
+        >
+      </div>
+      <details class="library-policy">
+        <summary>Exclusions &amp; counts</summary>
+        <p class="library-help">
+          .git and symlink traversal are excluded. “Ignored” uses the root
+          .gitignore; nested rules are not applied. Counts include discovered
+          entries only.
+        </p>
+      </details>
+      <p class="listing-status" role="status">
+        {page?.total ?? 0} visible / {page?.scanned ?? 0} discovered{page?.complete
+          ? " · listing complete"
+          : " · scanning; order is provisional"}
+      </p>
+      <div class={`file-list ${view}`} role="list" aria-label="Folder entries">
+        {#each page?.items ?? [] as item (item.id)}<div
+            class="file-row"
+            role="listitem"
+            class:selected={selected.includes(item.id)}
+          >
+            <input
+              aria-label={`Select ${item.name}`}
+              type="checkbox"
+              checked={selected.includes(item.id)}
+              onchange={() => toggle(item)}
+            />
+            <button
+              class="file-name"
+              title={item.name}
+              disabled={item.kind === "link" || item.kind === "special"}
+              onclick={() => open(item)}
+              onkeydown={(event) => {
+                if (event.key === " ") {
+                  event.preventDefault();
+                  void showPreview(item);
+                }
+                if (event.key === "Enter" && !item.directory) {
+                  event.preventDefault();
+                  void open(item);
+                }
+              }}
+              ><span aria-hidden="true"
+                >{item.directory ? "▱" : item.kind === "link" ? "↗" : "≡"}</span
+              >{item.name}{#if gitBadges[item.id]}<small
+                  class="library-git-badge"
+                  title={`Git at last refresh: ${gitBadges[item.id]}`}
+                  >Git</small
+                >{/if}</button
+            >
+            <span class="file-meta"
+              >{item.kind === "folder"
+                ? "Folder"
+                : `${item.bytes.toLocaleString()} B`}<br />{new Date(
+                item.modified * 1000,
+              ).toLocaleDateString()}</span
+            >
+            {#if item.kind === "file"}<button
+                aria-label={`Preview ${item.name}`}
+                onclick={() => showPreview(item)}>Space</button
+              ><button
+                aria-label={`Open ${item.name}`}
+                onclick={() => open(item)}
+                disabled={busy}>Open</button
+              >{/if}
+          </div>{/each}
+      </div>
+      <div class="pagination">
+        <button
+          disabled={offset === 0}
+          onclick={() => {
+            offset = Math.max(0, offset - 100);
+            void load();
+          }}>Previous</button
+        ><span>{offset + 1}–{Math.min(offset + 100, page?.total ?? 0)}</span
+        ><button
+          disabled={offset + 100 >= (page?.total ?? 0)}
+          onclick={() => {
+            offset += 100;
+            void load();
+          }}>Next</button
+        >
+      </div>
+      <details class="file-actions">
+        <summary>Manage files ({selected.length} selected)</summary>
+        <p>
+          Close Source tabs before changing files. Completed operations are
+          separate from text undo.
+        </p>
+        <label
+          >Name<input
+            aria-label="New filename"
+            bind:value={name}
+            placeholder="notes.txt"
+            maxlength="240"
+          /></label
+        >
+        <label
+          >Destination<select
+            aria-label="Operation destination"
+            bind:value={destination}
+            >{#each known.filter( (d) => libraryState?.roots.some((r) => r.id === d.root) ) as folder (folder.id)}<option
+                value={folder.id}>{folder.name}</option
+              >{/each}</select
+          ></label
+        >
+        <div>
+          <button
+            disabled={busy || progress?.running}
+            onclick={() => prepare("createFile")}>New file</button
+          ><button
+            disabled={busy || progress?.running}
+            onclick={() => prepare("createFolder")}>New folder</button
+          ><button
+            disabled={selected.length !== 1 || busy || progress?.running}
+            onclick={() => prepare("rename")}>Rename</button
+          ><button
+            disabled={!selected.length || busy || progress?.running}
+            onclick={() => prepare("copy")}>Copy</button
+          ><button
+            disabled={!selected.length || busy || progress?.running}
+            onclick={() => prepare("move")}>Move</button
+          ><button
+            disabled={!selected.length || busy || progress?.running}
+            onclick={() => prepare("trash")}>Move to Trash</button
+          >
+        </div>
+      </details>
+      {#if columns}{@render libraryActivity()}{/if}
+    </section>
+  {:else if columns && detailsOpen}
+    <section class="library-file-browser" aria-label="File details">
+      <p class="note-browser-message">Add a folder to view file details.</p>
+      {@render libraryActivity()}
+    </section>
+  {/if}
+  {#if !columns}
+    {@render libraryActivity()}
+    {@render libraryExtras()}
+  {/if}
+</div>
+<QuickPreview bind:this={quickPreview} />
 <dialog bind:this={reviewDialog} aria-label="Review file operation">
   <h2>Review {review?.kind}</h2>
   {#if message}<p role="alert">{message}</p>{/if}

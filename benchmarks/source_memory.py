@@ -20,11 +20,13 @@ p.add_argument("--label")
 p.add_argument("--output", type=Path, default=OUT)
 p.add_argument("--baseline-file", type=Path, default=BASE)
 p.add_argument("--profile", default="debug e2e; warm lazy imports; uncontrolled GC and fixture IPC transients")
-p.add_argument("--rusage", action="store_true", help="macOS CPU/package-idle/interrupt counters for an observed native workload")
+p.add_argument("--rusage", action="store_true", help="per-process CPU and incarnation counters for an observed native workload")
 p.add_argument("--responsibility", action="store_true", help="macOS private SPI proof to exclude positively foreign helpers; lifecycle still required")
 a = p.parse_args()
-if (a.rusage or a.responsibility) and sys.platform != "darwin":
-    p.error("--rusage/--responsibility require macOS")
+if a.responsibility and sys.platform != "darwin":
+    p.error("--responsibility requires macOS")
+if a.rusage and sys.platform not in ("darwin", "linux"):
+    p.error("--rusage requires macOS or Linux")
 BASE, OUT = a.baseline_file, a.output
 BASE.parent.mkdir(parents=True, exist_ok=True)
 OUT.parent.mkdir(parents=True, exist_ok=True)
@@ -62,11 +64,20 @@ else:
     rows = [table[pid] for pid in sorted(selected) if pid in table]
     sample = {"label": a.label, "appPid": a.pid, "helperPids": sorted(helpers), "processes": rows, "rssSumBytes": sum(row["rssBytes"] for row in rows)}
     if a.rusage:
-        from macos_rusage import sample as rusage
+        if sys.platform == "darwin":
+            from macos_rusage import sample as rusage, interval
+            counter_scope = "proc_pid_rusage v0 + mach_timebase_info, package-idle/interrupt wakeups; not energy, timers or UI input latency"
+        else:
+            from linux_rusage import sample as rusage, interval
+            counter_scope = "Linux /proc CPU ticks and RSS/PSS; leader-thread context switches, not whole-thread wakeups or energy"
         sample["processCounters"] = []
         sample["counterErrors"] = []
         for pid in sorted(selected):
-            try: sample["processCounters"].append(rusage(pid))
+            try:
+                counter = rusage(pid)
+                if sys.platform == "linux" and counter["startTicks"] != table[pid]["startTicks"]:
+                    raise OSError("PID changed before counter capture")
+                sample["processCounters"].append(counter)
             except OSError as error: sample["counterErrors"].append({"pid": pid, "error": str(error)})
         sample["counterMonotonicSeconds"] = time.monotonic()
     if sys.platform == "darwin":
@@ -87,8 +98,7 @@ else:
         sample["ownership"] = verify(ownership, current)
     data = json.loads(OUT.read_text()) if OUT.exists() else {"profile": a.profile, "platform": sys.platform, "samples": []}
     if a.rusage:
-        from macos_rusage import interval
-        data["counterScope"] = "proc_pid_rusage v0 + mach_timebase_info, package-idle/interrupt wakeups; not energy, timers or UI input latency"
+        data["counterScope"] = counter_scope
         previous = data["samples"][-1] if data["samples"] else None
         if previous and "processCounters" in previous:
             sample["counterInterval"] = interval(previous["processCounters"], sample["processCounters"], sample["counterMonotonicSeconds"] - previous["counterMonotonicSeconds"])

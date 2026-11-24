@@ -531,6 +531,17 @@ async fn reset_settings(app: tauri::AppHandle) -> Result<(), FileError> {
 }
 #[tauri::command]
 async fn document_position(app: tauri::AppHandle, id: String) -> Result<Position, FileError> {
+    #[cfg(feature = "e2e")]
+    {
+        let fixture_app = app.clone();
+        tauri::async_runtime::spawn_blocking(move || {
+            fixture_app
+                .state::<crate::test_support::Fixtures>()
+                .wait_for_position();
+        })
+        .await
+        .map_err(|_| FileError::new("test", "Position gate was interrupted."))?;
+    }
     editing(app, move |e, d| e.position(d, &id)).await
 }
 #[tauri::command]
@@ -768,6 +779,20 @@ async fn e2e_fixture(
     action: String,
     text: Option<String>,
 ) -> Result<crate::test_support::FixtureResult, FileError> {
+    if matches!(
+        action.as_str(),
+        "hold-positions" | "release-positions" | "grant-count"
+    ) {
+        if action != "grant-count" {
+            app.state::<crate::test_support::Fixtures>()
+                .hold_positions(action == "hold-positions");
+        }
+        return Ok(crate::test_support::FixtureResult {
+            text: app.state::<Documents>().grant_count().to_string(),
+            path: String::new(),
+            pid: std::process::id(),
+        });
+    }
     #[cfg(target_os = "linux")]
     if matches!(
         action.as_str(),
@@ -1214,9 +1239,19 @@ async fn library_page(
     filter: String,
     refresh: bool,
     ignored: bool,
+    query: Option<String>,
 ) -> Result<crate::library::Page, FileError> {
     library_task(app, move |l| {
-        l.page(&id, offset, &sort, hidden, &filter, refresh, ignored)
+        l.page_matching(
+            &id,
+            offset,
+            &sort,
+            hidden,
+            &filter,
+            refresh,
+            ignored,
+            query.as_deref().unwrap_or(""),
+        )
     })
     .await
 }

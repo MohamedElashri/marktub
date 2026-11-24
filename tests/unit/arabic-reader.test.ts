@@ -9,6 +9,7 @@ import { buildIndex, normalize, renderText } from "../../src/reader/indexer";
 import { emptyContext, grammar } from "../../src/reader/grammar";
 import { sanitizeReader } from "../../src/reader/safe";
 import { sanitizePreview } from "../../src/reader/sanitize";
+import { readingDirections } from "../../src/reader/direction";
 import { renderSection } from "../../src/reader/render";
 import type { Read } from "../../src/reader/model";
 
@@ -66,11 +67,11 @@ describe("Arabic reading documents", () => {
     host.innerHTML = sanitizeReader(html);
     expect(host.textContent).toBe(original.textContent);
     for (const block of host.querySelectorAll("p, h1, li, th, td"))
-      expect(["ltr", "rtl", "auto"]).toContain(block.getAttribute("dir"));
+      expect(block.getAttribute("dir")).toBe("auto");
     for (const code of host.querySelectorAll("code, pre:has(code)"))
       expect(code.getAttribute("dir")).toBe("ltr");
     for (const link of host.querySelectorAll("a"))
-      expect(link.getAttribute("dir")).toBe("auto");
+      expect(link.hasAttribute("dir")).toBe(false);
     expect(
       [...host.querySelectorAll("[data-source-line]")].map((n) =>
         n.getAttribute("data-source-line"),
@@ -111,8 +112,7 @@ describe("Arabic reading documents", () => {
     );
     const blocks = [...host.querySelectorAll("h1,p")];
     expect(blocks).toHaveLength(3);
-    for (const block of blocks)
-      expect(["rtl", "ltr", "auto"]).toContain(block.getAttribute("dir"));
+    for (const block of blocks) expect(block.getAttribute("dir")).toBe("auto");
   });
 });
 
@@ -163,28 +163,44 @@ it("normalizes directions idempotently without changing text or source maps", ()
   expect(sanitizeReader(once)).toBe(once);
 });
 
-it("keeps automatic Arabic link direction available when the WebView lacks :dir", () => {
-  const matches = Element.prototype.matches;
-  const spy = vi
-    .spyOn(Element.prototype, "matches")
-    .mockImplementation(function (this: Element, selector: string) {
-      if (selector.startsWith(":dir("))
-        throw new DOMException("Unsupported selector", "SyntaxError");
-      return matches.call(this, selector);
-    });
-  try {
-    const host = document.createElement("div");
-    host.innerHTML = sanitizeReader(
-      '<h1><a href="note.md">العربية</a></h1><p><code>x + 1</code> نص عربي.</p>',
-    );
-    expect(host.querySelector("h1")?.getAttribute("dir")).toBe("auto");
-    expect(host.querySelector("a")?.hasAttribute("dir")).toBe(false);
-    expect(host.querySelector("code")?.getAttribute("dir")).toBe("ltr");
-    expect(host.textContent).toBe("العربيةx + 1 نص عربي.");
-  } finally {
-    spy.mockRestore();
-  }
-});
+it.each(["missing", "misresolved"])(
+  "keeps linked Arabic headings automatic when detached :dir is %s",
+  (selector) => {
+    // A fresh template document exercises detection independently of prior pages.
+    const template = document.implementation
+      .createHTMLDocument()
+      .createElement("template");
+    template.innerHTML =
+      '<h1><a href="note.md">العربية</a></h1><p><code>x + 1</code> نص عربي.</p>';
+    const matches = Element.prototype.matches;
+    const spy = vi
+      .spyOn(Element.prototype, "matches")
+      .mockImplementation(function (this: Element, query: string) {
+        if (query.startsWith(":dir(")) {
+          if (selector === "missing")
+            throw new DOMException("Unsupported selector", "SyntaxError");
+          return false;
+        }
+        return matches.call(this, query);
+      });
+    try {
+      readingDirections(template.content);
+      expect(spy).toHaveBeenCalledWith(":dir(rtl)");
+      expect(template.content.querySelector("h1")?.getAttribute("dir")).toBe(
+        "auto",
+      );
+      expect(template.content.querySelector("a")?.hasAttribute("dir")).toBe(
+        false,
+      );
+      expect(template.content.querySelector("code")?.getAttribute("dir")).toBe(
+        "ltr",
+      );
+      expect(template.content.textContent).toBe("العربيةx + 1 نص عربي.");
+    } finally {
+      spy.mockRestore();
+    }
+  },
+);
 
 it("preserves automatic direction in literal source fallbacks and LTR in code fences", () => {
   const host = document.createElement("div");

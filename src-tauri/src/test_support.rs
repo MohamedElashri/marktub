@@ -1,9 +1,19 @@
 //! Debug-only deterministic native-picker fixture. Not compiled or granted in releases.
 use crate::files::FileError;
 use serde::Serialize;
-use std::{path::PathBuf, sync::Mutex};
+use std::{
+    path::PathBuf,
+    sync::{Condvar, Mutex},
+    time::Duration,
+};
 #[derive(Default)]
-pub struct Fixtures(Mutex<Option<Fixture>>);
+pub struct Fixtures(Mutex<Option<Fixture>>, PositionGate);
+
+#[derive(Default)]
+struct PositionGate {
+    held: Mutex<bool>,
+    released: Condvar,
+}
 struct Fixture {
     folder: PathBuf,
     open: bool,
@@ -22,6 +32,22 @@ pub struct FixtureResult {
     pub pid: u32,
 }
 impl Fixtures {
+    pub fn hold_positions(&self, held: bool) {
+        *self.1.held.lock().unwrap() = held;
+        if !held {
+            self.1.released.notify_all();
+        }
+    }
+
+    pub fn wait_for_position(&self) {
+        let held = self.1.held.lock().unwrap();
+        drop(
+            self.1
+                .released
+                .wait_timeout_while(held, Duration::from_secs(15), |held| *held),
+        );
+    }
+
     pub fn action(&self, action: &str, text: Option<String>) -> Result<FixtureResult, FileError> {
         let (action, text) = match action {
             "seed-1MiB" | "seed-10MiB" | "seed-100MiB" | "seed-reader-1MiB"
