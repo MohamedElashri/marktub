@@ -1,13 +1,24 @@
-import type { Values } from "../preferences";
+type Face = {
+  family: string;
+  file: string;
+  weight: string;
+  unicodeRange?: string;
+};
 
-export const arabicFamilies = [
-  "Noto Naskh Arabic",
-  "Noto Sans Arabic",
-  "Amiri",
-];
-export const bundledFamilies = [...arabicFamilies, "Cousine"];
+export const systemFamilies = new Map<string, readonly string[]>([
+  [
+    "System UI",
+    ["-apple-system", "BlinkMacSystemFont", '"Segoe UI"', "sans-serif"],
+  ],
+  [
+    "System Mono",
+    ['"SFMono-Regular"', "Menlo", '"DejaVu Sans Mono"', "monospace"],
+  ],
+  ["Serif", ["serif"]],
+  ["Sans Serif", ["sans-serif"]],
+]);
 
-export const fontFaces = [
+const bundled: Face[] = [
   {
     family: "Noto Naskh Arabic",
     file: "NotoNaskhArabic[wght].ttf",
@@ -24,41 +35,60 @@ export const fontFaces = [
   { family: "Cousine", file: "Cousine-Bold.ttf", weight: "700" },
 ];
 
-const alternatives: Record<string, string> = {
-  "thmanyah serif text": "Noto Naskh Arabic",
-  "thmanyah serif display": "Amiri",
-  "thmanyah sans": "Noto Sans Arabic",
-};
-export function portableFamily(name: string) {
-  const folded = name.toLowerCase();
-  return (
-    alternatives[folded] ??
-    bundledFamilies.find((family) => family.toLowerCase() === folded) ??
-    name
-  );
+export const arabicFallback = "Marktub Arabic";
+export const arabicCompatibilityFamily = "Marktub Arabic Compatibility";
+export const arabicProbeFamily = "Noto Naskh Arabic";
+const arabicRange =
+  "U+0600-06FF,U+0750-077F,U+0870-08FF,U+FB50-FDFF,U+FE70-FEFF,U+10EC0-10EFF,U+1EE00-1EEFF";
+
+export const fontFaces: readonly Face[] = [
+  ...bundled,
+  ...bundled
+    .filter(({ family }) => family === "Noto Sans Arabic")
+    .map((face) => ({
+      ...face,
+      family: arabicFallback,
+      unicodeRange: arabicRange,
+    })),
+  ...bundled
+    .filter(({ family }) => family === "Amiri")
+    .map((face) => ({
+      ...face,
+      family: arabicCompatibilityFamily,
+      unicodeRange: `${arabicRange},U+200C-200D`,
+    })),
+];
+
+const familyChoices = [
+  ...new Set([...bundled.map((face) => face.family), ...systemFamilies.keys()]),
+];
+const canonicalFamilies = new Map(
+  familyChoices.map((family) => [family.toLowerCase(), family]),
+);
+const portableAlternatives = new Map([
+  ["thmanyah serif text", "Noto Naskh Arabic"],
+  ["thmanyah serif display", "Amiri"],
+  ["thmanyah sans", "Noto Sans Arabic"],
+]);
+
+export function fontChoices(installed: readonly string[]) {
+  const choices = new Map(canonicalFamilies);
+  for (const name of installed) {
+    const key = name.toLowerCase();
+    if (!choices.has(key)) choices.set(key, name);
+  }
+  return [...choices.values()];
 }
 
-// Prepare explicitly selected bundled faces before showing a settings preview.
-// Native installed fonts remain native; no font path or download is accepted.
-export async function readyFontChoices(values: Values) {
-  if (!document.fonts) return;
-  const choices = [
-    "reader.font",
-    "reader.heading_font",
-    "ui.font",
-    "editor.font",
-  ].map((key) => String(values[key]?.value ?? "").toLowerCase());
-  const names = bundledFamilies.filter((family) =>
-    choices.includes(family.toLowerCase()),
-  );
-  await Promise.all(
-    names.flatMap((name) =>
-      [400, 700].map((weight) =>
-        document.fonts.load(
-          `${weight} 18px ${JSON.stringify(name)}`,
-          "العربية English",
-        ),
-      ),
-    ),
-  );
+export function canonicalFamily(name: string) {
+  return canonicalFamilies.get(name.toLowerCase()) ?? name;
+}
+
+export function portableFamily(name: string) {
+  return portableAlternatives.get(name.toLowerCase()) ?? canonicalFamily(name);
+}
+
+export function fontFaceCSS(face: Face, url: string) {
+  const range = face.unicodeRange ? `;unicode-range:${face.unicodeRange}` : "";
+  return `@font-face{font-family:${JSON.stringify(face.family)};font-style:normal;font-weight:${face.weight};font-display:swap;src:url(${JSON.stringify(url)}) format('truetype')${range}}`;
 }

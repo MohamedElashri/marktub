@@ -5,7 +5,8 @@
   import BusyStatus from "./ui/BusyStatus.svelte";
   import { shortcutLabel } from "./commands";
   import { appearance, osDark, type Values } from "./preferences";
-  import { arabicCompatibility } from "./fonts/arabic-compatibility";
+  import { shaping } from "./fonts/arabic-compatibility";
+  import { resolveTypography } from "./fonts/typography";
   import { listen } from "@tauri-apps/api/event";
   import * as bridge from "./bridge";
   import type { Descriptor, SourceRange, SettingsResult } from "./bridge";
@@ -480,9 +481,8 @@
     document && document.id !== "recovery" ? document.id : null;
 
   const displayed = $derived(previewSettings ?? settings?.resolved ?? {});
-  const presentation = $derived(
-    appearance(displayed, $osDark, $arabicCompatibility),
-  );
+  const typography = $derived(resolveTypography(displayed, $shaping));
+  const presentation = $derived(appearance(displayed, $osDark, typography));
   const settingsCurrent = $derived(
     !!document && document.id === settingsDocument,
   );
@@ -1702,7 +1702,8 @@
                 {spellcheck}
                 {numbers}
                 active={active && (mode === "source" || mode === "split")}
-                nativeAllowed={$arabicCompatibility}
+                {typography}
+                nativeAllowed={$shaping === "webkit-compatibility"}
                 focus={writingFocus}
                 onanchor={sourceAnchor}
                 onimage={async (copy, offer, bytes) => {

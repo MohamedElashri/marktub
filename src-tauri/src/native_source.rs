@@ -32,12 +32,30 @@ pub(crate) struct Appearance {
     paper: String,
     selection: String,
     quiet: String,
-    size: i32,
-    spacing: f64,
+    reader: TextMetrics,
+    source: SourceTypography,
     wrap: bool,
     numbers: bool,
     tab_width: i32,
 }
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct TextMetrics {
+    size: i32,
+    line_height: f64,
+}
+
+#[derive(Deserialize)]
+struct SourceTypography {
+    family: String,
+    portable: String,
+    #[serde(flatten)]
+    metrics: TextMetrics,
+}
+
+#[cfg(target_os = "linux")]
+mod typography;
 
 #[derive(Clone, Copy, Deserialize)]
 pub(crate) struct Rectangle {
@@ -139,7 +157,7 @@ mod gtk_source {
         collections::HashMap,
         rc::Rc,
     };
-    use tauri::{Emitter, Manager};
+    use tauri::Emitter;
 
     #[derive(Default)]
     struct Events {
@@ -153,6 +171,7 @@ mod gtk_source {
         view: gtk::TextView,
         scroll: gtk::ScrolledWindow,
         buffer: gtk::TextBuffer,
+        arabic: gtk::TextTag,
         styles: gtk::CssProvider,
         rect: Cell<Option<Rectangle>>,
         events: Rc<RefCell<Events>>,
@@ -173,59 +192,6 @@ mod gtk_source {
         let anchor = buffer.iter_at_offset(selected.anchor.clamp(0, buffer.char_count()));
         let head = buffer.iter_at_offset(selected.head.clamp(0, buffer.char_count()));
         buffer.select_range(&head, &anchor);
-    }
-
-    fn register_font(window: &WebviewWindow) -> Result<(), String> {
-        use std::ffi::{CString, c_char, c_void};
-        use std::os::unix::ffi::OsStrExt;
-
-        #[link(name = "fontconfig")]
-        unsafe extern "C" {
-            fn FcConfigGetCurrent() -> *mut c_void;
-            fn FcConfigParseAndLoadFromMemory(
-                config: *mut c_void,
-                rule: *const c_char,
-                complain: i32,
-            ) -> i32;
-            fn FcConfigAppFontAddFile(config: *mut c_void, path: *const c_char) -> i32;
-        }
-
-        let path = window
-            .path()
-            .app_cache_dir()
-            .map_err(|e| e.to_string())?
-            .join("bundled-fonts");
-        std::fs::create_dir_all(&path).map_err(|e| e.to_string())?;
-        let font = path.join("MarktubNative-Amiri-Regular.ttf");
-        let bytes = include_bytes!("../../src/fonts/assets/Amiri-Regular.ttf");
-        if !(std::fs::metadata(&font).is_ok_and(|info| info.len() == bytes.len() as u64)
-            && std::fs::read(&font).is_ok_and(|current| current == bytes))
-        {
-            let temporary = path.join(format!("Amiri-{}.ttf", uuid::Uuid::new_v4()));
-            std::fs::write(&temporary, bytes).map_err(|e| e.to_string())?;
-            std::fs::rename(&temporary, &font).map_err(|e| e.to_string())?;
-        }
-        let name = CString::new(font.as_os_str().as_bytes()).map_err(|e| e.to_string())?;
-        // Give the bundled face its own name so an installed Amiri version cannot
-        // silently replace the font used by the reader's Arabic compatibility face.
-        let (comparison, file) = font
-            .to_str()
-            .map(|path| ("eq", path))
-            .unwrap_or(("contains", "MarktubNative-Amiri-Regular.ttf"));
-        let file = glib::markup_escape_text(file);
-        let rule = CString::new(format!(
-            r#"<?xml version="1.0"?><!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd"><fontconfig><match target="scan"><test name="file" compare="{comparison}"><string>{file}</string></test><edit name="family" mode="prepend"><string>Marktub Native Amiri</string></edit></match></fontconfig>"#
-        )).map_err(|e| e.to_string())?;
-        let registered = unsafe {
-            let config = FcConfigGetCurrent();
-            !config.is_null()
-                && FcConfigParseAndLoadFromMemory(config, rule.as_ptr(), 1) != 0
-                && FcConfigAppFontAddFile(config, name.as_ptr()) != 0
-        };
-        if !registered {
-            return Err("GTK could not load the bundled Arabic font.".into());
-        }
-        Ok(())
     }
 
     fn surface(window: &WebviewWindow) -> Result<gtk::Overlay, String> {
@@ -307,7 +273,7 @@ mod gtk_source {
                 return Ok(());
             }
             if !host.font_ready {
-                register_font(&window)?;
+                crate::fonts::native::register(&window)?;
                 host.font_ready = true;
             }
             if host.surface.is_none() {
@@ -344,12 +310,14 @@ mod gtk_source {
             host.surface.as_ref().unwrap().add_overlay(&scroll);
             let events = Rc::new(RefCell::new(Events::default()));
             connect(&window, &token, &view, &buffer, &scroll, &events);
+            let arabic = super::typography::arabic_paragraphs(&buffer);
             host.editors.insert(
                 token,
                 Editor {
                     view,
                     scroll,
                     buffer,
+                    arabic,
                     styles,
                     rect: Cell::new(None),
                     events,
@@ -549,13 +517,24 @@ mod gtk_source {
     }
 
     fn decorate(editor: &Editor, style: Appearance) -> Result<(), String> {
-        let size = style.size.clamp(11, 40);
+        use crate::fonts::native::source_family_css;
+        let source_size = style.source.metrics.size.clamp(11, 32);
+        let mut source_family = source_family_css(&style.source.family);
+        if !style
+            .source
+            .family
+            .eq_ignore_ascii_case(&style.source.portable)
+        {
+            source_family.push_str(", ");
+            source_family.push_str(&source_family_css(&style.source.portable));
+        }
+        let reader_size = style.reader.size.clamp(12, 40);
         let ink = color(&style.ink, "#242424");
         let paper = color(&style.paper, "#ffffff");
         let selection = color(&style.selection, "#9bc5ee");
         let quiet = color(&style.quiet, "#616161");
         let css = format!(
-            "textview, textview text {{ font-family: \"Marktub Native Amiri\", serif; font-size: {size}px; color: {ink}; background-color: {paper}; caret-color: {ink}; }} textview text selection {{ color: {ink}; background-color: {selection}; }} textview border {{ color: {quiet}; background-color: {paper}; }}"
+            "textview, textview text {{ font-family: {source_family}, monospace; font-size: {source_size}px; color: {ink}; background-color: {paper}; caret-color: {ink}; }} textview text selection {{ color: {ink}; background-color: {selection}; }} textview border {{ color: {quiet}; background-color: {paper}; }}"
         );
         editor
             .styles
@@ -574,17 +553,30 @@ mod gtk_source {
             },
             gtk::PolicyType::Automatic,
         );
-        let leading = ((style.spacing.clamp(1.2, 2.4) - 1.5) * f64::from(size))
-            .max(0.0)
-            .round() as i32;
+        let source_font_height = editor.view.create_pango_layout(Some("Mg")).pixel_size().1;
+        let leading = (style.source.metrics.line_height.clamp(1.2, 2.2) * f64::from(source_size)
+            - f64::from(source_font_height))
+        .max(0.0)
+        .round() as i32;
         editor.view.set_pixels_above_lines(leading / 2);
         editor.view.set_pixels_below_lines(leading - leading / 2);
         editor.view.set_pixels_inside_wrap(leading);
+
+        let leading = ((style.reader.line_height.clamp(1.2, 2.4) - 1.5) * f64::from(reader_size))
+            .max(0.0)
+            .round() as i32;
+        let mut font = pango::FontDescription::new();
+        font.set_family(crate::fonts::native::ARABIC_FAMILY);
+        font.set_absolute_size(f64::from(reader_size * pango::SCALE));
+        editor.arabic.set_font_desc(Some(&font));
+        editor.arabic.set_pixels_above_lines(leading / 2);
+        editor.arabic.set_pixels_below_lines(leading - leading / 2);
+        editor.arabic.set_pixels_inside_wrap(leading);
         let mut tabs = pango::TabArray::new(1, true);
         tabs.set_tab(
             0,
             pango::TabAlign::Left,
-            (style.tab_width.clamp(1, 12) * size) / 2,
+            (style.tab_width.clamp(1, 12) * source_size) / 2,
         );
         editor.view.set_tabs(&tabs);
         editor.view.set_border_window_size(
@@ -714,6 +706,7 @@ mod gtk_source {
 
     #[cfg(feature = "e2e")]
     pub(super) fn fixture(action: &str, text: &str) -> Result<String, String> {
+        use pango::prelude::FontExt;
         HOST.with_borrow(|host| {
             let editor = host.editors.values().find(|e| e.scroll.is_visible());
             let Some(editor) = editor else {
@@ -761,9 +754,20 @@ mod gtk_source {
             let text = buffer
                 .text(&buffer.start_iter(), &buffer.end_iter(), true)
                 .unwrap_or_default();
+            let context = editor.view.pango_context();
+            let family = context
+                .font_description()
+                .and_then(|description| context.load_font(&description))
+                .and_then(|font| font.describe().family());
+            let mut start = buffer.start_iter();
+            let arabic = !start.has_tag(&editor.arabic)
+                && start.forward_to_tag_toggle(Some(&editor.arabic))
+                && start.starts_tag(Some(&editor.arabic));
             let allocation = editor.scroll.allocation();
             Ok(serde_json::json!({
                 "text": text.as_str(),
+                "font": family.as_deref(),
+                "arabicReadingStyle": arabic,
                 "x": allocation.x(),
                 "y": allocation.y(),
                 "width": allocation.width(),

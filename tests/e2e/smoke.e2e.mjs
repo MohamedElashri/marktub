@@ -1858,16 +1858,36 @@ describe("Preferences and commands", () => {
         .style.getPropertyValue("--source-font"),
     );
     expect(fontsBeforePreset).not.toContain("Cousine");
-    await prefs().$("button=Use Riwaq typography").click();
-    await browser.waitUntil(async () =>
-      (
-        await browser.tauri.execute(() =>
-          document
-            .querySelector(".document-tab:not([hidden]) .window-shell")
-            .style.getPropertyValue("--source-font"),
-        )
-      ).includes("Cousine"),
-    );
+    // A WebView font load can reject while native settings validation passes.
+    await browser.tauri.execute(() => {
+      document.fonts.load = () =>
+        Promise.reject(new Error("font failed to load"));
+    });
+    try {
+      await prefs().$("button=Use Riwaq typography").click();
+      await browser.waitUntil(async () =>
+        browser.tauri.execute(() => {
+          const style = document.querySelector(
+            ".document-tab:not([hidden]) .window-shell",
+          ).style;
+          return (
+            style.getPropertyValue("--source-font").includes("Cousine") &&
+            style.getPropertyValue("--reader-line-height") === "1.9"
+          );
+        }),
+      );
+      await expect(
+        prefs().$("p=Riwaq typography is selected for this scope."),
+      ).toBeDisplayed();
+    } finally {
+      await browser.tauri.execute(() => delete document.fonts.load);
+    }
+    expect(
+      await browser.tauri.execute(async () => {
+        const faces = await document.fonts.load('16px "Cousine"', "Markdown");
+        return faces.map((face) => face.status);
+      }),
+    ).toEqual(["loaded"]);
     await browser.saveScreenshot("artifacts/native-riwaq-settings.png");
     await prefs().$("button=Revert changes").click();
     await browser.waitUntil(
@@ -6582,7 +6602,10 @@ describe("Arabic reading layout", () => {
     expect(html).toContain("--paper:#1a1a2e");
     expect(html).toContain("data:font/ttf;base64,");
     expect(html).toContain('font-family:"Amiri"');
-    expect(html).not.toMatch(/url\((?!data:)/);
+    const external = [...html.matchAll(/url\(["']?([^)"']+)/g)].filter(
+      ([, url]) => !url.startsWith("data:"),
+    );
+    expect(external).toEqual([]);
     expect(await readFile(fixture.path)).toEqual(
       Buffer.from(longArabicDocument, "utf8"),
     );
@@ -6617,6 +6640,13 @@ describe("Native GTK Arabic source", () => {
     const scalar = [...normalized.slice(0, at)].length;
     const modified = normalized.slice(0, at) + insertion + normalized.slice(at);
     try {
+      await browser.tauri.execute(({ core }) =>
+        core.invoke("update_settings", {
+          id: null,
+          scope: "session",
+          text: '$editor.font="Cousine"\n$editor.font_size=20',
+        }),
+      );
       const fixture = await call("seed", original);
       await pane().$("button.open-button").waitForEnabled({ timeout: 60000 });
       await pane().$("button.open-button").click();
@@ -6625,6 +6655,8 @@ describe("Native GTK Arabic source", () => {
       await browser.waitUntil(widgetVisible, { timeout: 15000 });
       const initial = await native();
       expect(initial.text).toBe(normalized);
+      expect(initial.font).toContain("Cousine");
+      expect(initial.arabicReadingStyle).toBe(true);
       expect(initial.width).toBeGreaterThan(340);
 
       await native("native-source-insert", {
@@ -6775,9 +6807,14 @@ describe("Native GTK Arabic source", () => {
       await pane().$("button=Read").click();
       await browser.waitUntil(async () => (await native()) === null);
     } finally {
-      await browser.tauri.execute(() => {
+      await browser.tauri.execute(async ({ core }) => {
         document.getElementById("gtk-pane-test-dialog")?.remove();
         delete window.__marktubTestNativeSource;
+        await core.invoke("update_settings", {
+          id: null,
+          scope: "session",
+          text: "",
+        });
       });
     }
   });
@@ -7102,6 +7139,7 @@ describe("Arabic editing layout", () => {
   it("shares Arabic fonts between the reader and every editing view", async () => {
     const mixed = "English with كلمات عربية and 123.";
     const latin = "Plain English source line.";
+    const latinWithCode = "English prose with `شيفرة`.";
     const code = "العربية داخل الشيفرة";
     const inline = "عبارة قصيرة";
     const atx = "عنوان أول";
@@ -7112,6 +7150,7 @@ describe("Arabic editing layout", () => {
         baselineSample,
         mixed,
         latin,
+        latinWithCode,
         `# ${atx}`,
         `${setext}\n---`,
         `مثال \`${inline}\`.`,
@@ -7152,11 +7191,12 @@ describe("Arabic editing layout", () => {
                       ".cm-line, .cm-source-code",
                     ),
                   ];
+              const displayedText = (text) =>
+                text.trim().replace(/^#\s+/, "").replaceAll("`", "");
               return texts.map((text) => {
                 const el = elements.find(
                   (element) =>
-                    element.textContent.trim().replace(/^#\s+|^`|`$/g, "") ===
-                    text,
+                    displayedText(element.textContent) === displayedText(text),
                 );
                 if (!el) return null;
                 const style = getComputedStyle(el);
@@ -7194,15 +7234,17 @@ describe("Arabic editing layout", () => {
           await pane().$(`button=${mode}`).click();
           const edited = await typography(
             false,
-            mode === "Visual" ? samples : [...samples, latin],
+            mode === "Visual" ? samples : [...samples, latin, latinWithCode],
           );
           expect(edited.slice(0, 2)).toEqual(reading.slice(0, 2));
           expect(edited.slice(2, 6).map((style) => style?.[0])).toEqual(
             reading.slice(2, 6).map((style) => style[0]),
           );
+          expect(edited[5][1]).toBe("16px");
           if (mode !== "Visual") {
             expect(edited[6][0]).toContain("Cousine");
             expect(edited[6][1]).toBe("16px");
+            expect(edited[7]).toEqual(edited[6]);
           }
         }
       }

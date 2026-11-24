@@ -5,10 +5,11 @@ import {
   themes,
   put,
   literals,
-  fontStack,
-  riwaqTypography,
   type Values,
 } from "../../src/preferences";
+import { fontChoices } from "../../src/fonts/catalogue";
+import { riwaqStatus, riwaqTypography } from "../../src/fonts/presets";
+import { resolveTypography } from "../../src/fonts/typography";
 import { matches, score, definitions } from "../../src/commands";
 const contrast = (a: string, b: string) => {
   const light = (s: string) => {
@@ -64,20 +65,37 @@ describe("presentation and command contracts", () => {
       "reader.font": { type: "text", value: 'x";background:url(https://evil)' },
     };
     expect(appearance(values)).toContain("--ui-factor:1.5");
-    expect(fontStack('x";background:blue')).toContain('x\\";background:blue');
-    expect(fontStack("System Mono", true)).toContain("Noto Color Emoji");
-    expect(fontStack("System UI", true)).toContain("-apple-system");
-    expect(fontStack("Serif")).toContain("Noto Sans Hebrew");
-    expect(fontStack("serif")).toBe(fontStack("Serif"));
-    expect(fontStack("system ui")).toBe(fontStack("System UI"));
+    expect(resolveTypography(values).css).toContain('x\\";background:url');
   });
-  it("uses the bundled Arabic fallback before system/generic families and honors explicit fonts", () => {
-    for (const family of ["System UI", "System Mono", "Serif", "Sans Serif"])
-      expect(fontStack(family)).toMatch(/^"Marktub Arabic",/);
-    for (const family of ["Amiri", "Noto Naskh Arabic", "Noto Sans Arabic"])
-      expect(fontStack(family)).toMatch(new RegExp(`^"${family}",`));
-    expect(fontStack("System Mono", true)).toMatch(/^"Marktub Arabic",/);
-    expect(fontStack("Cousine", true)).toMatch(/^"Cousine", "Marktub Arabic",/);
+  it("resolves case-insensitive bundled and system choices with script fallbacks", () => {
+    const settings = (family: string): Values => ({
+      "reader.font": { type: "text", value: family },
+    });
+    for (const family of ["System UI", "System Mono", "Serif", "Sans Serif"]) {
+      const css = resolveTypography(settings(family)).css;
+      expect(css).toMatch(/^--reader-font:"Marktub Arabic",/);
+      expect(css).toContain('"Noto Sans Hebrew"');
+      expect(css).toBe(resolveTypography(settings(family.toLowerCase())).css);
+    }
+    for (const family of [
+      "Amiri",
+      "Noto Naskh Arabic",
+      "Noto Sans Arabic",
+      "constructor",
+    ])
+      expect(resolveTypography(settings(family)).css).toMatch(
+        new RegExp(`^--reader-font:"${family}",`),
+      );
+    expect(
+      resolveTypography({
+        "editor.font": { type: "text", value: "Cousine" },
+      }).css,
+    ).toContain('--source-font:"Cousine", "Marktub Arabic",');
+    expect(
+      fontChoices(["amiri", "Noto Serif", "noto serif"]).filter((name) =>
+        ["amiri", "noto serif"].includes(name.toLowerCase()),
+      ),
+    ).toEqual(["Amiri", "Noto Serif"]);
     expect(appearance({})).toContain(
       "--source-size:16px;--source-line-height:1.8",
     );
@@ -130,7 +148,11 @@ describe("presentation and command contracts", () => {
     expect(css).toContain('--reader-font:"My font"');
     expect(css).toContain('--reader-heading-font:"My font"');
     expect(appearance({})).toContain('--reader-font:"Noto Naskh Arabic"');
-    const compatibility = appearance(values, false, true);
+    const compatibility = appearance(
+      values,
+      false,
+      resolveTypography(values, "webkit-compatibility"),
+    );
     for (const role of ["reader", "reader-heading", "source"])
       expect(compatibility).toContain(
         `--${role}-font:"Marktub Arabic Compatibility", `,
@@ -138,10 +160,34 @@ describe("presentation and command contracts", () => {
     expect(css.split("--ui-font:")[1]?.split(";")[0]).toBe(
       appearance({}).split("--ui-font:")[1]?.split(";")[0],
     );
-    expect(fontStack("Thmanyah Serif Display")).toContain(
-      '"Thmanyah Serif Display", "Amiri"',
-    );
+    expect(
+      resolveTypography({
+        "reader.heading_font": {
+          type: "text",
+          value: "Thmanyah Serif Display",
+        },
+      }).css,
+    ).toContain('"Thmanyah Serif Display", "Amiri"');
     expect(css).not.toContain("direction:");
+  });
+  it("reports the Riwaq preset when a higher-priority scope masks any of its choices", () => {
+    const assigned = literals(riwaqTypography("", []));
+    const effective: Values = {
+      "reader.font": { type: "text", value: "Noto Naskh Arabic" },
+      "reader.heading_font": { type: "text", value: "Amiri" },
+      "reader.line_height": { type: "number", value: 190 },
+      "editor.font": { type: "text", value: "Cousine" },
+    };
+    expect(riwaqStatus(assigned, effective)).toBe(
+      "Riwaq typography is selected for this scope.",
+    );
+    expect(
+      riwaqStatus(assigned, {
+        ...effective,
+        "editor.font": { type: "text", value: "System Mono" },
+      }),
+    ).toContain("higher-priority scope");
+    expect(riwaqStatus({}, effective)).toBe("");
   });
   it("matches physical letters, portable modifiers and suppresses IME/AltGraph", () => {
     expect(

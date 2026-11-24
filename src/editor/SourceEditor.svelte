@@ -41,7 +41,9 @@
   } from "@codemirror/language";
   import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
   import { liveFormatting } from "./visual";
-  import { writingDirections } from "./direction";
+  import { arabicScript, writingDirections } from "./direction";
+  import type { resolveTypography } from "../fonts/typography";
+  import { isWebKitGTK } from "../fonts/arabic-compatibility";
   import { fromGtk, NativeSource } from "./native-source";
   import { applyEdits, flushEdits, errorMessage } from "../bridge";
   import { EditQueue, MAX_QUEUE } from "../document/queue";
@@ -75,6 +77,7 @@
     wrap = true,
     flushMs = 500,
     presentation = "",
+    typography,
     onchange,
     onready,
     onerror,
@@ -93,6 +96,7 @@
     wrap?: boolean;
     flushMs?: number;
     presentation?: string;
+    typography: ReturnType<typeof resolveTypography>;
     onchange: (queue: EditQueue) => void;
     onready: () => void;
     onerror: (message: string) => void;
@@ -132,7 +136,6 @@
   let nativeFailed = $state(false);
   let hasArabic = $state(false);
   let nativeAnchor: { line: number; fraction: number } | undefined;
-  const arabic = /\p{Script=Arabic}/u;
   function focusEditor() {
     if (native?.visible) native.focus();
     else view?.focus();
@@ -403,7 +406,7 @@
     host.addEventListener("author-dragstart", drag);
 
     logicalBytes = encodedLength(text);
-    hasArabic = arabic.test(text);
+    hasArabic = arabicScript.test(text);
     queue = new EditQueue(
       session,
       {
@@ -421,7 +424,7 @@
         selection: { anchor: Math.min(session.caret, text.length) },
         extensions: [
           markdown({ base: markdownLanguage, completeHTMLTags: false }),
-          writingDirections,
+          writingDirections(isWebKitGTK()),
           EditorState.allowMultipleSelections.of(true),
           rectangularSelection(),
           crosshairCursor(),
@@ -635,7 +638,8 @@
                 transaction.changes.iterChanges(
                   (from, to, _a, _b, inserted) => {
                     const insertion = inserted.toString();
-                    if (!hasArabic && arabic.test(insertion)) hasArabic = true;
+                    if (!hasArabic && arabicScript.test(insertion))
+                      hasArabic = true;
                     logicalBytes +=
                       encodedLength(insertion) -
                       encodedLength(
@@ -733,8 +737,8 @@
         paper: value("--paper"),
         quiet: value("--quiet"),
         selection: value("--selection"),
-        size: parseInt(value("--reader-size"), 10) || 18,
-        spacing: Number(value("--reader-line-height")) || 1.75,
+        reader: typography.reader,
+        source: typography.source,
         tabWidth,
         wrap,
         numbers: numbers && !focus,
